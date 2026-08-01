@@ -28,15 +28,18 @@ docker-compose up --build
 - [`frontend/README.md`](./frontend/README.md)
 - `mobile/README.md` (سيُضاف مع تسليم تطبيق الجوال)
 
-## الحالة الحالية — المرحلة الأولى (Foundation)
+## الحالة الحالية — MVP Sprint (منتج قابل للاستخدام الفعلي)
 | الجزء | الحالة |
 |---|---|
-| Backend (18 Module، 46 اختبار ناجح) | ✅ مكتمل |
-| Frontend — Authentication | ✅ مكتمل (متصل بالـ API الحقيقي) |
-| Frontend — Dashboards/Messaging/Tasks | ⏳ قيد الإنشاء (أجزاء تالية من نفس التسليم) |
-| Mobile (Flutter) | ⏳ قيد الإنشاء |
-| Docker (لكل مشروع + docker-compose) | ✅ مكتمل |
-| CI (GitHub Actions) | ✅ مكتمل (backend-ci, frontend-ci, mobile-ci) |
+| Web Admin: Login/Dashboard/Companies/Stations/Teams/Users | ✅ مكتمل وجاهز للاستخدام الفعلي |
+| Mobile: Login/Home/Conversations/Chat/Tasks/Shift/Fuel Request/Profile | ✅ مكتمل (بناءً على العمل السابق) |
+| Backend لكل الشاشات أعلاه | ✅ مكتمل، 82/82 اختبار ناجح |
+| Seed Data (حسابات تجريبية جاهزة) | ✅ `backend/prisma/seed.ts` |
+| Railway Deployment | ✅ راجع `docs/deployment-guide.md` |
 
-راجع `docs/architecture-diagram.md` للتفاصيل الكاملة.
+**مُجمَّد حاليًا بقرار صريح** (موجود في الكود، لن يُطوَّر حتى Sprint التحسينات القادم):
+OCR، الذكاء الاصطناعي، Translation Cache، Image Analysis، Offline Queue،
+Company Dictionary، توسيع مزوّدي الخدمة.
+
+راجع `docs/architecture-diagram.md` للتفاصيل الكاملة، و`docs/deployment-guide.md` للنشر.
 

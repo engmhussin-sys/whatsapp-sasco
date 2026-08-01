@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { SystemRole } from '@prisma/client';
+import { SystemRole, UserStatus } from '@prisma/client';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
@@ -24,7 +25,19 @@ export class UsersService {
     });
     if (existing) throw new ConflictException('A user with this email already exists in this company');
 
-    const passwordHash = await this.authService.hashPassword(dto.password);
+    // Enterprise onboarding: the worker never sets their own initial
+    // password — if the admin didn't supply one, generate a random,
+    // never-communicated placeholder hash. It is cryptographically
+    // unguessable and login is impossible until OnboardingService
+    // overwrites it with the worker's own PIN/password during activation.
+    const passwordHash = await this.authService.hashPassword(dto.password ?? randomBytes(24).toString('hex'));
+
+    const role = dto.systemRole ?? SystemRole.WORKER;
+    // Only the worker-facing roles go through OTP activation; a
+    // Company Admin created via this endpoint (rare — normally done via
+    // CompaniesService.create) is assumed to set their own credentials
+    // immediately and is active right away.
+    const status = role === SystemRole.COMPANY_ADMIN ? UserStatus.ACTIVE : UserStatus.INVITED;
 
     return this.prisma.user.create({
       data: {
@@ -34,7 +47,8 @@ export class UsersService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         phone: dto.phone,
-        systemRole: dto.systemRole ?? SystemRole.WORKER,
+        systemRole: role,
+        status,
         preferredLanguage: dto.preferredLanguage ?? 'en',
         preferences: { create: {} },
       },
@@ -107,6 +121,7 @@ export class UsersService {
     avatarUrl: true,
     systemRole: true,
     isActive: true,
+    status: true,
     preferredLanguage: true,
     createdAt: true,
     lastLoginAt: true,

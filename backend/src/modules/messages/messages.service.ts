@@ -15,6 +15,7 @@ export class MessagesService {
 
   async sendText(companyId: string, conversationId: string, senderId: string, dto: SendTextMessageDto) {
     await this.conversationsService.assertMembership(companyId, conversationId, senderId);
+    await this.conversationsService.assertCanPost(companyId, conversationId, senderId);
 
     const sender = await this.prisma.user.findUnique({ where: { id: senderId } });
 
@@ -57,6 +58,7 @@ export class MessagesService {
     durationMs?: number,
   ) {
     await this.conversationsService.assertMembership(companyId, conversationId, senderId);
+    await this.conversationsService.assertCanPost(companyId, conversationId, senderId);
 
     const stored = await this.storage.save(file.buffer, {
       fileName: file.originalname,

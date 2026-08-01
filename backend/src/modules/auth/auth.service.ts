@@ -78,6 +78,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.status === 'INVITED') {
+      throw new UnauthorizedException(
+        'Account not yet activated — complete OTP activation first (see /onboarding/activate)',
+      );
+    }
+
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');

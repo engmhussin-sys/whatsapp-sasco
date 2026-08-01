@@ -22,10 +22,16 @@ import { ShiftManagementModule } from './modules/shift-management/shift-manageme
 import { StationsModule } from './modules/stations/stations.module';
 import { InspectionsModule } from './modules/inspections/inspections.module';
 import { FuelRequestsModule } from './modules/fuel-requests/fuel-requests.module';
+import { OnboardingModule } from './modules/onboarding/onboarding.module';
+import { DepartmentsModule } from './modules/departments/departments.module';
+import { DirectoryModule } from './modules/directory/directory.module';
+import { ChatPolicyModule } from './modules/chat-policy/chat-policy.module';
+import { CompanyDictionaryModule } from './modules/company-dictionary/company-dictionary.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -50,7 +56,13 @@ import { TenantGuard } from './common/guards/tenant.guard';
     StationsModule,
     InspectionsModule,
     FuelRequestsModule,
+    OnboardingModule,
+    DepartmentsModule,
+    DirectoryModule,
+    ChatPolicyModule,
+    CompanyDictionaryModule,
   ],
+  controllers: [HealthController],
   providers: [
     // Global guard order matters: authenticate -> resolve tenant -> check role/permission
     { provide: APP_GUARD, useClass: JwtAuthGuard },

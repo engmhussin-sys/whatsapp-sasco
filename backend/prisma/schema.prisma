@@ -41,6 +41,12 @@ enum ConversationType {
   DIRECT
   GROUP
   TEAM
+  // Sprint 3: Smart Channels — each tied to its own operational context
+  SHIFT         // scoped to a ShiftLog (open/close-shift crew coordination)
+  STATION       // scoped to a Station (all staff at that location)
+  TASK          // scoped to a Task (discussion around one specific task/inspection)
+  ANNOUNCEMENT  // company-wide, posting restricted to admins/managers (see postingRestricted)
+  EMERGENCY     // company or station-wide, posting restricted, always high-priority delivery
 }
 
 enum MessageType {
@@ -99,6 +105,11 @@ model Company {
   inspections   Inspection[]
   fuelRequests  FuelRequest[]
 
+  // Sprint 3
+  departments      Department[]
+  chatPolicyRules  ChatPolicyRule[]
+  dictionaryTerms  CompanyDictionaryTerm[]
+
   @@index([slug])
   @@map("companies")
 }
@@ -123,6 +134,18 @@ model User {
   isActive          Boolean    @default(true)
   emailVerifiedAt   DateTime?
 
+  // Sprint 3: Enterprise onboarding + Visibility Engine
+  status            UserStatus      @default(ACTIVE)
+  credentialType    CredentialType?
+  departmentId      String?
+  department        Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  primaryStationId  String?
+  primaryStation    Station?        @relation(fields: [primaryStationId], references: [id], onDelete: SetNull)
+  // Per-user override of how far up the hierarchy this user can see others
+  // in the Company Directory. Null falls back to the role-based default
+  // resolved by DirectoryService (see docs/visibility-engine.md).
+  directoryVisibilityScope VisibilityScope?
+
   preferredLanguage String     @default("en")
 
   createdAt         DateTime   @default(now())
@@ -134,6 +157,7 @@ model User {
   teamMemberships   TeamMember[]
   refreshTokens     RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  otpTokens         OtpToken[]
   sentMessages      Message[]            @relation("MessageSender")
   conversations     ConversationMember[]
   preferences       UserPreference?
@@ -201,6 +225,8 @@ model Team {
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   description String?
+  departmentId String?
+  department  Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -277,6 +303,23 @@ model Conversation {
   teamId    String?
   team      Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
   title     String?
+
+  // Sprint 3: Smart Channels — optional context anchors. At most one of
+  // these is set, matching `type` (e.g. type=SHIFT implies contextShiftLogId
+  // is set and the others are null) — enforced in ConversationsService, not
+  // at the DB level, to keep the schema simple (a DB-level CHECK constraint
+  // per type would need raw SQL Prisma doesn't model declaratively).
+  contextShiftLogId String?
+  contextStationId  String?
+  contextTaskId     String?
+  contextStation    Station? @relation(fields: [contextStationId], references: [id], onDelete: SetNull)
+
+  // True for ANNOUNCEMENT/EMERGENCY channels: only COMPANY_ADMIN/SUPER_ADMIN
+  // (and, for EMERGENCY, anyone holding a company-configured "Manager"-tier
+  // custom Role) may post; everyone else has read-only access — enforced in
+  // MessagesService.sendText, not here.
+  postingRestricted Boolean  @default(false)
+
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 
@@ -340,6 +383,7 @@ model MessageTranslation {
   langCode      String
   translatedText String
   engine        String?  // which provider produced it (for Phase 2)
+  version       Int      @default(1) // incremented on re-translation (provider/dictionary change)
   createdAt     DateTime @default(now())
 
   @@unique([messageId, langCode])
@@ -804,6 +848,8 @@ model Station {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
   code      String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   latitude  Float?
   longitude Float?
   isActive  Boolean  @default(true)
@@ -813,6 +859,8 @@ model Station {
   shiftLogs   ShiftLog[]
   inspections Inspection[]
   fuelRequests FuelRequest[]
+  conversations Conversation[]
+  primaryUsers  User[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -901,4 +949,136 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ==========================================================================
+// SPRINT 3 ADDITIONS — Product Review closure items
+// Enterprise Onboarding (OTP activation) + Company Directory +
+// Visibility Engine + Chat Policies + Smart Channels + Company Dictionary
+// + Translation versioning
+// ==========================================================================
+
+// --------------------------------------------------------------------------
+// ENUMS — Onboarding / Identity
+// --------------------------------------------------------------------------
+
+enum UserStatus {
+  INVITED   // account created by Company Admin/HR, worker has not activated yet
+  ACTIVE    // OTP verified + credential (password or PIN) set
+  DISABLED
+}
+
+enum OtpChannel {
+  PHONE
+  EMAIL
+}
+
+enum OtpPurpose {
+  ACTIVATION
+}
+
+enum CredentialType {
+  PASSWORD
+  PIN
+}
+
+// --------------------------------------------------------------------------
+// ENUMS — Visibility Engine
+// --------------------------------------------------------------------------
+
+// Ordered from narrowest to broadest — a user with scope X can see every
+// user within that same tier of the hierarchy (see docs/visibility-engine.md
+// for the exact resolution algorithm implemented in DirectoryService).
+enum VisibilityScope {
+  WORKER      // sees only themself (rare; e.g. a newly invited user pre-activation)
+  TEAM
+  DEPARTMENT
+  STATION
+  COMPANY
+}
+
+// --------------------------------------------------------------------------
+// ONBOARDING — OTP-based activation (Enterprise scenario: HR/Company Admin
+// creates the account, worker only ACTIVATES it — never self-registers)
+// --------------------------------------------------------------------------
+
+model OtpToken {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel     OtpChannel
+  purpose     OtpPurpose @default(ACTIVATION)
+  destination String     // the phone number or email the code was sent to (audit trail)
+  codeHash    String     // never store the raw OTP
+  attempts    Int        @default(0)
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([userId])
+  @@map("otp_tokens")
+}
+
+// --------------------------------------------------------------------------
+// COMPANY DIRECTORY — Departments (new grouping tier between Team and Station/Company)
+// --------------------------------------------------------------------------
+
+model Department {
+  id                 String       @id @default(uuid())
+  companyId          String
+  company            Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  parentDepartmentId String?
+  parentDepartment   Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id], onDelete: SetNull)
+  childDepartments   Department[] @relation("DepartmentHierarchy")
+  createdAt          DateTime     @default(now())
+
+  users    User[]
+  teams    Team[]
+  stations Station[]
+
+  @@index([companyId])
+  @@map("departments")
+}
+
+// --------------------------------------------------------------------------
+// CHAT POLICIES — who is allowed to start a conversation with whom
+// --------------------------------------------------------------------------
+
+// Rules are evaluated by (fromRole, toRole) pair. A missing rule for a pair
+// defaults to DENY (safe-by-default) — see ChatPolicyService for the exact
+// evaluation order and built-in defaults seeded per company.
+model ChatPolicyRule {
+  id        String     @id @default(uuid())
+  companyId String
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fromRole  SystemRole
+  toRole    SystemRole
+  allowed   Boolean    @default(true)
+  createdAt DateTime   @default(now())
+
+  @@unique([companyId, fromRole, toRole])
+  @@index([companyId])
+  @@map("chat_policy_rules")
+}
+
+// --------------------------------------------------------------------------
+// COMPANY DICTIONARY — per-company terminology consulted BEFORE any
+// general-purpose translation provider call (see TranslationPolicyService)
+// --------------------------------------------------------------------------
+
+model CompanyDictionaryTerm {
+  id              String   @id @default(uuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sourceTerm      String
+  sourceLanguage  String
+  targetLanguage  String
+  translatedTerm  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([companyId, sourceTerm, sourceLanguage, targetLanguage])
+  @@index([companyId])
+  @@map("company_dictionary_terms")
 }

@@ -25,4 +25,7 @@ COPY --from=builder /app/dist ./dist
 
 RUN mkdir -p uploads
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# NOTE: uses `db push` (schema sync) rather than `migrate deploy` because
+# no migration history exists yet — see docs/deployment-guide.md for why,
+# and for the one-time step to switch to proper migrations.
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
