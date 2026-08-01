@@ -1,0 +1,904 @@
+// ==========================================================================
+// WorkForce Connect AI — Database Schema (Phase 1)
+// Multi-Tenant SaaS for multilingual workforce communication
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------------
+// ENUMS
+// --------------------------------------------------------------------------
+
+enum SystemRole {
+  SUPER_ADMIN   // Anthropic-style platform owner, manages all tenants
+  COMPANY_ADMIN // Owns/manages a single tenant (company)
+  TEAM_LEAD     // Optional intermediate role, manages a team
+  WORKER        // Regular chat user
+}
+
+enum SubscriptionPlan {
+  TRIAL
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  TEAM
+}
+
+enum MessageType {
+  TEXT
+  VOICE
+  SYSTEM
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  PERMISSION_CHANGE
+  EXPORT
+}
+
+// --------------------------------------------------------------------------
+// TENANT / COMPANY
+// --------------------------------------------------------------------------
+
+model Company {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique // used in subdomain / tenant routing
+  logoUrl         String?
+  industry        String?
+  defaultLanguage String   @default("en")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations (all tenant-scoped data hangs off Company for isolation)
+  users             User[]
+  teams             Team[]
+  conversations     Conversation[]
+  subscription      Subscription?
+  supportedLanguages CompanyLanguage[]
+  auditLogs         AuditLog[]
+
+  // Sprint 2: Task Engine / Approval Engine / domain modules
+  taskTemplates TaskTemplate[]
+  tasks         Task[]
+  approvalFlows ApprovalFlow[]
+  approvals     Approval[]
+  shifts        Shift[]
+  shiftLogs     ShiftLog[]
+  stations      Station[]
+  inspections   Inspection[]
+  fuelRequests  FuelRequest[]
+
+  @@index([slug])
+  @@map("companies")
+}
+
+// --------------------------------------------------------------------------
+// USERS / ROLES / PERMISSIONS
+// --------------------------------------------------------------------------
+
+model User {
+  id                String     @id @default(uuid())
+  companyId         String?    // null only for SUPER_ADMIN (platform-level user)
+  company           Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  email             String
+  phone             String?
+  passwordHash      String
+  firstName         String
+  lastName          String
+  avatarUrl         String?
+
+  systemRole        SystemRole @default(WORKER)
+  isActive          Boolean    @default(true)
+  emailVerifiedAt   DateTime?
+
+  preferredLanguage String     @default("en")
+
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  lastLoginAt       DateTime?
+
+  // Relations
+  roles             UserRole[]
+  teamMemberships   TeamMember[]
+  refreshTokens     RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  sentMessages      Message[]            @relation("MessageSender")
+  conversations     ConversationMember[]
+  preferences       UserPreference?
+  auditLogs         AuditLog[]
+
+  // Multi-tenant data isolation: composite uniqueness scoped by company
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  companyId   String?  // null = global/system role template, otherwise custom per-company role
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) // true for built-in roles that can't be deleted
+  createdAt   DateTime @default(now())
+
+  permissions RolePermission[]
+  users       UserRole[]
+  approvalSteps ApprovalStep[]
+
+  @@unique([companyId, name])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g. "users.create", "teams.manage", "conversations.moderate"
+  description String?
+
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+// --------------------------------------------------------------------------
+// TEAMS
+// --------------------------------------------------------------------------
+
+model Team {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members       TeamMember[]
+  conversations Conversation[]
+
+  // Sprint 2
+  tasks  Task[]
+  shifts Shift[]
+
+  @@index([companyId])
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId   String
+  userId   String
+  isLead   Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@map("team_members")
+}
+
+// --------------------------------------------------------------------------
+// LANGUAGES
+// --------------------------------------------------------------------------
+
+model Language {
+  code      String  @id // ISO 639-1, e.g. "en", "ar", "hi", "tl"
+  name      String
+  nativeName String
+  isRtl     Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  companies CompanyLanguage[]
+
+  @@map("languages")
+}
+
+model CompanyLanguage {
+  companyId String
+  langCode  String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  language  Language @relation(fields: [langCode], references: [code], onDelete: Cascade)
+
+  @@id([companyId, langCode])
+  @@map("company_languages")
+}
+
+model UserPreference {
+  userId               String  @id
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationsEnabled Boolean @default(true)
+  voiceAutoTranscribe  Boolean @default(true)
+  theme                String  @default("system")
+  updatedAt            DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+// --------------------------------------------------------------------------
+// CONVERSATIONS / MESSAGES
+// --------------------------------------------------------------------------
+
+model Conversation {
+  id        String            @id @default(uuid())
+  companyId String
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type      ConversationType  @default(DIRECT)
+  teamId    String?
+  team      Team?             @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  title     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([companyId])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId String
+  userId         String
+  joinedAt       DateTime  @default(now())
+  lastReadAt     DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@map("conversation_members")
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User          @relation("MessageSender", fields: [senderId], references: [id])
+
+  type           MessageType   @default(TEXT)
+  status         MessageStatus @default(SENT)
+
+  // Original content as authored by sender
+  originalText   String?
+  originalLang   String?
+
+  // Voice message support (Phase 1 storage only, processing in Phase 2)
+  audioUrl       String?
+  audioDurationMs Int?
+
+  createdAt      DateTime      @default(now())
+  editedAt       DateTime?
+  deletedAt      DateTime?
+
+  translations   MessageTranslation[]
+  receipts       MessageReceipt[]
+  attachments    MessageAttachment[]
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+// Phase-2-ready: stores per-language translated payloads once
+// the Translation service (see voice-processing module) is implemented.
+model MessageTranslation {
+  id            String   @id @default(uuid())
+  messageId     String
+  message       Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  langCode      String
+  translatedText String
+  engine        String?  // which provider produced it (for Phase 2)
+  createdAt     DateTime @default(now())
+
+  @@unique([messageId, langCode])
+  @@map("message_translations")
+}
+
+// Per-recipient delivery/read tracking (needed for group conversations)
+model MessageReceipt {
+  messageId   String
+  userId      String
+  status      MessageStatus @default(SENT)
+  updatedAt   DateTime      @updatedAt
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@map("message_receipts")
+}
+
+// --------------------------------------------------------------------------
+// AUTH
+// --------------------------------------------------------------------------
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  userAgent String?
+  ipAddress String?
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// --------------------------------------------------------------------------
+// SUBSCRIPTIONS (Super Admin managed)
+// --------------------------------------------------------------------------
+
+model Subscription {
+  id           String             @id @default(uuid())
+  companyId    String             @unique
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan         SubscriptionPlan   @default(TRIAL)
+  status       SubscriptionStatus @default(ACTIVE)
+  seatsLimit   Int                @default(10)
+  startedAt    DateTime           @default(now())
+  renewsAt     DateTime?
+  canceledAt   DateTime?
+
+  @@map("subscriptions")
+}
+
+// --------------------------------------------------------------------------
+// AUDIT LOG
+// --------------------------------------------------------------------------
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  companyId  String?
+  company    Company?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorId    String?
+  actor      User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     AuditAction
+  entityType String      // e.g. "User", "Message", "Company"
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime    @default(now())
+
+  @@index([companyId])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+// ==========================================================================
+// SPRINT 2 ADDITIONS
+// Vertical Slice 1: Messaging Core completion (Attachments)
+// Vertical Slice 2: Task Management Architecture (generic engines +
+//                    fuel-station domain modules as first consumer)
+//
+// DESIGN PRINCIPLE: WorkflowEngine / ApprovalEngine / DynamicForms /
+// TaskEngine are sector-agnostic. Domain entities (Station, Tank,
+// FuelRequest, Inspection) are thin modules that reference the engine
+// (ApprovalFlow, TaskTemplate) rather than hardcoding their own logic —
+// so the same engine will serve factories, hospitals, construction
+// sites, or security operations later by simply defining new
+// TaskTemplates / ApprovalFlows, with zero engine-level changes.
+// ==========================================================================
+
+// --------------------------------------------------------------------------
+// ENUMS — Messaging attachments
+// --------------------------------------------------------------------------
+
+enum AttachmentKind {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  SIGNATURE
+}
+
+// --------------------------------------------------------------------------
+// ENUMS — Dynamic Forms / Task Engine
+// --------------------------------------------------------------------------
+
+enum TaskFieldType {
+  TEXT
+  NUMBER
+  DATE
+  TIME
+  PHOTO
+  VIDEO
+  AUDIO
+  SIGNATURE
+  GPS
+  CHECKBOX
+  DROPDOWN
+}
+
+enum TaskStatus {
+  DRAFT        // template instantiated, not yet assigned
+  ASSIGNED
+  IN_PROGRESS
+  SUBMITTED    // worker submitted TaskResponse, awaiting approval if required
+  APPROVED
+  REJECTED
+  RETURNED     // sent back to worker for correction
+  COMPLETED
+  CANCELED
+}
+
+// --------------------------------------------------------------------------
+// ENUMS — Approval / Workflow Engine
+// --------------------------------------------------------------------------
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+  CANCELED
+  COMPLETED
+}
+
+enum ApprovalActionType {
+  APPROVE
+  REJECT
+  RETURN
+  COMMENT
+}
+
+// --------------------------------------------------------------------------
+// ENUMS — Shift Management (domain module)
+// --------------------------------------------------------------------------
+
+enum ShiftLogStatus {
+  OPEN
+  CLOSED
+}
+
+// --------------------------------------------------------------------------
+// ENUMS — Fuel Station domain module
+// --------------------------------------------------------------------------
+
+enum FuelRequestStatus {
+  DRAFT
+  PENDING_SUPERVISOR
+  PENDING_MANAGER
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+// ==========================================================================
+// MESSAGING CORE — Attachments
+// ==========================================================================
+
+// Generic file attachment on a chat Message (images/documents; voice
+// messages continue to use Message.audioUrl directly for the primary
+// clip, this model covers *additional* files such as photos shared in
+// conversation, PDFs, etc.)
+model MessageAttachment {
+  id        String         @id @default(uuid())
+  messageId String
+  message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  kind      AttachmentKind
+  url       String
+  fileName  String?
+  mimeType  String?
+  sizeBytes Int?
+  createdAt DateTime       @default(now())
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+// ==========================================================================
+// DYNAMIC FORMS + TASK ENGINE (generic, sector-agnostic)
+// ==========================================================================
+
+// A reusable form definition a Company Admin designs once and instantiates
+// many times as Tasks. `fields` holds an ordered JSON array of field
+// definitions, e.g.:
+// [{ "id": "f1", "type": "NUMBER", "label": "Meter reading", "required": true },
+//  { "id": "f2", "type": "PHOTO",  "label": "Photo of meter", "required": true }]
+// This keeps the schema stable while letting every company build entirely
+// different forms without migrations.
+model TaskTemplate {
+  id             String   @id @default(uuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  domainTag      String?  // free-form categorization, e.g. "fuel_station", "safety_inspection"
+  fields         Json     // TaskFieldDefinition[] — validated at the application layer
+  approvalFlowId String?  // optional: submissions of this template route through this flow
+  approvalFlow   ApprovalFlow? @relation(fields: [approvalFlowId], references: [id], onDelete: SetNull)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tasks Task[]
+
+  @@index([companyId])
+  @@map("task_templates")
+}
+
+// A concrete unit of work. May be instantiated from a TaskTemplate
+// (structured/dynamic form) or created ad-hoc (templateId null, simple
+// title/description checklist item).
+model Task {
+  id          String     @id @default(uuid())
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  templateId  String?
+  template    TaskTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  status      TaskStatus @default(DRAFT)
+  dueAt       DateTime?
+  createdById String
+  teamId      String?    // optional: task scoped to a team (e.g. a station's crew)
+  team        Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  assignments TaskAssignment[]
+  responses   TaskResponse[]
+  // Domain modules point back at a Task rather than duplicating workflow state.
+  inspection    Inspection?
+  fuelRequest   FuelRequest?
+  shiftLogOpen  ShiftLog[] @relation("ShiftOpenTask")
+  shiftLogClose ShiftLog[] @relation("ShiftCloseTask")
+
+  @@index([companyId])
+  @@index([templateId])
+  @@map("tasks")
+}
+
+model TaskAssignment {
+  id         String   @id @default(uuid())
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId     String
+  assignedAt DateTime @default(now())
+  dueAt      DateTime?
+
+  @@unique([taskId, userId])
+  @@map("task_assignments")
+}
+
+// A worker's completed submission for a Task. `answers` maps each
+// TaskTemplate field id to the submitted value (primitive types only;
+// media fields store a reference to a TaskAttachment id instead of raw
+// data). One Task can have multiple responses if RETURNED and resubmitted.
+model TaskResponse {
+  id           String   @id @default(uuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  submittedById String
+  answers      Json     // { [fieldId]: string | number | boolean | { attachmentId: string } }
+  submittedAt  DateTime @default(now())
+
+  attachments TaskAttachment[]
+  approval    Approval?
+
+  @@index([taskId])
+  @@map("task_responses")
+}
+
+// Media/file captured for a specific dynamic field within a TaskResponse
+// (PHOTO/VIDEO/AUDIO/SIGNATURE/GPS field types).
+model TaskAttachment {
+  id             String         @id @default(uuid())
+  taskResponseId String
+  taskResponse   TaskResponse   @relation(fields: [taskResponseId], references: [id], onDelete: Cascade)
+  fieldId        String         // matches an id inside TaskTemplate.fields
+  kind           AttachmentKind
+  url            String
+  gpsLat         Float?
+  gpsLng         Float?
+  capturedAt     DateTime       @default(now())
+
+  @@index([taskResponseId])
+  @@map("task_attachments")
+}
+
+// ==========================================================================
+// APPROVAL / WORKFLOW ENGINE (generic, sector-agnostic)
+// ==========================================================================
+
+// A reusable chain of approval steps, e.g. Worker -> Supervisor -> Manager.
+// `entityType` documents which domain objects use this flow (informational;
+// the actual link is via Approval.entityType/entityId) so one company can
+// define distinct flows per use case (e.g. "FuelRequest" vs "TaskResponse").
+model ApprovalFlow {
+  id         String   @id @default(uuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  entityType String   // e.g. "FuelRequest", "TaskResponse" — free-form tag
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  steps         ApprovalStep[]
+  approvals     Approval[]
+  taskTemplates TaskTemplate[]
+
+  @@index([companyId])
+  @@map("approval_flows")
+}
+
+// One step in a flow. `approverRoleId` points at the (per-company custom)
+// Role that must act at this step — this is what makes Worker -> Supervisor
+// -> Manager configurable per company rather than hardcoded to SystemRole.
+model ApprovalStep {
+  id             String       @id @default(uuid())
+  flowId         String
+  flow           ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  stepOrder      Int
+  name           String       // e.g. "Supervisor Review"
+  approverRoleId String
+  approverRole   Role         @relation(fields: [approverRoleId], references: [id])
+
+  @@unique([flowId, stepOrder])
+  @@map("approval_steps")
+}
+
+// One instance of an entity going through an ApprovalFlow. `entityType` +
+// `entityId` form a polymorphic reference (e.g. entityType="FuelRequest",
+// entityId=<FuelRequest.id>) so the engine stays decoupled from domain
+// tables — no foreign key coupling required in either direction beyond
+// the optional 1:1 relations declared on the domain side for convenience.
+model Approval {
+  id             String         @id @default(uuid())
+  companyId      String
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  flowId         String
+  flow           ApprovalFlow   @relation(fields: [flowId], references: [id])
+  entityType     String
+  entityId       String
+  currentStep    Int            @default(1)
+  status         ApprovalStatus @default(PENDING)
+  createdById    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  actions      ApprovalAction[]
+  taskResponse TaskResponse?    @relation(fields: [taskResponseId], references: [id])
+  taskResponseId String?        @unique
+  fuelRequest  FuelRequest?
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@map("approvals")
+}
+
+// Full audit trail of every decision made on an Approval: who, what step,
+// what action (APPROVE/REJECT/RETURN/COMMENT), and any comment text.
+// This IS the audit trail required by the workflow spec — kept separate
+// from the generic AuditLog (which covers CRUD/security events) because
+// approval history has richer, workflow-specific semantics (step number,
+// action type) that are queried together far more often than joined with
+// unrelated audit events.
+model ApprovalAction {
+  id         String             @id @default(uuid())
+  approvalId String
+  approval   Approval           @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  stepOrder  Int
+  actorId    String
+  action     ApprovalActionType
+  comment    String?
+  createdAt  DateTime           @default(now())
+
+  @@index([approvalId])
+  @@map("approval_actions")
+}
+
+// ==========================================================================
+// SHIFT MANAGEMENT (domain module, built on the Task Engine)
+// ==========================================================================
+
+model Shift {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String   // e.g. "Morning", "Night"
+  startTime String   // "06:00" — recurring daily pattern; concrete occurrences are ShiftLogs
+  endTime   String   // "14:00"
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  logs ShiftLog[]
+
+  @@index([companyId])
+  @@map("shifts")
+}
+
+// A concrete occurrence of a worker opening/closing a shift. The open and
+// close checklists are just Tasks instantiated from a TaskTemplate (e.g.
+// "Open Shift Checklist" with meter-reading/photo/signature fields) — the
+// ShiftLog just anchors the two Task instances together with real
+// timestamps and status, so shift logic reuses the Task Engine rather than
+// re-implementing dynamic-form handling.
+model ShiftLog {
+  id       String         @id @default(uuid())
+  companyId String
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shiftId  String
+  shift    Shift          @relation(fields: [shiftId], references: [id])
+  userId   String
+  stationId String?
+  station  Station?       @relation(fields: [stationId], references: [id], onDelete: SetNull)
+
+  openTaskId  String?
+  openTask    Task?        @relation("ShiftOpenTask", fields: [openTaskId], references: [id])
+  closeTaskId String?
+  closeTask   Task?        @relation("ShiftCloseTask", fields: [closeTaskId], references: [id])
+
+  status    ShiftLogStatus @default(OPEN)
+  startedAt DateTime       @default(now())
+  endedAt   DateTime?
+
+  @@index([companyId])
+  @@index([stationId])
+  @@map("shift_logs")
+}
+
+// ==========================================================================
+// FUEL STATION DOMAIN MODULE (first concrete consumer of the generic
+// engines above — a template for how future sector modules should be built)
+// ==========================================================================
+
+model Station {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  code      String
+  latitude  Float?
+  longitude Float?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tanks       Tank[]
+  shiftLogs   ShiftLog[]
+  inspections Inspection[]
+  fuelRequests FuelRequest[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("stations")
+}
+
+model Tank {
+  id           String   @id @default(uuid())
+  stationId    String
+  station      Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  code         String
+  fuelType     String   // e.g. "Diesel", "Petrol95"
+  capacityLiters Float
+  lastKnownLevel Float?
+  updatedAt    DateTime @updatedAt
+
+  fuelRequests FuelRequest[]
+
+  @@unique([stationId, code])
+  @@index([stationId])
+  @@map("tanks")
+}
+
+// A routine inspection is simply a Task (from an "Inspection" TaskTemplate)
+// anchored to a Station for domain-specific querying (e.g. "show all
+// inspections for Station X this month").
+model Inspection {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stationId String
+  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  taskId    String   @unique
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([stationId])
+  @@map("inspections")
+}
+
+// Worker-initiated fuel replenishment request. Routes through an
+// ApprovalFlow (Worker -> Supervisor -> Manager) via the generic engine;
+// `status` mirrors the Approval's progress for fast domain-level queries
+// without joining into the Approval engine on every list view.
+model FuelRequest {
+  id                String            @id @default(uuid())
+  companyId         String
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stationId         String
+  station           Station           @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  tankId            String
+  tank              Tank              @relation(fields: [tankId], references: [id], onDelete: Cascade)
+  requestedById     String
+  currentLevel      Float
+  requestedQuantity Float
+  photoUrl          String?
+  notes             String?
+  status            FuelRequestStatus @default(DRAFT)
+
+  taskId     String?   @unique
+  task       Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  approvalId String?   @unique
+  approval   Approval? @relation(fields: [approvalId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([stationId])
+  @@map("fuel_requests")
+}
+
+// --------------------------------------------------------------------------
+// PASSWORD RESET (Forgot Password flow)
+// --------------------------------------------------------------------------
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}

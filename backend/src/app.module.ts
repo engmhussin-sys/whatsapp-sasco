@@ -1,0 +1,61 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+
+import { PrismaModule } from './common/prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { CompaniesModule } from './modules/companies/companies.module';
+import { RolesPermissionsModule } from './modules/roles-permissions/roles-permissions.module';
+import { TeamsModule } from './modules/teams/teams.module';
+import { ConversationsModule } from './modules/conversations/conversations.module';
+import { MessagesModule } from './modules/messages/messages.module';
+import { LanguagesModule } from './modules/languages/languages.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { VoiceProcessingModule } from './modules/voice-processing/voice-processing.module';
+import { ChatGatewayModule } from './modules/websocket/chat-gateway.module';
+import { ApprovalEngineModule } from './modules/approval-engine/approval-engine.module';
+import { TaskEngineModule } from './modules/task-engine/task-engine.module';
+import { ShiftManagementModule } from './modules/shift-management/shift-management.module';
+import { StationsModule } from './modules/stations/stations.module';
+import { InspectionsModule } from './modules/inspections/inspections.module';
+import { FuelRequestsModule } from './modules/fuel-requests/fuel-requests.module';
+
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
+import { TenantGuard } from './common/guards/tenant.guard';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    CompaniesModule,
+    RolesPermissionsModule,
+    TeamsModule,
+    ConversationsModule,
+    MessagesModule,
+    LanguagesModule,
+    SubscriptionsModule,
+    AuditLogsModule,
+    VoiceProcessingModule,
+    ChatGatewayModule,
+    ApprovalEngineModule,
+    TaskEngineModule,
+    ShiftManagementModule,
+    StationsModule,
+    InspectionsModule,
+    FuelRequestsModule,
+  ],
+  providers: [
+    // Global guard order matters: authenticate -> resolve tenant -> check role/permission
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: TenantGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
+})
+export class AppModule {}
