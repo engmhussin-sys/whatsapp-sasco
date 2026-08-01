@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { ApprovalStatus, SystemRole } from '@prisma/client';
+import { SystemRole } from '@prisma/client';
 import { ApprovalEngineService } from './approval-engine.service';
 import { CreateApprovalFlowDto, StartApprovalDto, ActOnApprovalDto } from './dto/approval-engine.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -40,21 +40,6 @@ export class ApprovalsController {
   @Post()
   start(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser, @Body() dto: StartApprovalDto) {
     return this.service.startApproval(companyId, user.sub, dto);
-  }
-
-  @Get()
-  findAll(
-    @TenantId() companyId: string,
-    @CurrentUser() user: AuthenticatedUser,
-    @Query('status') status?: ApprovalStatus,
-    @Query('entityType') entityType?: string,
-    @Query('mine') mine?: string,
-  ) {
-    return this.service.findAllApprovals(companyId, {
-      status,
-      entityType,
-      actionableByUserId: mine === 'true' ? user.sub : undefined,
-    });
   }
 
   @Get(':id')
