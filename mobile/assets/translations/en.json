@@ -1,0 +1,27 @@
+{
+  "app_name": "WorkForce Connect AI",
+  "common": {
+    "loading": "Loading...",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "send": "Send"
+  },
+  "auth": {
+    "login": "Login",
+    "email": "Email",
+    "password": "Password",
+    "forgot_password": "Forgot password?",
+    "logout": "Logout"
+  },
+  "nav": {
+    "home": "Home",
+    "messaging": "Messaging",
+    "tasks": "Tasks",
+    "approvals": "Approvals",
+    "shift": "Shift",
+    "fuel_requests": "Fuel Requests",
+    "stations": "Stations",
+    "profile": "Profile"
+  }
+}

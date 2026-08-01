@@ -1,0 +1,27 @@
+{
+  "app_name": "WorkForce Connect AI",
+  "common": {
+    "loading": "جارٍ التحميل...",
+    "retry": "إعادة المحاولة",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "send": "إرسال"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "forgot_password": "نسيت كلمة المرور؟",
+    "logout": "تسجيل الخروج"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "messaging": "المحادثات",
+    "tasks": "المهام",
+    "approvals": "الموافقات",
+    "shift": "الورديات",
+    "fuel_requests": "طلبات الوقود",
+    "stations": "المحطات",
+    "profile": "الملف الشخصي"
+  }
+}
