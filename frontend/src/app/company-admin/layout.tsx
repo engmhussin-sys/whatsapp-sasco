@@ -1,0 +1,23 @@
+'use client';
+
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { DashboardShell } from '@/components/DashboardShell';
+
+const navItems = [
+  { href: '/company-admin/dashboard', label: 'لوحة التحكم' },
+  { href: '/company-admin/users', label: 'المستخدمون' },
+  { href: '/company-admin/teams', label: 'الفرق' },
+  { href: '/company-admin/roles', label: 'الأدوار والصلاحيات' },
+  { href: '/messaging', label: 'المحادثات' },
+  { href: '/tasks', label: 'المهام' },
+  { href: '/tasks/approvals', label: 'الموافقات' },
+  { href: '/tasks/shifts', label: 'الورديات' },
+];
+
+export default function CompanyAdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute allowedRoles={['COMPANY_ADMIN']}>
+      <DashboardShell navItems={navItems}>{children}</DashboardShell>
+    </ProtectedRoute>
+  );
+}

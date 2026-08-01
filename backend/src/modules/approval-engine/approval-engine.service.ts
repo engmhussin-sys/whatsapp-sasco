@@ -87,6 +87,50 @@ export class ApprovalEngineService {
     });
   }
 
+  /**
+   * Lists Approvals for a tenant, optionally narrowed to only those the
+   * given user is actually entitled to act on right now (their role
+   * matches the ApprovalStep at each approval's currentStep, or they
+   * hold an administrative override role). This is what powers a
+   * "My Approvals" / pending-action inbox screen without ever needing
+   * mock data — it re-uses the exact same authorization logic as act().
+   */
+  async findAllApprovals(
+    companyId: string,
+    params: { status?: ApprovalStatus; entityType?: string; actionableByUserId?: string },
+  ) {
+    const approvals = await this.prisma.approval.findMany({
+      where: {
+        companyId,
+        ...(params.status ? { status: params.status } : {}),
+        ...(params.entityType ? { entityType: params.entityType } : {}),
+      },
+      include: {
+        flow: { include: { steps: { orderBy: { stepOrder: 'asc' }, include: { approverRole: true } } } },
+        actions: { orderBy: { createdAt: 'asc' } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!params.actionableByUserId) return approvals;
+
+    const user = await this.prisma.user.findFirst({ where: { id: params.actionableByUserId, companyId } });
+    if (!user) return [];
+    if (user.systemRole === SystemRole.COMPANY_ADMIN || user.systemRole === SystemRole.SUPER_ADMIN) {
+      return approvals; // administrative override sees everything
+    }
+
+    const userRoleIds = new Set(
+      (await this.prisma.userRole.findMany({ where: { userId: params.actionableByUserId } })).map((r: { roleId: string }) => r.roleId),
+    );
+
+    return approvals.filter((a: any) => {
+      if (a.status !== ApprovalStatus.PENDING) return false;
+      const currentStepDef = a.flow.steps.find((s: any) => s.stepOrder === a.currentStep);
+      return currentStepDef ? userRoleIds.has(currentStepDef.approverRoleId) : false;
+    });
+  }
+
   async findFlow(companyId: string, id: string) {
     const flow = await this.prisma.approvalFlow.findFirst({
       where: { id, companyId },
