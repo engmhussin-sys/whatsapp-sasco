@@ -113,6 +113,24 @@ async function main() {
     update: {},
   });
 
+  const station2 = await prisma.station.upsert({
+    where: { companyId_code: { companyId: company.id, code: 'STN-002' } },
+    create: {
+      companyId: company.id,
+      code: 'STN-002',
+      name: 'محطة جدة الفرعية',
+      latitude: 21.4858,
+      longitude: 39.1925,
+    },
+    update: {},
+  });
+
+  await prisma.tank.upsert({
+    where: { stationId_code: { stationId: station2.id, code: 'TANK-A' } },
+    create: { stationId: station2.id, code: 'TANK-A', fuelType: 'Diesel', capacityLiters: 18000, lastKnownLevel: 9000 },
+    update: {},
+  });
+
   await prisma.tank.upsert({
     where: { stationId_code: { stationId: station.id, code: 'TANK-A' } },
     create: { stationId: station.id, code: 'TANK-A', fuelType: 'Diesel', capacityLiters: 20000, lastKnownLevel: 14500 },
@@ -211,8 +229,9 @@ async function main() {
   const existingTemplate = await prisma.taskTemplate.findFirst({
     where: { companyId: company.id, name: 'Open Shift Checklist' },
   });
-  if (!existingTemplate) {
-    await prisma.taskTemplate.create({
+  const taskTemplate =
+    existingTemplate ??
+    (await prisma.taskTemplate.create({
       data: {
         companyId: company.id,
         name: 'Open Shift Checklist',
@@ -223,7 +242,61 @@ async function main() {
           { id: 'f3', type: TaskFieldType.SIGNATURE, label: 'Worker signature', required: true },
         ],
       },
+    }));
+
+  // ---- An actual Task instance (not just the template) assigned to the
+  // seeded worker, so the Tasks screen has real, submittable content on
+  // first login rather than an empty list --------------------------------------
+  const existingTask = await prisma.task.findFirst({ where: { companyId: company.id, title: 'فتح وردية الصباح' } });
+  if (!existingTask) {
+    await prisma.task.create({
+      data: {
+        companyId: company.id,
+        templateId: taskTemplate.id,
+        title: 'فتح وردية الصباح',
+        description: 'تسجيل قراءات العدادات وتصويرها عند بدء الوردية',
+        status: 'ASSIGNED',
+        teamId: team.id,
+        createdById: companyAdmin.id,
+        assignments: { create: [{ userId: worker.id }] },
+      },
     });
+  }
+
+  // ---- A demo Fuel Request already routed through the Approval Flow above,
+  // sitting at step 1 (Supervisor) so there is something real for the
+  // Approvals screen to show immediately -------------------------------------
+  const fuelFlow = await prisma.approvalFlow.findFirst({ where: { companyId: company.id, entityType: 'FuelRequest' } });
+  const existingFuelRequest = await prisma.fuelRequest.findFirst({ where: { companyId: company.id, stationId: station.id } });
+  if (!existingFuelRequest && fuelFlow) {
+    const tankA = await prisma.tank.findFirst({ where: { stationId: station.id, code: 'TANK-A' } });
+    if (tankA) {
+      const approval = await prisma.approval.create({
+        data: {
+          companyId: company.id,
+          flowId: fuelFlow.id,
+          entityType: 'FuelRequest',
+          entityId: 'pending', // patched below once the FuelRequest id is known
+          currentStep: 1,
+          status: 'PENDING',
+          createdById: worker.id,
+        },
+      });
+      const fuelRequest = await prisma.fuelRequest.create({
+        data: {
+          companyId: company.id,
+          stationId: station.id,
+          tankId: tankA.id,
+          requestedById: worker.id,
+          currentLevel: 14500,
+          requestedQuantity: 5000,
+          notes: 'المستوى منخفض عن المعتاد لهذا الوقت من الشهر',
+          status: 'PENDING_SUPERVISOR',
+          approvalId: approval.id,
+        },
+      });
+      await prisma.approval.update({ where: { id: approval.id }, data: { entityId: fuelRequest.id } });
+    }
   }
 
   // ---- A Direct conversation between the seeded Supervisor and Worker,

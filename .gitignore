@@ -1,0 +1,26 @@
+# Root-level ignore rules. Each sub-project (backend/, frontend/, mobile/)
+# also has its own .gitignore for project-specific artifacts — this file
+# covers anything that could be created at the repo root itself.
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Env files (never commit real secrets — only *.example files are tracked)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# In case any tool is ever run from the repo root by mistake
+node_modules/
+dist/
+.next/
+build/
+coverage/

@@ -18,8 +18,16 @@ async function bootstrap() {
 
   // ---- Security hardening -------------------------------------------------
   app.use(helmet());
+  // NOTE: '*' is intentionally never used as a fallback here — the CORS spec
+  // forbids a wildcard origin when `credentials: true` is set (browsers
+  // silently reject it), so an unset CORS_ORIGIN falls back to explicit
+  // local dev origins instead. Production (Railway) MUST set CORS_ORIGIN
+  // explicitly — see .env.example and docs/deployment-guide.md.
+  const corsOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+    : ['http://localhost:3001', 'http://localhost:3000'];
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? '*',
+    origin: corsOrigins,
     credentials: true,
   });
   app.setGlobalPrefix('api/v1');

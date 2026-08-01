@@ -28,4 +28,4 @@ EXPOSE 3000
 # NOTE: uses `db push` (schema sync) rather than `migrate deploy` because
 # no migration history exists yet — see docs/deployment-guide.md for why,
 # and for the one-time step to switch to proper migrations.
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npm run start:prod"]

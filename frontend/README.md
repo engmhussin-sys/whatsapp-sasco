@@ -1,20 +1,26 @@
 # WorkForce Connect AI — Frontend (Next.js)
 
-واجهة الويب لمنصة WorkForce Connect AI. تتصل مباشرة بالـ Backend الحقيقي (لا Mock Data).
+واجهة الويب لمنصة WorkForce Connect AI. تتصل مباشرة بالـ Backend الحقيقي (لا Mock Data) —
+كل استدعاء API يمرّ عبر `NEXT_PUBLIC_API_URL` من البيئة حصريًا، لا يوجد أي رابط ثابت داخل الكود.
 
 ## المتطلبات
-- Node.js 20+
-- Backend يعمل محليًا (راجع `../backend/README.md`) أو عنوان API بعيد
+- Node.js 20 (راجع `.nvmrc`)
+- Backend يعمل محليًا (راجع `../backend/README.md`) أو عنوان API بعيد (Railway)
 
-## التثبيت والتشغيل
+## التثبيت والتشغيل محليًا
 
 ```bash
-cp .env.example .env.local     # عدّل NEXT_PUBLIC_API_URL حسب عنوان الـ Backend
+cp .env.local.example .env.local     # Next.js يحمّله تلقائيًا، ومُستبعَد من git
 npm install
-npm run dev                    # يعمل على http://localhost:3001
+npm run dev                          # http://localhost:3001
 ```
 
-## متغيرات البيئة (`.env.example`)
+## متغيرات البيئة
+| الملف | الاستخدام |
+|---|---|
+| `.env.local.example` | انسخه إلى `.env.local` للتطوير المحلي |
+| `.env.example` | نفس المتغيرات، مرجع لضبط Build Arguments على Railway |
+
 | المتغير | الوصف |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | عنوان REST API الخاص بالـ Backend (يجب أن يتضمن `/api/v1`) |
@@ -35,21 +41,28 @@ docker build -t wfc-frontend \
 docker run -p 3001:3000 wfc-frontend
 ```
 
-## الحالة الحالية (Part 1 من التسليم)
-- ✅ Authentication: Login / Logout / Forgot Password / Reset Password — متصلة فعليًا بالـ API
-- ⏳ Dashboards (Super Admin / Company Admin)، Messaging، Tasks — قيد الإنشاء في الأجزاء التالية من نفس الجولة
+## النشر على Railway
+`railway.json` جاهز في هذا المجلد. الخطوات الكاملة في `../docs/deployment-guide.md`.
+**تذكير**: متغيرات `NEXT_PUBLIC_*` تُضمَّن وقت البناء في Next.js — يجب ضبطها
+كـ Build Arguments على Railway، وليس فقط كمتغيرات تشغيل عادية.
+
+## الحالة الحالية (MVP Sprint)
+✅ جميع الشاشات المطلوبة لهذا الـ Sprint جاهزة للاستخدام الفعلي: Login،
+Dashboard، Companies، Stations، Teams، Users، Messaging، Tasks، Approvals، Shifts.
 
 ## البنية
 ```
 src/
-  app/                — App Router pages
-    login/
-    forgot-password/
-    reset-password/
-  components/          — مكوّنات مشتركة (ProtectedRoute, ...)
+  app/
+    login/ forgot-password/ reset-password/
+    super-admin/{dashboard,companies,subscription}/
+    company-admin/{dashboard,users,teams,stations,roles}/
+    messaging/  tasks/{approvals,shifts}/
+  components/          — مكوّنات مشتركة (ProtectedRoute, DashboardShell, ...)
   lib/
     api-client.ts      — طبقة اتصال REST حقيقية (لا Mock)، مع تجديد Access Token تلقائيًا
     auth-context.tsx   — إدارة حالة تسجيل الدخول
-    token-store.ts      — تخزين الجلسة (localStorage)
-    types.ts            — أنواع TypeScript مطابقة لـ DTOs الـ Backend
+    token-store.ts     — تخزين الجلسة (localStorage)
+    types.ts           — أنواع TypeScript مطابقة لـ DTOs الـ Backend
+    api/                — وحدات نداء API مقسّمة حسب الميزة (companies, users, stations, tasks, messaging)
 ```
