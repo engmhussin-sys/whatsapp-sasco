@@ -1,5 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
-import { MessageType } from '@prisma/client';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class SendTextMessageDto {
   @IsString()

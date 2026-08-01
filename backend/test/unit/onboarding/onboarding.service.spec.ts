@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, UnauthorizedException } from '
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 import { CredentialType, OtpChannel, UserStatus } from '@prisma/client';
 import { OnboardingService } from '../../../src/modules/onboarding/onboarding.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
@@ -113,7 +114,6 @@ describe('OnboardingService — Enterprise OTP Activation Flow', () => {
     });
 
     it('issues a scoped activation token on success and marks the OTP verified', async () => {
-      const crypto = require('crypto');
       const correctCode = '654321';
       const correctHash = crypto.createHash('sha256').update(correctCode).digest('hex');
 

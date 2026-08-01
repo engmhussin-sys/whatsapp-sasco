@@ -77,7 +77,7 @@ describe('ApprovalEngineService — Workflow Engine (Worker -> Supervisor -> Man
       prisma.approvalAction.create.mockResolvedValue({});
       prisma.approval.update.mockResolvedValue({ status: ApprovalStatus.PENDING, currentStep: 2 });
 
-      const result = await service.act('company-A', 'approval-1', 'sup-1', ApprovalActionType.APPROVE);
+      await service.act('company-A', 'approval-1', 'sup-1', ApprovalActionType.APPROVE);
 
       expect(prisma.approval.update).toHaveBeenCalledWith(
         expect.objectContaining({

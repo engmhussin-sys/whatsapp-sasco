@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { TaskStatus, ApprovalActionType, AuditAction } from '@prisma/client';
+import { TaskStatus, AuditAction } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { ApprovalEngineService } from '../approval-engine/approval-engine.service';

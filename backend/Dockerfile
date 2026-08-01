@@ -2,14 +2,23 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Install ALL dependencies first (this layer is cached as long as
+# package*.json don't change — full source changes below won't invalidate it).
 COPY package*.json ./
 RUN npm ci
 
-COPY prisma ./prisma
-RUN npx prisma generate
-
+# Copy the ENTIRE source (including prisma/schema.prisma) BEFORE generating
+# the Prisma client, then run `generate` and `build` chained in a single
+# RUN command. This is the pattern Prisma's own Docker deployment docs
+# recommend — generating against a partially-copied source (or in a
+# separate RUN step from the build that follows it) has been observed to
+# occasionally produce a Prisma Client whose types silently lag behind
+# the schema (e.g. a newly-added enum missing from the generated d.ts),
+# even though the command exits 0. Chaining removes that class of bug
+# entirely by guaranteeing both steps run back-to-back against the exact
+# same, complete filesystem state.
 COPY . .
-RUN npm run build
+RUN npx prisma generate && npm run build
 
 # ---- Production stage ------------------------------------------------------
 FROM node:20-alpine AS production
