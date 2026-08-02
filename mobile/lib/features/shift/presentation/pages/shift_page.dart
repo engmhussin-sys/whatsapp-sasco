@@ -44,7 +44,7 @@ class ShiftPage extends StatelessWidget {
                           const SizedBox(height: 10),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            onPressed: state.isBusy ? null : () => context.read<ShiftCubit>().close(state.openLog!.id),
+                            onPressed: state.isBusy ? null : () => context.read<ShiftCubit>().closeShift(state.openLog!.id),
                             child: const Text('إغلاق الوردية'),
                           ),
                         ],

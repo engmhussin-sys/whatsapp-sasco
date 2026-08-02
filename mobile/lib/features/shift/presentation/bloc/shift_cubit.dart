@@ -92,7 +92,7 @@ class ShiftCubit extends Cubit<ShiftScreenState> {
     );
   }
 
-  Future<void> close(String shiftLogId) async {
+  Future<void> closeShift(String shiftLogId) async {
     emit(state.copyWith(isBusy: true));
     final result = await _closeShift(CloseShiftParams(companyId: companyId, shiftLogId: shiftLogId));
     result.fold(

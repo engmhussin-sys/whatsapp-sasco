@@ -135,7 +135,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   }
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
     _messageSub?.cancel();
     _typingSub?.cancel();
     return super.close();

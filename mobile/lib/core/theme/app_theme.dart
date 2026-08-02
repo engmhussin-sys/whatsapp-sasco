@@ -38,7 +38,7 @@ class AppTheme {
         centerTitle: false,
         titleTextStyle: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -103,7 +103,7 @@ class AppTheme {
         backgroundColor: AppColors.brand,
         foregroundColor: Colors.white,
       ),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         titleTextStyle: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         contentTextStyle: GoogleFonts.cairo(fontSize: 14, color: AppColors.textSecondary),
@@ -128,7 +128,7 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.surfaceDark,
       textTheme: _textTheme(Colors.white70, Colors.white),
       appBarTheme: const AppBarTheme(elevation: 0, centerTitle: false, surfaceTintColor: Colors.transparent),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
