@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
-import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_text_field.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/sasco_logo.dart';
 import '../bloc/auth_bloc.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,6 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _companyIdController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -39,6 +40,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.surfaceLight,
       body: SafeArea(
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
@@ -46,62 +48,124 @@ class _LoginPageState extends State<LoginPage> {
               context.go(RouteNames.home);
             }
           },
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(Icons.groups_rounded, size: 56, color: Color(0xFF2563EB)),
-                    const SizedBox(height: 8),
-                    const Text('تسجيل الدخول', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                    const SizedBox(height: 24),
-                    BlocBuilder<AuthBloc, AuthState>(
-                      builder: (context, state) {
-                        if (state.errorMessage == null) return const SizedBox.shrink();
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
-                          child: Text(state.errorMessage!, style: TextStyle(color: Colors.red.shade700)),
-                        );
-                      },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 24),
+                        const Center(child: SascoLogo(size: 84)),
+                        const SizedBox(height: 36),
+                        Text(
+                          'تسجيل الدخول',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'أدخل بيانات حسابك للمتابعة',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        ),
+                        const SizedBox(height: 28),
+                        Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              BlocBuilder<AuthBloc, AuthState>(
+                                builder: (context, state) {
+                                  if (state.errorMessage == null) return const SizedBox.shrink();
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.danger.withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.danger.withOpacity(0.25)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 18),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(state.errorMessage!, style: const TextStyle(color: AppColors.danger, fontSize: 13)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: const InputDecoration(
+                                  labelText: 'البريد الإلكتروني',
+                                  prefixIcon: Icon(Icons.mail_outline_rounded),
+                                ),
+                                validator: (v) => (v == null || !v.contains('@')) ? 'أدخل بريدًا صحيحًا' : null,
+                              ),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                decoration: InputDecoration(
+                                  labelText: 'كلمة المرور',
+                                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  ),
+                                ),
+                                validator: (v) => (v == null || v.length < 8) ? '8 أحرف على الأقل' : null,
+                              ),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _companyIdController,
+                                decoration: const InputDecoration(
+                                  labelText: 'معرّف الشركة (اختياري)',
+                                  prefixIcon: Icon(Icons.apartment_outlined),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              BlocBuilder<AuthBloc, AuthState>(
+                                builder: (context, state) => SizedBox(
+                                  height: 52,
+                                  child: ElevatedButton(
+                                    onPressed: state.isSubmitting ? null : _submit,
+                                    child: state.isSubmitting
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                                          )
+                                        : const Text('تسجيل الدخول'),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Center(
+                                child: TextButton(
+                                  onPressed: () => context.push(RouteNames.forgotPassword),
+                                  child: const Text('نسيت كلمة المرور؟'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                    AppTextField(
-                      label: 'البريد الإلكتروني',
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (v) => (v == null || !v.contains('@')) ? 'أدخل بريدًا صحيحًا' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    AppTextField(
-                      label: 'كلمة المرور',
-                      controller: _passwordController,
-                      obscureText: true,
-                      validator: (v) => (v == null || v.length < 8) ? '8 أحرف على الأقل' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    AppTextField(label: 'معرّف الشركة (اختياري)', controller: _companyIdController),
-                    const SizedBox(height: 20),
-                    BlocBuilder<AuthBloc, AuthState>(
-                      builder: (context, state) => AppButton(
-                        label: 'تسجيل الدخول',
-                        isLoading: state.isSubmitting,
-                        onPressed: _submit,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => context.push(RouteNames.forgotPassword),
-                      child: const Text('نسيت كلمة المرور؟'),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),

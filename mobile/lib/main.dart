@@ -1,13 +1,26 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'app.dart';
 import 'core/constants/supported_locales.dart';
 import 'core/di/injection_container.dart';
 import 'core/notifications/local_notification_service.dart';
+import 'core/theme/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+
+  // Branded status bar (SASCO green background, light icons) — applied
+  // globally before runApp so it's consistent from the very first frame,
+  // including the native splash screen before Flutter takes over.
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: AppColors.brandDark,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    ),
+  );
 
   await initDependencyInjection();
 
