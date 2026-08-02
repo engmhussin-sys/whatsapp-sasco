@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { useRouter } from 'next/navigation';
 import { api, ApiError } from './api-client';
 import { tokenStore } from './token-store';
+import { chatSocket } from './websocket-client';
 import type { AuthUser, LoginResponse } from './types';
 
 interface AuthContextValue {
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Best-effort — proceed with local logout regardless of server response.
     }
     tokenStore.clear();
+    chatSocket.disconnect();
     setUser(null);
     router.push('/login');
   }

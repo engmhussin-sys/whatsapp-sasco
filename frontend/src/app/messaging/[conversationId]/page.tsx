@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { conversationsApi, messagesApi } from '@/lib/api/messaging';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
+import { chatSocket } from '@/lib/websocket-client';
 import type { Conversation, Message } from '@/lib/types';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { Loading } from '@/components/Loading';
@@ -22,37 +23,66 @@ export default function ChatPage() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordStartRef = useRef<number>(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function loadMessages() {
+  const loadHistory = useCallback(() => {
     if (!user?.companyId) return;
     messagesApi
       .list(user.companyId, conversationId)
       .then((msgs) => setMessages(msgs.slice().reverse())) // API returns newest-first; render oldest-first
       .catch((err) => setError(err instanceof ApiError ? err.message : 'تعذّر جلب الرسائل'));
-  }
+  }, [user, conversationId]);
 
+  // ---- Real-time WebSocket wiring (replaces the earlier polling fallback) ----
   useEffect(() => {
     if (!user?.companyId) return;
+
     conversationsApi
       .get(user.companyId, conversationId)
       .then(setConversation)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'تعذّر جلب المحادثة'));
-    loadMessages();
+
+    loadHistory();
     messagesApi.markRead(user.companyId, conversationId).catch(() => {});
 
-    // Simple polling fallback for real-time updates in this Part-2 delivery.
-    // NOTE: the backend already exposes a full Socket.io gateway
-    // (ChatGateway at /chat) for true real-time push — wiring the
-    // socket.io-client connection into this screen is the next
-    // increment; polling keeps this screen fully functional (not mock)
-    // in the meantime without requiring that extra integration.
-    const interval = setInterval(loadMessages, 4000);
-    return () => clearInterval(interval);
+    const socket = chatSocket.connect();
+
+    const onConnect = () => {
+      setConnected(true);
+      chatSocket.joinConversation(conversationId);
+    };
+    const onDisconnect = () => setConnected(false);
+    const onNewMessage = (message: Message) => {
+      if (message.conversationId !== conversationId) return;
+      setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      if (message.senderId !== user.id) {
+        chatSocket.markRead(conversationId, message.id);
+      }
+    };
+    const onTyping = (data: { userId: string; isTyping: boolean }) => {
+      if (data.userId !== user.id) setPeerTyping(data.isTyping);
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('message:new', onNewMessage);
+    socket.on('typing', onTyping);
+    if (socket.connected) onConnect();
+
+    return () => {
+      chatSocket.leaveConversation(conversationId);
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('message:new', onNewMessage);
+      socket.off('typing', onTyping);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, conversationId]);
 
@@ -60,15 +90,27 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  function handleTextChange(value: string) {
+    setText(value);
+    chatSocket.sendTyping(conversationId, value.length > 0);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => chatSocket.sendTyping(conversationId, false), 2000);
+  }
+
   async function handleSendText() {
-    if (!user?.companyId || !text.trim()) return;
+    if (!text.trim()) return;
     setSending(true);
+    setError(null);
     try {
-      await messagesApi.sendText(user.companyId, conversationId, text.trim());
+      // Sent over the socket — ChatGateway persists it AND broadcasts
+      // "message:new" to every room member (including this tab), so we
+      // don't optimistically append here to avoid duplicates; onNewMessage
+      // above handles insertion once the server echoes it back.
+      chatSocket.sendMessage(conversationId, text.trim());
       setText('');
-      loadMessages();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'تعذّر إرسال الرسالة');
+      chatSocket.sendTyping(conversationId, false);
+    } catch {
+      setError('تعذّر إرسال الرسالة');
     } finally {
       setSending(false);
     }
@@ -87,8 +129,11 @@ export default function ChatPage() {
         if (!user?.companyId) return;
         const durationMs = Date.now() - recordStartRef.current;
         try {
+          // Voice messages still go through REST (multipart upload isn't
+          // practical over a socket event) — the backend then broadcasts
+          // it over the socket to other members same as a text message.
           await messagesApi.sendVoice(user.companyId, conversationId, blob, durationMs);
-          loadMessages();
+          loadHistory();
         } catch (err) {
           setError(err instanceof ApiError ? err.message : 'تعذّر إرسال الرسالة الصوتية');
         }
@@ -115,7 +160,14 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col">
       <div className="border-b border-slate-200 pb-3">
-        <h1 className="text-lg font-bold">{conversation ? otherMemberName() : <Loading />}</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold">{conversation ? otherMemberName() : <Loading />}</h1>
+          <span className={`flex items-center gap-1 text-xs ${connected ? 'text-green-600' : 'text-slate-400'}`}>
+            <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-500' : 'bg-slate-300'}`} />
+            {connected ? 'متصل' : 'غير متصل'}
+          </span>
+        </div>
+        {peerTyping && <p className="mt-1 text-xs text-brand-600">يكتب الآن...</p>}
       </div>
 
       {error && (
@@ -161,7 +213,7 @@ export default function ChatPage() {
           className="input"
           placeholder="اكتب رسالة..."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => handleTextChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
         />
         <button onClick={handleSendText} disabled={sending || !text.trim()} className="rounded-lg bg-brand-600 px-4 py-2 text-sm text-white disabled:opacity-50">
