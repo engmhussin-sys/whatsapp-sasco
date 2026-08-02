@@ -1,40 +1,45 @@
-# تعليمات تطبيق هذا التحديث عبر GitHub Desktop
+# إصلاح خطأ بناء APK — تعارض إصدارات حزمة record
 
-هذا الأرشيف يحتوي على **4 ملفات فقط** (التعديلات المطلوبة لإصلاح أخطاء
-`flutter analyze` على Flutter 3.44)، كل ملف في مساره الصحيح تمامًا داخل
-هيكلية المشروع:
+## الملف المُعدَّل
+`mobile/pubspec.yaml` — سطر واحد فقط:
+```
+record: ^5.1.2   →   record: ^6.0.0
+```
 
-```
-mobile/lib/core/theme/app_theme.dart
-mobile/lib/features/shift/presentation/bloc/shift_cubit.dart
-mobile/lib/features/shift/presentation/pages/shift_page.dart
-mobile/lib/features/chat/presentation/bloc/chat_bloc.dart
-```
+## السبب
+خطأ حقيقي معروف في حزمة `record` نفسها (وليس في كود المشروع): الإصدار
+`record_linux 0.7.2` الذي يُحلّ تلقائيًا مع `record: ^5.1.2` غير متوافق مع
+`record_platform_interface` الأحدث (مفقودة تطبيقات لدوال مثل `startStream`).
+هذا خطأ مُوثَّق في تقارير Issues مشابهة لمشاريع أخرى غير هذا المشروع.
+النسخة `^6.0.0` من `record` تُزامن الحزم الفرعية (`record_android`,
+`record_linux`, `record_platform_interface`, إلخ) بشكل صحيح داخليًا.
+
+**لم يتغيّر أي كود** — الكود الحالي في `voice_recorder_button.dart` يستخدم
+بالفعل الواجهة العامة الثابتة لحزمة `record` (`AudioRecorder`,
+`RecordConfig`, `.hasPermission()`, `.start()`, `.stop()`, `.dispose()`)
+والتي لم تتغيّر عبر هذا الانتقال — تحقّقتُ من هذا يدويًا مقابل توثيق
+الحزمة الرسمي.
 
 ## الخطوات
-
 1. فُك ضغط هذا الأرشيف
-2. انسخ مجلد `mobile/` بالكامل من الأرشيف المفكوك، والصقه فوق مجلد
-   `mobile/` الموجود في نسخة المستودع المحلية لديك (استبدل عند السؤال) —
-   هذا سيستبدل الملفات الأربعة فقط دون التأثير على أي ملف آخر
-3. افتح **GitHub Desktop** — سيظهر لك تلقائيًا أن 4 ملفات تغيّرت
-4. راجع الفروقات (Diff) إن أردت، ثم اكتب رسالة Commit مثل:
-   `fix: Flutter 3.44 compatibility (CardThemeData/DialogThemeData, ShiftCubit.close rename)`
-5. **Commit to main** ثم **Push origin**
-
-## بعد الدفع (Push)
-
-على جهازك (حيث Flutter مثبَّت فعليًا)، شغّل:
-
+2. استبدل `mobile/pubspec.yaml` بالملف المُرفَق
+3. في الطرفية:
 ```bash
 cd mobile
 flutter clean
 flutter pub get
-flutter analyze
-flutter test
-flutter build apk --debug
 flutter build apk --release
 ```
 
-أرسل لي أي خطأ يظهر — لم أستطع تشغيل هذه الأوامر من طرفي (قيد بيئي موثَّق
-سابقًا: `pub.dev` محجوب في بيئة التطوير لدي).
+## ⚠️ إن لم يُحل الخطأ بالكامل
+هذا إصلاح مبني على أدلة قوية (توثيق رسمي + تقارير Issues مشابهة) وليس
+تجربة مباشرة — **لم أستطع تشغيل `flutter pub get` أو `flutter build apk`
+من طرفي** (نفس القيد البيئي الموثَّق طوال هذا المشروع: `pub.dev` محجوب).
+
+إن ظهر خطأ من نوع "version solving failed" أو ما شابه بعد `flutter pub get`،
+شغّل:
+```bash
+flutter pub outdated
+```
+وأرسل لي المخرجات كاملة — سأحدّد عندها الإصدار الدقيق المطلوب لـ
+`dependency_overrides` بدلًا من التخمين.
