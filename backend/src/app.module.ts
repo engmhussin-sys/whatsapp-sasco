@@ -27,6 +27,7 @@ import { DepartmentsModule } from './modules/departments/departments.module';
 import { DirectoryModule } from './modules/directory/directory.module';
 import { ChatPolicyModule } from './modules/chat-policy/chat-policy.module';
 import { CompanyDictionaryModule } from './modules/company-dictionary/company-dictionary.module';
+import { TranslationEngineModule } from './modules/translation-engine/translation-engine.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -61,6 +62,7 @@ import { HealthController } from './health.controller';
     DirectoryModule,
     ChatPolicyModule,
     CompanyDictionaryModule,
+    TranslationEngineModule,
   ],
   controllers: [HealthController],
   providers: [

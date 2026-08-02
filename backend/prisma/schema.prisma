@@ -1089,3 +1089,441 @@ model CompanyDictionaryTerm {
   @@index([companyId])
   @@map("company_dictionary_terms")
 }
+
+// ==========================================================================
+// TRANSLATION ENGINE (standalone, reusable module — see
+// src/modules/translation-engine/. Deliberately has ZERO foreign keys to
+// any WorkForce Connect entity like Message/Conversation — everything is
+// keyed by companyId + text/language only, so this schema section (and
+// its service code) could be lifted into any other product unchanged.)
+// ==========================================================================
+
+enum TranslationProviderType {
+  OPENAI
+  GOOGLE
+  AZURE
+  DEEPL
+  OFFLINE_STUB
+}
+
+enum TranslationResolutionSource {
+  SAME_LANGUAGE
+  CACHE
+  DICTIONARY
+  MEMORY
+  PROVIDER
+}
+
+// Per-company (or platform-default, companyId=null) provider selection —
+// switchable from the admin panel with zero code changes. `apiKeyEnvVar`
+// stores the NAME of an environment variable holding the real secret
+// (never the secret itself) — keeps credentials out of the database
+// entirely, consistent with how the rest of this codebase handles secrets.
+model TranslationProviderConfig {
+  id            String                  @id @default(uuid())
+  companyId     String?
+  providerType  TranslationProviderType
+  apiKeyEnvVar  String?                 // e.g. "OPENAI_API_KEY" — null for OFFLINE_STUB
+  region        String?                 // e.g. Azure region, unused by other providers
+  model         String?                 // e.g. an OpenAI model name, unused by other providers
+  isActive      Boolean                 @default(true)
+  priority      Int                     @default(0) // lower = tried first when multiple are active (fallback chain)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@unique([companyId, providerType])
+  @@index([companyId])
+  @@map("translation_provider_configs")
+}
+
+// Fast-path exact-match cache — the FIRST thing consulted (after the
+// same-language short-circuit) by the Smart Translation Policy. Rows are
+// safe to invalidate/expire at any time (purely a speed optimization,
+// never the source of truth for a "correct" translation).
+model TranslationCacheEntry {
+  id              String   @id @default(uuid())
+  companyId       String
+  sourceTextHash  String   // sha256 of the normalized source text — keeps the index compact regardless of text length
+  sourceText      String   // kept alongside the hash for human-readable audit/debugging
+  sourceLanguage  String
+  targetLanguage  String
+  translatedText  String
+  providerType    TranslationProviderType?
+  tokensUsed      Int?
+  costEstimate    Decimal? @db.Decimal(10, 6)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([companyId, sourceTextHash, sourceLanguage, targetLanguage])
+  @@index([companyId])
+  @@map("translation_cache_entries")
+}
+
+// Translation Memory — distinct from the cache: represents translation
+// pairs worth REUSING long-term (accumulates a usage counter), consulted
+// AFTER the Company Dictionary and BEFORE calling an AI provider. Unlike
+// the cache, entries here are never silently evicted/expired.
+model TranslationMemoryEntry {
+  id              String   @id @default(uuid())
+  companyId       String
+  sourceTextHash  String
+  sourceText      String
+  sourceLanguage  String
+  targetLanguage  String
+  translatedText  String
+  timesReused     Int      @default(0)
+  lastUsedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@unique([companyId, sourceTextHash, sourceLanguage, targetLanguage])
+  @@index([companyId])
+  @@map("translation_memory_entries")
+}
+
+// Full audit trail of every translation request — which resolution path
+// answered it (cache/dictionary/memory/provider), token/cost accounting,
+// and who triggered it. This is the source for usage-based billing
+// (see Subscription & Billing Engine) as well as compliance/debugging.
+model TranslationAuditLog {
+  id                String                       @id @default(uuid())
+  companyId         String
+  requestedById     String?
+  sourceLanguage    String
+  targetLanguage    String
+  resolutionSource  TranslationResolutionSource
+  providerType      TranslationProviderType?
+  tokensUsed        Int?
+  costEstimate      Decimal?                     @db.Decimal(10, 6)
+  createdAt         DateTime                     @default(now())
+
+  @@index([companyId])
+  @@index([companyId, createdAt])
+  @@map("translation_audit_logs")
+}
+
+// ==========================================================================
+// SUBSCRIPTION & BILLING ENGINE (standalone, reusable module — see
+// src/modules/billing-engine/. Not tied to any specific payment gateway
+// — PaymentTransaction.gatewayType is an open enum/string and actual
+// gateway integration is a Provider Pattern, same philosophy as the
+// Translation Engine above.)
+// ==========================================================================
+
+enum BillingModel {
+  PER_USER          // priced by seat count
+  MONTHLY_TIER       // flat Starter/Professional/Enterprise style tiers
+  PAY_AS_YOU_GO      // metered, billed per unit consumed
+  AI_TOKEN_PACKAGE   // prepaid token bundles
+  HYBRID             // combination of the above within one plan
+}
+
+enum FeatureUnit {
+  COUNT       // e.g. users, API calls, OCR pages
+  TOKENS      // AI tokens
+  GB          // storage
+  MINUTES     // voice minutes
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// Platform-level catalog — Super Admin manages these, companies subscribe
+// to one. Deliberately NOT tied to Company (many companies share a plan).
+model BillingPlan {
+  id           String        @id @default(uuid())
+  code         String        @unique // e.g. "starter", "professional", "enterprise", "payg"
+  name         String
+  description  String?
+  billingModel BillingModel
+  basePrice    Decimal       @db.Decimal(10, 2)
+  currency     String        @default("SAR")
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  featureLimits   PlanFeatureLimit[]
+  subscriptions   CompanySubscription[]
+  promotions      Promotion[]
+
+  @@map("billing_plans")
+}
+
+// Catalog of meterable features — platform-level, referenced by code
+// (e.g. "max_users", "ai_tokens_monthly", "storage_gb",
+// "voice_minutes_monthly", "ocr_pages_monthly", "api_calls_monthly")
+// from PlanFeatureLimit, UsageCounter, and AddOn. New features are added
+// here without any schema migration to Plan/UsageCounter.
+model BillingFeature {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  name        String
+  unit        FeatureUnit
+  description String?
+
+  planLimits     PlanFeatureLimit[]
+  usageCounters  UsageCounter[]
+  addOns         AddOn[]
+
+  @@map("billing_features")
+}
+
+// Per-plan limit for a given feature. `limit = null` means unlimited.
+// `overageUnitPrice` enables Pay-As-You-Go / Hybrid billing beyond the
+// included limit (null means overage is simply blocked, not billed).
+model PlanFeatureLimit {
+  id                String         @id @default(uuid())
+  planId            String
+  plan              BillingPlan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  featureId         String
+  feature           BillingFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  includedLimit     Int?           // null = unlimited
+  overageUnitPrice  Decimal?       @db.Decimal(10, 4)
+
+  @@unique([planId, featureId])
+  @@map("plan_feature_limits")
+}
+
+// A Company's active subscription to a BillingPlan. Named
+// "CompanySubscription" (not reusing the existing `Subscription` model
+// from Sprint 1) since this is the new Billing Engine's own concept with
+// a richer shape — the legacy `Subscription` model is left completely
+// untouched to avoid destabilizing the working MVP; wiring the two
+// together is a deliberate follow-up step, not done in this delivery.
+model CompanySubscription {
+  id            String       @id @default(uuid())
+  companyId     String       @unique
+  planId        String
+  plan          BillingPlan  @relation(fields: [planId], references: [id])
+  startedAt     DateTime     @default(now())
+  currentPeriodStart DateTime @default(now())
+  currentPeriodEnd   DateTime
+  cancelledAt   DateTime?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  usageCounters UsageCounter[]
+  invoices      Invoice[]
+  addOns        CompanyAddOn[]
+
+  @@index([companyId])
+  @@map("company_subscriptions")
+}
+
+// Tracks consumption of a specific feature within a specific billing
+// period — the shared mechanism behind AI Usage Tracking, Storage Usage,
+// Voice Minutes, OCR Pages, and API Usage (all are just different
+// BillingFeature codes metered through this one generic table).
+model UsageCounter {
+  id             String               @id @default(uuid())
+  companyId      String
+  subscriptionId String?
+  subscription   CompanySubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  featureId      String
+  feature        BillingFeature       @relation(fields: [featureId], references: [id])
+  periodStart    DateTime
+  periodEnd      DateTime
+  usedAmount     Decimal              @default(0) @db.Decimal(14, 4)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([companyId, featureId, periodStart, periodEnd])
+  @@index([companyId])
+  @@map("usage_counters")
+}
+
+// Prepaid AI token balance per company — backs the AI Token Package
+// billing model. Every debit/credit is recorded in
+// TokenWalletTransaction for a full audit trail (never mutate the
+// balance without a corresponding transaction row).
+model TokenWallet {
+  id             String   @id @default(uuid())
+  companyId      String   @unique
+  balanceTokens  Decimal  @default(0) @db.Decimal(14, 2)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  transactions TokenWalletTransaction[]
+
+  @@map("token_wallets")
+}
+
+model TokenWalletTransaction {
+  id              String      @id @default(uuid())
+  walletId        String
+  wallet          TokenWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount          Decimal     @db.Decimal(14, 2) // positive = credit (top-up), negative = debit (usage)
+  reason          String      // free-form: "top_up", "translation_usage", "manual_adjustment", ...
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt       DateTime    @default(now())
+
+  @@index([walletId])
+  @@map("token_wallet_transactions")
+}
+
+model Invoice {
+  id             String               @id @default(uuid())
+  companyId      String
+  subscriptionId String?
+  subscription   CompanySubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  invoiceNumber  String               @unique
+  periodStart    DateTime
+  periodEnd      DateTime
+  subtotal       Decimal              @db.Decimal(10, 2)
+  discountTotal  Decimal              @default(0) @db.Decimal(10, 2)
+  taxTotal       Decimal              @default(0) @db.Decimal(10, 2)
+  total          Decimal              @db.Decimal(10, 2)
+  currency       String               @default("SAR")
+  status         InvoiceStatus        @default(DRAFT)
+  issuedAt       DateTime?
+  dueAt          DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime             @default(now())
+
+  lineItems InvoiceLineItem[]
+  payments  PaymentTransaction[]
+  couponRedemptions CouponRedemption[]
+
+  @@index([companyId])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  featureCode String?  // links back to BillingFeature.code when this line is usage-based, null for flat plan fees
+  quantity    Decimal  @db.Decimal(14, 4)
+  unitPrice   Decimal  @db.Decimal(10, 4)
+  amount      Decimal  @db.Decimal(10, 2)
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+// Abstract payment record — deliberately NOT coupled to a specific
+// gateway's SDK/webhook shape. `gatewayType` is a free-form string
+// (e.g. "stripe", "paytabs", "manual") rather than a hard-coded enum,
+// so adding a new payment gateway later needs zero schema changes —
+// exactly the same Provider Pattern principle used for translation
+// providers.
+model PaymentTransaction {
+  id              String        @id @default(uuid())
+  companyId       String
+  invoiceId       String?
+  invoice         Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  gatewayType     String
+  gatewayReference String?
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("SAR")
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([companyId])
+  @@index([invoiceId])
+  @@map("payment_transactions")
+}
+
+model Coupon {
+  id               String       @id @default(uuid())
+  code             String       @unique
+  discountType     DiscountType
+  discountValue    Decimal      @db.Decimal(10, 2) // percentage (0-100) or fixed amount depending on discountType
+  maxRedemptions   Int?         // null = unlimited
+  redeemedCount    Int          @default(0)
+  validFrom        DateTime?
+  validUntil       DateTime?
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+
+  redemptions CouponRedemption[]
+  promotions  Promotion[]
+
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id         String   @id @default(uuid())
+  couponId   String
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  companyId  String
+  invoiceId  String?
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  redeemedAt DateTime @default(now())
+
+  @@index([couponId])
+  @@index([companyId])
+  @@map("coupon_redemptions")
+}
+
+model Promotion {
+  id            String      @id @default(uuid())
+  name          String
+  description   String?
+  couponId      String?
+  coupon        Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  applicablePlanId String?
+  applicablePlan   BillingPlan? @relation(fields: [applicablePlanId], references: [id], onDelete: SetNull)
+  startsAt      DateTime?
+  endsAt        DateTime?
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+
+  @@map("promotions")
+}
+
+// Purchasable extras beyond a plan's included limits (e.g. "+10GB
+// storage", "+500 AI tokens/month") — priced independently of the base
+// plan and stacked on top of it via CompanyAddOn.
+model AddOn {
+  id                String          @id @default(uuid())
+  code              String          @unique
+  name              String
+  description       String?
+  price             Decimal         @db.Decimal(10, 2)
+  featureId         String?
+  feature           BillingFeature? @relation(fields: [featureId], references: [id], onDelete: SetNull)
+  extraLimitAmount  Decimal?        @db.Decimal(14, 4) // how much this add-on increases the feature's limit by
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+
+  companyAddOns CompanyAddOn[]
+
+  @@map("add_ons")
+}
+
+model CompanyAddOn {
+  id             String               @id @default(uuid())
+  companyId      String
+  subscriptionId String?
+  subscription   CompanySubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  addOnId        String
+  addOn          AddOn                @relation(fields: [addOnId], references: [id])
+  activatedAt    DateTime             @default(now())
+  expiresAt      DateTime?
+  isActive       Boolean              @default(true)
+
+  @@index([companyId])
+  @@map("company_add_ons")
+}
