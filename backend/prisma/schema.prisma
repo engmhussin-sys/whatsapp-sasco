@@ -4,7 +4,17 @@
 // ==========================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // "native" covers local development (whatever OS/libc you're on).
+  // "linux-musl-openssl-3.0.x" explicitly targets the node:20-alpine
+  // runtime used in backend/Dockerfile (Alpine 3.18+ ships OpenSSL 3.x).
+  // Without this, Prisma's auto-detection can fail inside certain build
+  // environments (observed: "Prisma failed to detect the libssl/openssl
+  // version... Defaulting to openssl-1.1.x") and silently fetch a query
+  // engine binary that doesn't match the actual container at runtime —
+  // this fixes that ambiguity at the source rather than hoping detection
+  // guesses right.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -493,19 +503,16 @@ enum AttachmentKind {
 // ENUMS — Dynamic Forms / Task Engine
 // --------------------------------------------------------------------------
 
-enum TaskFieldType {
-  TEXT
-  NUMBER
-  DATE
-  TIME
-  PHOTO
-  VIDEO
-  AUDIO
-  SIGNATURE
-  GPS
-  CHECKBOX
-  DROPDOWN
-}
+// NOTE: TaskFieldType is intentionally NOT declared here. It was
+// previously declared as a Prisma enum but never used as an actual
+// column type anywhere (TaskTemplate.fields is a Json column storing
+// field definitions dynamically) — Prisma silently drops enums that
+// aren't referenced by any model field from the generated client,
+// which caused a confirmed production build failure. It now lives as
+// a plain TypeScript enum in
+// src/modules/task-engine/task-field-type.enum.ts, decoupled from
+// Prisma entirely, which is also the architecturally correct home for
+// an application-level (not database-level) concept.
 
 enum TaskStatus {
   DRAFT        // template instantiated, not yet assigned

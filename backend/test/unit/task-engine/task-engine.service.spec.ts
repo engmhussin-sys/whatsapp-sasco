@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { TaskFieldType, TaskStatus } from '@prisma/client';
+import { TaskStatus } from '@prisma/client';
+import { TaskFieldType } from '../../../src/modules/task-engine/task-field-type.enum';
 import { TaskEngineService } from '../../../src/modules/task-engine/task-engine.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { AuditLogsService } from '../../../src/modules/audit-logs/audit-logs.service';

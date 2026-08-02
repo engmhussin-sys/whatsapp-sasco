@@ -8,7 +8,8 @@
  *
  * Run with: npm run prisma:seed  (see package.json)
  */
-import { PrismaClient, SystemRole, TaskFieldType } from '@prisma/client';
+import { PrismaClient, SystemRole } from '@prisma/client';
+import { TaskFieldType } from '../src/modules/task-engine/task-field-type.enum';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();

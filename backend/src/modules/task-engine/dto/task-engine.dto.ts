@@ -9,7 +9,7 @@ import {
   IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TaskFieldType } from '@prisma/client';
+import { TaskFieldType } from '../task-field-type.enum';
 
 export class TaskFieldDefinitionDto {
   @IsString()
