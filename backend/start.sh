@@ -13,6 +13,16 @@ if [ -z "$DATABASE_URL" ]; then
   echo "FATAL: DATABASE_URL is not set."
   echo "On Railway: Variables tab -> add DATABASE_URL -> reference your Postgres plugin (e.g. \${{Postgres.DATABASE_URL}})."
   echo "See docs/deployment-guide.md for the full list of required variables."
+  echo ""
+  echo "DIAGNOSTIC (variable NAMES only, no values/secrets are ever printed):"
+  echo "Environment variables actually present in this container:"
+  env | cut -d= -f1 | sort
+  echo ""
+  echo "If nothing above starts with DATABASE_URL, PG, or POSTGRES, no Postgres"
+  echo "plugin variable is reaching this service at all — check: (1) a Postgres"
+  echo "plugin actually exists in this Railway PROJECT, (2) DATABASE_URL was"
+  echo "added under the SAME environment (e.g. 'production') this service is"
+  echo "deployed to, not a different one."
   exit 1
 fi
 
