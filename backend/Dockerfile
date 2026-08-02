@@ -2,6 +2,20 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Alpine's minimal base image does NOT ship the openssl package itself
+# (only some baseline crypto libs) — Prisma's engines shell out to `openssl
+# version` to detect which engine binary (openssl-1.1.x vs openssl-3.0.x)
+# to use. Without this package, that detection silently fails and Prisma
+# guesses wrong (defaults to openssl-1.1.x), then downloads/runs an engine
+# binary that's incompatible with what's actually available in the
+# container — confirmed in production as:
+#   "Error: Could not parse schema engine response: SyntaxError:
+#    Unexpected token 'E', "Error load"... is not valid JSON"
+# (the engine process itself was crashing on a missing shared library and
+# printing a text error where Prisma's CLI expected JSON). Installing
+# openssl explicitly fixes detection at the source.
+RUN apk add --no-cache openssl
+
 # Install ALL dependencies first (this layer is cached as long as
 # package*.json don't change — full source changes below won't invalidate it).
 COPY package*.json ./
@@ -24,6 +38,11 @@ RUN npx prisma generate && npm run build
 FROM node:20-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Same reason as the builder stage — this stage independently runs
+# `prisma db push` (via start.sh) at container startup, which needs the
+# schema-engine to detect OpenSSL correctly too.
+RUN apk add --no-cache openssl
 
 COPY package*.json ./
 RUN npm ci --omit=dev
