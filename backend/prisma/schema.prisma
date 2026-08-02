@@ -1527,3 +1527,64 @@ model CompanyAddOn {
   @@index([companyId])
   @@map("company_add_ons")
 }
+
+// Per-company payment gateway selection — same Provider/Strategy Pattern
+// as TranslationProviderConfig. `apiKeyEnvVar`/`secretKeyEnvVar` store
+// environment variable NAMES only, never raw credentials.
+model PaymentGatewayConfig {
+  id               String   @id @default(uuid())
+  companyId        String?
+  gatewayType      String   // "STRIPE", "HYPERPAY", "PAYTABS", "MYFATOORAH", "MOYASAR", "STC_PAY", ...
+  apiKeyEnvVar     String?
+  secretKeyEnvVar  String?
+  merchantId       String?
+  isActive         Boolean  @default(true)
+  priority         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([companyId, gatewayType])
+  @@index([companyId])
+  @@map("payment_gateway_configs")
+}
+
+// ---- Webhooks --------------------------------------------------------------
+
+enum WebhookEventType {
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  SUBSCRIPTION_RENEWED
+  SUBSCRIPTION_EXPIRED
+  INVOICE_PAID
+  INVOICE_OVERDUE
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(uuid())
+  companyId String
+  url       String
+  secret    String   // HMAC signing secret for payload verification by the receiver
+  events    WebhookEventType[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+
+  @@index([companyId])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id          String           @id @default(uuid())
+  endpointId  String
+  endpoint    WebhookEndpoint  @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  eventType   WebhookEventType
+  payload     Json
+  statusCode  Int?
+  succeeded   Boolean          @default(false)
+  attempts    Int              @default(0)
+  createdAt   DateTime         @default(now())
+
+  @@index([endpointId])
+  @@map("webhook_deliveries")
+}

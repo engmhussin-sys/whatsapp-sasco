@@ -4,6 +4,8 @@ import { TranslationResolutionSource } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CompanyDictionaryService } from '../company-dictionary/company-dictionary.service';
 import { TranslationProviderRegistry } from './translation-provider.registry';
+import { LanguageDetectorService } from './language-detector.service';
+import { LanguageDetectionResult } from './interfaces/language-detection.interface';
 
 export interface TranslateResult {
   translatedText: string;
@@ -40,7 +42,20 @@ export class TranslationEngineService {
     private prisma: PrismaService,
     private dictionary: CompanyDictionaryService,
     private providerRegistry: TranslationProviderRegistry,
+    private languageDetector: LanguageDetectorService,
   ) {}
+
+  /** Heuristic, offline, no-API-key language detection — see LanguageDetectorService for why this is the default rather than a provider round-trip. */
+  detectLanguage(text: string): LanguageDetectionResult {
+    return this.languageDetector.detect(text);
+  }
+
+  /** Convenience wrapper: detects the source language automatically, then runs it through the normal 5-step policy. */
+  async translateAutoDetect(companyId: string, text: string, targetLanguage: string, requestedById?: string): Promise<TranslateResult & { detectedLanguage: string; detectionConfidence: number }> {
+    const detection = this.detectLanguage(text);
+    const result = await this.translate(companyId, text, detection.languageCode, targetLanguage, requestedById);
+    return { ...result, detectedLanguage: detection.languageCode, detectionConfidence: detection.confidence };
+  }
 
   async translate(
     companyId: string,

@@ -23,6 +23,11 @@ export class TranslationEngineController {
     return this.engine.translate(companyId, dto.text, dto.sourceLanguage, dto.targetLanguage, user.sub);
   }
 
+  @Post('detect-language')
+  detectLanguage(@Body('text') text: string) {
+    return this.engine.detectLanguage(text);
+  }
+
   @Post('retranslate')
   @Roles(SystemRole.COMPANY_ADMIN, SystemRole.SUPER_ADMIN)
   retranslate(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser, @Body() dto: TranslateRequestDto) {

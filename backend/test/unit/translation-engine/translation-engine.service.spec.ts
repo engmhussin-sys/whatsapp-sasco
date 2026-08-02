@@ -4,6 +4,7 @@ import { TranslationEngineService } from '../../../src/modules/translation-engin
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { CompanyDictionaryService } from '../../../src/modules/company-dictionary/company-dictionary.service';
 import { TranslationProviderRegistry } from '../../../src/modules/translation-engine/translation-provider.registry';
+import { LanguageDetectorService } from '../../../src/modules/translation-engine/language-detector.service';
 
 describe('TranslationEngineService — Smart Translation Policy', () => {
   let service: TranslationEngineService;
@@ -26,6 +27,7 @@ describe('TranslationEngineService — Smart Translation Policy', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: CompanyDictionaryService, useValue: dictionary },
         { provide: TranslationProviderRegistry, useValue: registry },
+        LanguageDetectorService,
       ],
     }).compile();
 
@@ -157,5 +159,24 @@ describe('TranslationEngineService — Smart Translation Policy', () => {
     const result = await service.translate('company-A', 'Hello', 'en', 'ar');
     expect(result.tokensUsed).toBeNull();
     expect(result.costEstimate).toBe(0.00004);
+  });
+
+  it('translateAutoDetect() detects the source language then runs the normal policy', async () => {
+    prisma.translationCacheEntry.findUnique.mockResolvedValue(null);
+    dictionary.lookupExactMatch.mockResolvedValue(null);
+    prisma.translationMemoryEntry.findUnique.mockResolvedValue(null);
+    const mockProvider = {
+      providerType: 'OPENAI',
+      translate: jest.fn().mockResolvedValue({ translatedText: 'Hello', tokensUsed: 10, costEstimate: 0.001 }),
+    };
+    registry.resolveForCompany.mockResolvedValue({ provider: mockProvider, apiKey: 'k', region: null, model: null });
+
+    const result = await service.translateAutoDetect('company-A', 'مرحبا', 'en');
+
+    expect(result.detectedLanguage).toBe('ar');
+    expect(mockProvider.translate).toHaveBeenCalledWith(
+      { text: 'مرحبا', sourceLanguage: 'ar', targetLanguage: 'en' },
+      expect.anything(),
+    );
   });
 });

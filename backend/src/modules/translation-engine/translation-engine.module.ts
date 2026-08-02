@@ -9,6 +9,7 @@ import { AzureTranslationProvider } from './providers/azure-translation.provider
 import { DeepLTranslationProvider } from './providers/deepl-translation.provider';
 import { OfflineStubTranslationProvider } from './providers/offline-stub-translation.provider';
 import { CompanyDictionaryModule } from '../company-dictionary/company-dictionary.module';
+import { LanguageDetectorService } from './language-detector.service';
 
 /**
  * STANDALONE, REUSABLE ENGINE — this module (and everything under
@@ -30,6 +31,7 @@ import { CompanyDictionaryModule } from '../company-dictionary/company-dictionar
     OfflineStubTranslationProvider,
     TranslationProviderRegistry,
     TranslationProviderConfigService,
+    LanguageDetectorService,
     TranslationEngineService,
   ],
   exports: [TranslationEngineService, TranslationProviderConfigService],

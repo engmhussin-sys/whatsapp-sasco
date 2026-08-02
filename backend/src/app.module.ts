@@ -28,6 +28,7 @@ import { DirectoryModule } from './modules/directory/directory.module';
 import { ChatPolicyModule } from './modules/chat-policy/chat-policy.module';
 import { CompanyDictionaryModule } from './modules/company-dictionary/company-dictionary.module';
 import { TranslationEngineModule } from './modules/translation-engine/translation-engine.module';
+import { BillingEngineModule } from './modules/billing-engine/billing-engine.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -63,6 +64,7 @@ import { HealthController } from './health.controller';
     ChatPolicyModule,
     CompanyDictionaryModule,
     TranslationEngineModule,
+    BillingEngineModule,
   ],
   controllers: [HealthController],
   providers: [
