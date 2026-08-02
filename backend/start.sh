@@ -30,5 +30,21 @@ echo "[$(date -u +%H:%M:%S)] Syncing database schema (prisma db push)..."
 npx prisma db push --skip-generate
 echo "[$(date -u +%H:%M:%S)] Schema sync complete."
 
+# Opt-in seed step: set RUN_SEED=true as an environment variable on this
+# service and redeploy to populate demo accounts (Super Admin, Company
+# Admin, Team Lead, Worker — see backend/README.md for exact credentials).
+# The seed script uses upsert/find-first-else-create patterns throughout,
+# so it is SAFE to run more than once — it will not create duplicates.
+# Remove the RUN_SEED variable afterward (optional) to skip this step on
+# future deploys and shave a few seconds off startup.
+if [ "$RUN_SEED" = "true" ]; then
+  echo "[$(date -u +%H:%M:%S)] RUN_SEED=true — running database seed..."
+  if npm run prisma:seed; then
+    echo "[$(date -u +%H:%M:%S)] Seed completed successfully."
+  else
+    echo "[$(date -u +%H:%M:%S)] WARNING: Seed script failed — continuing to start the server anyway (non-fatal)."
+  fi
+fi
+
 echo "[$(date -u +%H:%M:%S)] Starting server..."
 exec npm run start:prod

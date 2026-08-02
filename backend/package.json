@@ -34,6 +34,8 @@
     "@nestjs/swagger": "^7.4.0",
     "@prisma/client": "^5.19.0",
     "prisma": "^5.19.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "bcrypt": "^5.1.1",
@@ -61,9 +63,7 @@
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
-    "ts-jest": "^29.2.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.5.0"
+    "ts-jest": "^29.2.0"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
