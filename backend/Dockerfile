@@ -31,6 +31,8 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/dist ./dist
+COPY start.sh ./start.sh
+RUN chmod +x start.sh
 
 RUN mkdir -p uploads
 EXPOSE 3000
@@ -38,8 +40,8 @@ EXPOSE 3000
 # no migration history exists yet — see docs/deployment-guide.md for why,
 # and for the one-time step to switch to proper migrations.
 #
-# The DATABASE_URL pre-flight check below exists because its absence
-# otherwise surfaces as a cryptic, repeating Prisma schema-validation
-# error (P1012) as Railway's restart policy retries the container —
-# failing fast with a clear, actionable message is much easier to debug.
-CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ]; then echo 'FATAL: DATABASE_URL is not set. On Railway: Variables tab -> add DATABASE_URL -> reference your Postgres plugin (e.g. ${{Postgres.DATABASE_URL}}). See docs/deployment-guide.md.'; exit 1; fi && npx prisma db push --skip-generate && npm run start:prod"]
+# Runs via start.sh rather than an inline shell command — see that
+# file's header comment for exactly why (confirmed Railway does not
+# shell-wrap startCommand, so any inline `if`/`&&` syntax fails with
+# "the executable `if` could not be found").
+CMD ["sh", "start.sh"]
