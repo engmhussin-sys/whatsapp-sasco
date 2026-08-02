@@ -37,4 +37,9 @@ EXPOSE 3000
 # NOTE: uses `db push` (schema sync) rather than `migrate deploy` because
 # no migration history exists yet — see docs/deployment-guide.md for why,
 # and for the one-time step to switch to proper migrations.
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npm run start:prod"]
+#
+# The DATABASE_URL pre-flight check below exists because its absence
+# otherwise surfaces as a cryptic, repeating Prisma schema-validation
+# error (P1012) as Railway's restart policy retries the container —
+# failing fast with a clear, actionable message is much easier to debug.
+CMD ["sh", "-c", "if [ -z \"$DATABASE_URL\" ]; then echo 'FATAL: DATABASE_URL is not set. On Railway: Variables tab -> add DATABASE_URL -> reference your Postgres plugin (e.g. ${{Postgres.DATABASE_URL}}). See docs/deployment-guide.md.'; exit 1; fi && npx prisma db push --skip-generate && npm run start:prod"]
