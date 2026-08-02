@@ -16,8 +16,9 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
-echo "Syncing database schema (prisma db push)..."
+echo "[$(date -u +%H:%M:%S)] Syncing database schema (prisma db push)..."
 npx prisma db push --skip-generate
+echo "[$(date -u +%H:%M:%S)] Schema sync complete."
 
-echo "Starting server..."
+echo "[$(date -u +%H:%M:%S)] Starting server..."
 exec npm run start:prod
