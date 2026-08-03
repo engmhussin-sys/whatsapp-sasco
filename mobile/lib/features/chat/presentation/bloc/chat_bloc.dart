@@ -51,6 +51,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatDeleteMessageRequested>(_onDeleteMessageRequested);
     on<ChatLocalDeleteRequested>(_onLocalDeleteRequested);
     on<ChatReplyTargetChanged>(_onReplyTargetChanged);
+    on<ChatReactToMessageRequested>(_onReactToMessageRequested);
+    on<ChatEditMessageRequested>(_onEditMessageRequested);
   }
 
   Future<void> _onStarted(ChatStarted event, Emitter<ChatState> emit) async {
@@ -140,6 +142,85 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             createdAt: m.createdAt,
             originalLang: m.originalLang,
             isDeletedForEveryone: true,
+          );
+        }).toList();
+        emit(state.copyWith(messages: updated));
+      },
+    );
+  }
+
+  Future<void> _onReactToMessageRequested(ChatReactToMessageRequested event, Emitter<ChatState> emit) async {
+    // Optimistic: flip the local reaction immediately (toggle semantics
+    // matching the server exactly — same emoji again removes it) so the
+    // UI never waits on a round-trip for something this lightweight.
+    final optimistic = state.messages.map((m) {
+      if (m.id != event.messageId) return m;
+      final current = Map<String, String>.from(m.reactions);
+      if (current[event.myUserId] == event.emoji) {
+        current.remove(event.myUserId);
+      } else {
+        current[event.myUserId] = event.emoji;
+      }
+      return MessageEntity(
+        id: m.id,
+        conversationId: m.conversationId,
+        senderId: m.senderId,
+        senderName: m.senderName,
+        type: m.type,
+        status: m.status,
+        text: m.text,
+        audioUrl: m.audioUrl,
+        audioDurationMs: m.audioDurationMs,
+        createdAt: m.createdAt,
+        originalLang: m.originalLang,
+        translations: m.translations,
+        attachments: m.attachments,
+        replyTo: m.replyTo,
+        isDeletedForEveryone: m.isDeletedForEveryone,
+        editedAt: m.editedAt,
+        reactions: current,
+      );
+    }).toList();
+    emit(state.copyWith(messages: optimistic));
+
+    final result = await _repository.reactToMessage(companyId, conversationId, event.messageId, event.emoji);
+    result.fold(
+      // Best-effort revert-by-reload on failure — reactions are low-stakes
+      // enough that a full rollback isn't worth the extra state-machine
+      // complexity; the next natural reload (or socket echo) corrects it.
+      (failure) => emit(state.copyWith(errorMessage: failure.message)),
+      (_) {},
+    );
+  }
+
+  Future<void> _onEditMessageRequested(ChatEditMessageRequested event, Emitter<ChatState> emit) async {
+    final result = await _repository.editMessage(companyId, conversationId, event.messageId, event.newText);
+    result.fold(
+      (failure) => emit(state.copyWith(errorMessage: failure.message)),
+      (edited) {
+        // Editing invalidates translations server-side too (see
+        // MessagesService.editMessage) — cleared here to match, so a
+        // stale translation of the OLD wording is never shown.
+        final updated = state.messages.map((m) {
+          if (m.id != event.messageId) return m;
+          return MessageEntity(
+            id: m.id,
+            conversationId: m.conversationId,
+            senderId: m.senderId,
+            senderName: m.senderName,
+            type: m.type,
+            status: m.status,
+            text: edited.text,
+            audioUrl: m.audioUrl,
+            audioDurationMs: m.audioDurationMs,
+            createdAt: m.createdAt,
+            originalLang: m.originalLang,
+            translations: const {},
+            attachments: m.attachments,
+            replyTo: m.replyTo,
+            isDeletedForEveryone: m.isDeletedForEveryone,
+            reactions: m.reactions,
+            editedAt: edited.editedAt,
           );
         }).toList();
         emit(state.copyWith(messages: updated));

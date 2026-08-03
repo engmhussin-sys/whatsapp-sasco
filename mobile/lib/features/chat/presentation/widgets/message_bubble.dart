@@ -158,12 +158,40 @@ class MessageBubble extends StatelessWidget {
                   _formatTime(message.createdAt),
                   style: TextStyle(fontSize: 10, color: isMine ? Colors.white70 : AppColors.textSecondary),
                 ),
+                if (message.editedAt != null) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    'تم التعديل',
+                    style: TextStyle(fontSize: 9.5, fontStyle: FontStyle.italic, color: isMine ? Colors.white70 : AppColors.textSecondary),
+                  ),
+                ],
                 if (isMine) ...[
                   const SizedBox(width: 4),
                   Icon(_statusIcon(message.status), size: 12, color: Colors.white70),
                 ],
               ],
             ),
+
+            // ---- Group 3 (WhatsApp parity): reaction summary chips ----
+            if (message.reactionCounts.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 4,
+                children: message.reactionCounts.entries
+                    .map((e) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isMine ? Colors.white.withValues(alpha: 0.2) : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${e.key} ${e.value}',
+                            style: TextStyle(fontSize: 11, color: isMine ? Colors.white : AppColors.textPrimary),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ],
           ],
         ),
       ),

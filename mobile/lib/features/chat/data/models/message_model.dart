@@ -18,6 +18,8 @@ class MessageModel extends MessageEntity {
     super.attachments,
     super.replyTo,
     super.isDeletedForEveryone,
+    super.reactions,
+    super.editedAt,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,11 @@ class MessageModel extends MessageEntity {
               text: replyToJson['originalText'] as String?,
             ),
       isDeletedForEveryone: json['deletedForEveryone'] as bool? ?? false,
+      reactions: {
+        for (final r in (json['reactions'] as List<dynamic>? ?? const []))
+          (r as Map<String, dynamic>)['userId'] as String: r['emoji'] as String,
+      },
+      editedAt: json['editedAt'] != null ? DateTime.parse(json['editedAt'] as String) : null,
     );
   }
 

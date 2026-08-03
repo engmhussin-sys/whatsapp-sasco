@@ -24,6 +24,20 @@ abstract class ChatRepository {
   /// list filter (no server round-trip), handled in ChatBloc directly.
   Future<Either<Failure, void>> deleteMessage(String companyId, String conversationId, String messageId);
 
+  /// Group 3 (WhatsApp parity) — toggle a reaction (same emoji again = remove).
+  Future<Either<Failure, void>> reactToMessage(String companyId, String conversationId, String messageId, String emoji);
+
+  /// Group 3 — edits a text message. Returns only {text, editedAt} from
+  /// the server (see ChatRepositoryImpl doc comment for why) — callers
+  /// must merge this into their existing local copy of the message
+  /// rather than replacing it wholesale.
+  Future<Either<Failure, ({String text, DateTime editedAt})>> editMessage(
+    String companyId,
+    String conversationId,
+    String messageId,
+    String newText,
+  );
+
   /// Images/documents: creates a message (with [caption] as its text —
   /// backend has no separate "media-only" message shape) then uploads
   /// the file as that message's attachment. Two real network calls

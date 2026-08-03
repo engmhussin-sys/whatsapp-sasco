@@ -33,7 +33,16 @@ class MessageEntity extends Equatable {
   final List<MessageAttachmentEntity> attachments;
   final ReplyPreview? replyTo;
 
-  /// Group 2 — "Delete for everyone" tombstone flag. When true, `text`/
+  /// Group 3 (WhatsApp parity) — userId -> emoji. One reaction per user
+  /// per message, mirrors the backend's compound-unique constraint
+  /// exactly, so this map can never represent an invalid state.
+  final Map<String, String> reactions;
+
+  /// Group 3 — non-null once the sender has edited this message's text.
+  /// The bubble shows a small "تم التعديل" label when set.
+  final DateTime? editedAt;
+
+  /// Group 2 (WhatsApp parity) — "Delete for everyone" tombstone flag. When true, `text`/
   /// `audioUrl` are already blanked server-side; the bubble renders a
   /// "🚫 هذه الرسالة حُذفت" placeholder instead of any content.
   final bool isDeletedForEveryone;
@@ -63,6 +72,8 @@ class MessageEntity extends Equatable {
     this.attachments = const [],
     this.replyTo,
     this.isDeletedForEveryone = false,
+    this.reactions = const {},
+    this.editedAt,
   });
 
   /// The text the CURRENT user should see: their language's translation if
@@ -83,6 +94,19 @@ class MessageEntity extends Equatable {
   /// falling back with no explanation.
   bool translationMissingFor(String myLang) => myLang != originalLang && !translations.containsKey(myLang);
 
+  /// Group 3 — reactions grouped by emoji -> count, for the summary row
+  /// below a bubble (e.g. "❤️ 2 · 👍 1"), computed from the raw userId
+  /// map rather than duplicated server-side.
+  Map<String, int> get reactionCounts {
+    final counts = <String, int>{};
+    for (final emoji in reactions.values) {
+      counts[emoji] = (counts[emoji] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  String? reactionOf(String userId) => reactions[userId];
+
   MessageEntity copyWith({MessageDeliveryStatus? status}) => MessageEntity(
         id: id,
         conversationId: conversationId,
@@ -99,6 +123,8 @@ class MessageEntity extends Equatable {
         attachments: attachments,
         replyTo: replyTo,
         isDeletedForEveryone: isDeletedForEveryone,
+        reactions: reactions,
+        editedAt: editedAt,
       );
 
   @override
@@ -116,5 +142,7 @@ class MessageEntity extends Equatable {
         attachments,
         replyTo,
         isDeletedForEveryone,
+        reactions,
+        editedAt,
       ];
 }

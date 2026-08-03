@@ -16,9 +16,10 @@ class ChatEnded extends ChatEvent {
 
 class ChatTextMessageSent extends ChatEvent {
   final String text;
-  const ChatTextMessageSent(this.text);
+  final String? replyToId;
+  const ChatTextMessageSent(this.text, {this.replyToId});
   @override
-  List<Object?> get props => [text];
+  List<Object?> get props => [text, replyToId];
 }
 
 class ChatVoiceMessageSent extends ChatEvent {
@@ -75,4 +76,29 @@ class ChatSendAttachmentRequested extends ChatEvent {
   const ChatSendAttachmentRequested({required this.filePath, required this.kind, this.caption});
   @override
   List<Object?> get props => [filePath, kind, caption];
+}
+
+/// Group 2 (WhatsApp parity) — "Delete for everyone" (server call, sender-only, enforced backend-side).
+class ChatDeleteMessageRequested extends ChatEvent {
+  final String messageId;
+  const ChatDeleteMessageRequested(this.messageId);
+  @override
+  List<Object?> get props => [messageId];
+}
+
+/// "Delete for me" — purely local list filter, no server call at all.
+class ChatLocalDeleteRequested extends ChatEvent {
+  final String messageId;
+  const ChatLocalDeleteRequested(this.messageId);
+  @override
+  List<Object?> get props => [messageId];
+}
+
+/// Sets/clears which message the composer is currently replying to
+/// (shows the quoted preview above the text field).
+class ChatReplyTargetChanged extends ChatEvent {
+  final MessageEntity? target; // null clears it
+  const ChatReplyTargetChanged(this.target);
+  @override
+  List<Object?> get props => [target];
 }

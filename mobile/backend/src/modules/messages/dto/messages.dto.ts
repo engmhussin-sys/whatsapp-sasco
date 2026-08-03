@@ -19,18 +19,6 @@ export class DeleteMessageDto {
   forEveryone?: boolean; // false/omitted = "delete for me" (handled client-side only, no server call needed)
 }
 
-export class ReactToMessageDto {
-  @IsString()
-  @MaxLength(8) // a single emoji, generous margin for multi-codepoint ones (e.g. skin-tone modifiers)
-  emoji: string;
-}
-
-export class EditMessageDto {
-  @IsString()
-  @MaxLength(4000)
-  text: string;
-}
-
 export class MarkReadDto {
   @IsOptional()
   @IsString()

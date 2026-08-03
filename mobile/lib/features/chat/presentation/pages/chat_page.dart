@@ -42,6 +42,7 @@ class _ChatView extends StatefulWidget {
 
 class _ChatViewState extends State<_ChatView> {
   final _textController = TextEditingController();
+  String? _editingMessageId; // Group 3 (WhatsApp parity): non-null while editing an existing message
   final _scrollController = ScrollController();
   final _tts = sl<TtsService>();
   int _previousMessageCount = 0;
@@ -57,6 +58,12 @@ class _ChatViewState extends State<_ChatView> {
 
   void _sendText() {
     if (_textController.text.trim().isEmpty) return;
+    if (_editingMessageId != null) {
+      context.read<ChatBloc>().add(ChatEditMessageRequested(messageId: _editingMessageId!, newText: _textController.text.trim()));
+      setState(() => _editingMessageId = null);
+      _textController.clear();
+      return;
+    }
     final replyToId = context.read<ChatBloc>().state.replyTarget?.id;
     context.read<ChatBloc>().add(ChatTextMessageSent(_textController.text, replyToId: replyToId));
     _textController.clear();
@@ -181,6 +188,27 @@ class _ChatViewState extends State<_ChatView> {
               },
             ),
           ),
+          if (_editingMessageId != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: const BoxDecoration(color: AppColors.brandLight, border: Border(top: BorderSide(color: AppColors.divider))),
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_outlined, size: 16, color: AppColors.brandDark),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Text('تعديل الرسالة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brandDark)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                    onPressed: () => setState(() {
+                      _editingMessageId = null;
+                      _textController.clear();
+                    }),
+                  ),
+                ],
+              ),
+            ),
           BlocBuilder<ChatBloc, ChatState>(
             buildWhen: (p, c) => p.replyTarget != c.replyTarget,
             builder: (context, state) {
@@ -312,8 +340,11 @@ class _ChatViewState extends State<_ChatView> {
 
   bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
+  static const _quickEmojis = ['❤️', '👍', '😂', '😮', '😢', '🙏'];
+
   void _showMessageActions(BuildContext context, MessageEntity message) {
     final isMine = message.senderId == widget.currentUserId;
+    final canEdit = isMine && message.type == MessageType.text && !message.isDeletedForEveryone;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -325,6 +356,33 @@ class _ChatViewState extends State<_ChatView> {
             const SizedBox(height: 8),
             Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 12),
+
+            // ---- Group 3 (WhatsApp parity): quick emoji reaction row ----
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: _quickEmojis
+                    .map((emoji) => InkWell(
+                          borderRadius: BorderRadius.circular(24),
+                          onTap: () {
+                            Navigator.pop(sheetContext);
+                            context.read<ChatBloc>().add(ChatReactToMessageRequested(
+                                  messageId: message.id,
+                                  emoji: emoji,
+                                  myUserId: widget.currentUserId,
+                                ));
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const Divider(height: 20, color: AppColors.divider),
+
             ListTile(
               leading: const Icon(Icons.reply_rounded, color: AppColors.brand),
               title: const Text('ردّ'),
@@ -333,6 +391,19 @@ class _ChatViewState extends State<_ChatView> {
                 context.read<ChatBloc>().add(ChatReplyTargetChanged(message));
               },
             ),
+            if (canEdit)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined, color: AppColors.brand),
+                title: const Text('تعديل'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  setState(() {
+                    _editingMessageId = message.id;
+                    _textController.text = message.text ?? '';
+                    _textController.selection = TextSelection.collapsed(offset: _textController.text.length);
+                  });
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.delete_outline_rounded, color: AppColors.textSecondary),
               title: const Text('حذف لديّ فقط'),

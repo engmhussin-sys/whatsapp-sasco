@@ -102,3 +102,23 @@ class ChatReplyTargetChanged extends ChatEvent {
   @override
   List<Object?> get props => [target];
 }
+
+/// Group 3 (WhatsApp parity) — toggle a reaction. [myUserId] is passed
+/// in (rather than read from AuthBloc here) so the optimistic local
+/// update knows whose entry in the reactions map to touch.
+class ChatReactToMessageRequested extends ChatEvent {
+  final String messageId;
+  final String emoji;
+  final String myUserId;
+  const ChatReactToMessageRequested({required this.messageId, required this.emoji, required this.myUserId});
+  @override
+  List<Object?> get props => [messageId, emoji, myUserId];
+}
+
+class ChatEditMessageRequested extends ChatEvent {
+  final String messageId;
+  final String newText;
+  const ChatEditMessageRequested({required this.messageId, required this.newText});
+  @override
+  List<Object?> get props => [messageId, newText];
+}

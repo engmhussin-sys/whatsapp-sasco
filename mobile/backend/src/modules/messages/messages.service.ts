@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MessageStatus, MessageType, AttachmentKind } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -238,7 +238,6 @@ export class MessagesService {
         receipts: true,
         translations: true,
         replyTo: { select: { id: true, originalText: true, senderId: true, sender: { select: { firstName: true, lastName: true } } } },
-        reactions: { select: { userId: true, emoji: true } },
       },
     });
   }
@@ -253,7 +252,6 @@ export class MessagesService {
         translations: true,
         conversation: { select: { id: true, companyId: true } },
         replyTo: { select: { id: true, originalText: true, senderId: true, sender: { select: { firstName: true, lastName: true } } } },
-        reactions: { select: { userId: true, emoji: true } },
       },
     });
     if (!message || message.conversation.companyId !== companyId) {
@@ -376,69 +374,6 @@ export class MessagesService {
     return this.prisma.message.update({
       where: { id: messageId },
       data: { deletedAt: new Date(), deletedForEveryone: true, originalText: null, audioUrl: null },
-    });
-  }
-
-  /**
-   * Group 3 (WhatsApp parity) — toggle a reaction. Tapping the SAME
-   * emoji the user already reacted with REMOVES it (matches WhatsApp);
-   * tapping a DIFFERENT emoji replaces it (one reaction per user per
-   * message, enforced by the @@id([messageId, userId]) compound key).
-   */
-  async reactToMessage(companyId: string, conversationId: string, messageId: string, userId: string, emoji: string) {
-    await this.conversationsService.assertMembership(companyId, conversationId, userId);
-    const message = await this.prisma.message.findFirst({ where: { id: messageId, conversationId } });
-    if (!message) throw new NotFoundException('Message not found');
-
-    const existing = await this.prisma.messageReaction.findUnique({ where: { messageId_userId: { messageId, userId } } });
-
-    if (existing?.emoji === emoji) {
-      await this.prisma.messageReaction.delete({ where: { messageId_userId: { messageId, userId } } });
-      return { removed: true, emoji };
-    }
-
-    await this.prisma.messageReaction.upsert({
-      where: { messageId_userId: { messageId, userId } },
-      create: { messageId, userId, emoji },
-      update: { emoji },
-    });
-    return { removed: false, emoji };
-  }
-
-  /**
-   * Group 3 (WhatsApp parity) — edit a message's text. Sender-only,
-   * text-type-only (voice/attachments aren't editable — matches
-   * WhatsApp, which also only allows editing text content). Sets
-   * editedAt so the mobile UI can show the small "تم التعديل" label,
-   * exactly mirroring WhatsApp's own edited-message indicator.
-   */
-  async editMessage(companyId: string, conversationId: string, messageId: string, userId: string, newText: string) {
-    const message = await this.prisma.message.findFirst({ where: { id: messageId, conversationId } });
-    if (!message) throw new NotFoundException('Message not found');
-
-    const conversation = await this.prisma.conversation.findFirst({ where: { id: conversationId, companyId } });
-    if (!conversation) throw new NotFoundException('Conversation not found');
-
-    if (message.senderId !== userId) {
-      throw new ForbiddenException('Only the sender can edit this message');
-    }
-    if (message.type !== MessageType.TEXT) {
-      throw new BadRequestException('Only text messages can be edited');
-    }
-    if (message.deletedAt) {
-      throw new BadRequestException('Cannot edit a deleted message');
-    }
-
-    // Editing changes the ORIGINAL text, which invalidates every
-    // existing translation of it — they're cleared so the existing
-    // "إعادة ترجمة" flow regenerates them against the new wording
-    // rather than silently showing a stale translation of text that no
-    // longer exists.
-    await this.prisma.messageTranslation.deleteMany({ where: { messageId } });
-
-    return this.prisma.message.update({
-      where: { id: messageId },
-      data: { originalText: newText, editedAt: new Date() },
     });
   }
 }

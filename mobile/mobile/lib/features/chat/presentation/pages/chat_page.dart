@@ -57,7 +57,8 @@ class _ChatViewState extends State<_ChatView> {
 
   void _sendText() {
     if (_textController.text.trim().isEmpty) return;
-    context.read<ChatBloc>().add(ChatTextMessageSent(_textController.text));
+    final replyToId = context.read<ChatBloc>().state.replyTarget?.id;
+    context.read<ChatBloc>().add(ChatTextMessageSent(_textController.text, replyToId: replyToId));
     _textController.clear();
     context.read<ChatBloc>().add(const ChatTypingIndicatorChanged(false));
     _scrollToBottom();
@@ -161,12 +162,15 @@ class _ChatViewState extends State<_ChatView> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (showDateSeparator) _DateSeparator(date: message.createdAt),
-                            MessageBubble(
-                              message: message,
-                              isMine: message.senderId == widget.currentUserId,
-                              myLang: widget.myLang,
-                              showOriginalSetting: settingsState.showOriginalEnabled,
-                              onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
+                            GestureDetector(
+                              onLongPress: message.isDeletedForEveryone ? null : () => _showMessageActions(context, message),
+                              child: MessageBubble(
+                                message: message,
+                                isMine: message.senderId == widget.currentUserId,
+                                myLang: widget.myLang,
+                                showOriginalSetting: settingsState.showOriginalEnabled,
+                                onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
+                              ),
                             ),
                           ],
                         );
@@ -176,6 +180,44 @@ class _ChatViewState extends State<_ChatView> {
                 );
               },
             ),
+          ),
+          BlocBuilder<ChatBloc, ChatState>(
+            buildWhen: (p, c) => p.replyTarget != c.replyTarget,
+            builder: (context, state) {
+              if (state.replyTarget == null) return const SizedBox.shrink();
+              final target = state.replyTarget!;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: const BoxDecoration(
+                  color: AppColors.brandLight,
+                  border: Border(top: BorderSide(color: AppColors.divider)),
+                ),
+                child: Row(
+                  children: [
+                    Container(width: 3, height: 32, color: AppColors.brand),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('الردّ على ${target.senderName}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.brandDark)),
+                          Text(
+                            target.text ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.textSecondary),
+                      onPressed: () => context.read<ChatBloc>().add(const ChatReplyTargetChanged(null)),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           SafeArea(
             top: false,
@@ -269,6 +311,72 @@ class _ChatViewState extends State<_ChatView> {
   }
 
   bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
+  void _showMessageActions(BuildContext context, MessageEntity message) {
+    final isMine = message.senderId == widget.currentUserId;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.reply_rounded, color: AppColors.brand),
+              title: const Text('ردّ'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.read<ChatBloc>().add(ChatReplyTargetChanged(message));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded, color: AppColors.textSecondary),
+              title: const Text('حذف لديّ فقط'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.read<ChatBloc>().add(ChatLocalDeleteRequested(message.id));
+              },
+            ),
+            if (isMine)
+              ListTile(
+                leading: const Icon(Icons.delete_forever_rounded, color: AppColors.danger),
+                title: const Text('حذف لدى الجميع', style: TextStyle(color: AppColors.danger)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _confirmDeleteForEveryone(context, message.id);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteForEveryone(BuildContext context, String messageId) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('حذف لدى الجميع؟'),
+        content: const Text('لن يتمكّن أي شخص في هذه المحادثة من رؤية هذه الرسالة بعد الآن.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<ChatBloc>().add(ChatDeleteMessageRequested(messageId));
+            },
+            child: const Text('حذف', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _pickDocument() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.any, withData: false);

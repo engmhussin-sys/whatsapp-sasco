@@ -9,7 +9,7 @@ abstract class ChatRepository {
 
   Future<Either<Failure, List<MessageEntity>>> getMessages(String companyId, String conversationId, {String? cursor});
 
-  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text);
+  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId});
 
   Future<Either<Failure, MessageEntity>> sendVoiceMessage(
     String companyId,
@@ -17,6 +17,12 @@ abstract class ChatRepository {
     String audioFilePath,
     int durationMs,
   );
+
+  /// Group 2 (WhatsApp parity) — "Delete for everyone". Sender-only,
+  /// enforced server-side (see MessagesService.deleteMessage). "Delete
+  /// for me" is intentionally NOT here — it's a purely local/client-side
+  /// list filter (no server round-trip), handled in ChatBloc directly.
+  Future<Either<Failure, void>> deleteMessage(String companyId, String conversationId, String messageId);
 
   /// Images/documents: creates a message (with [caption] as its text —
   /// backend has no separate "media-only" message shape) then uploads

@@ -185,6 +185,41 @@ class ChatRepositoryImpl implements ChatRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, void>> reactToMessage(String companyId, String conversationId, String messageId, String emoji) async {
+    try {
+      await _remote.reactToMessage(companyId, conversationId, messageId, emoji);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, ({String text, DateTime editedAt})>> editMessage(
+    String companyId,
+    String conversationId,
+    String messageId,
+    String newText,
+  ) async {
+    // NOTE (honest, not hidden): the backend's edit endpoint returns the
+    // raw updated row only — no sender/attachments/reactions/replyTo
+    // includes (see MessagesService.editMessage). Returning just
+    // {text, editedAt} here forces callers to MERGE into their existing
+    // local copy rather than accidentally overwrite it with a sparse
+    // object (which would blank the sender's name, etc.).
+    try {
+      final result = await _remote.editMessage(companyId, conversationId, messageId, newText);
+      return Right((text: result.text ?? newText, editedAt: DateTime.now()));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    }
+  }
+
   // ---- Real-time -------------------------------------------------------------
 
   @override

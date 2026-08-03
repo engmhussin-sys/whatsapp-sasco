@@ -20,6 +20,8 @@ abstract class ChatRemoteDataSource {
     MessageAttachmentKind kind,
   );
   Future<void> deleteMessage(String companyId, String conversationId, String messageId);
+  Future<void> reactToMessage(String companyId, String conversationId, String messageId, String emoji);
+  Future<MessageModel> editMessage(String companyId, String conversationId, String messageId, String newText);
   Future<void> markRead(String companyId, String conversationId, {String? upToMessageId});
   Future<void> retranslateConversation(String companyId, String conversationId, String targetLanguage);
 }
@@ -93,6 +95,20 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Future<void> deleteMessage(String companyId, String conversationId, String messageId) async {
     await _client.delete<dynamic>(ApiConstants.messageById(companyId, conversationId, messageId));
+  }
+
+  @override
+  Future<void> reactToMessage(String companyId, String conversationId, String messageId, String emoji) async {
+    await _client.post<dynamic>(ApiConstants.messageReactions(companyId, conversationId, messageId), data: {'emoji': emoji});
+  }
+
+  @override
+  Future<MessageModel> editMessage(String companyId, String conversationId, String messageId, String newText) async {
+    final data = await _client.patch<Map<String, dynamic>>(
+      ApiConstants.messageById(companyId, conversationId, messageId),
+      data: {'text': newText},
+    );
+    return MessageModel.fromJson(data);
   }
 
   @override

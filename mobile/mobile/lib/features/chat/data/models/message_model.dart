@@ -16,10 +16,14 @@ class MessageModel extends MessageEntity {
     super.originalLang,
     super.translations,
     super.attachments,
+    super.replyTo,
+    super.isDeletedForEveryone,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     final sender = json['sender'] as Map<String, dynamic>?;
+    final replyToJson = json['replyTo'] as Map<String, dynamic>?;
+
     return MessageModel(
       id: json['id'] as String,
       conversationId: json['conversationId'] as String? ?? '',
@@ -39,6 +43,16 @@ class MessageModel extends MessageEntity {
       attachments: (json['attachments'] as List<dynamic>? ?? const [])
           .map((a) => MessageAttachmentModel.fromJson(a as Map<String, dynamic>))
           .toList(),
+      replyTo: replyToJson == null
+          ? null
+          : ReplyPreview(
+              messageId: replyToJson['id'] as String,
+              senderName: replyToJson['sender'] != null
+                  ? '${(replyToJson['sender'] as Map<String, dynamic>)['firstName']} ${(replyToJson['sender'] as Map<String, dynamic>)['lastName']}'
+                  : '',
+              text: replyToJson['originalText'] as String?,
+            ),
+      isDeletedForEveryone: json['deletedForEveryone'] as bool? ?? false,
     );
   }
 

@@ -10,7 +10,7 @@ import '../models/message_model.dart';
 abstract class ChatRemoteDataSource {
   Future<List<ConversationModel>> getConversations(String companyId);
   Future<List<MessageModel>> getMessages(String companyId, String conversationId, {String? cursor});
-  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text);
+  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId});
   Future<MessageModel> sendVoiceMessage(String companyId, String conversationId, String audioFilePath, int durationMs);
   Future<MessageAttachmentModel> uploadAttachment(
     String companyId,
@@ -19,6 +19,7 @@ abstract class ChatRemoteDataSource {
     String filePath,
     MessageAttachmentKind kind,
   );
+  Future<void> deleteMessage(String companyId, String conversationId, String messageId);
   Future<void> markRead(String companyId, String conversationId, {String? upToMessageId});
   Future<void> retranslateConversation(String companyId, String conversationId, String targetLanguage);
 }
@@ -43,10 +44,10 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   }
 
   @override
-  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text) async {
+  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId}) async {
     final data = await _client.post<Map<String, dynamic>>(
       ApiConstants.sendTextMessage(companyId, conversationId),
-      data: {'text': text},
+      data: {'text': text, if (replyToId != null) 'replyToId': replyToId},
     );
     return MessageModel.fromJson(data);
   }
@@ -87,6 +88,11 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       ApiConstants.retranslateConversation(companyId, conversationId),
       data: {'targetLanguage': targetLanguage},
     );
+  }
+
+  @override
+  Future<void> deleteMessage(String companyId, String conversationId, String messageId) async {
+    await _client.delete<dynamic>(ApiConstants.messageById(companyId, conversationId, messageId));
   }
 
   @override

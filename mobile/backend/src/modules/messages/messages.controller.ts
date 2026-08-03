@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  Patch,
   Post,
   Query,
   UploadedFile,
@@ -15,7 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { AttachmentKind } from '@prisma/client';
 import { MessagesService } from './messages.service';
-import { SendTextMessageDto, MarkReadDto, ReactToMessageDto, EditMessageDto } from './dto/messages.dto';
+import { SendTextMessageDto, MarkReadDto } from './dto/messages.dto';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user.interface';
@@ -118,29 +117,5 @@ export class MessagesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.messagesService.deleteMessage(companyId, conversationId, messageId, user.sub);
-  }
-
-  /** Group 3 (WhatsApp parity): toggle a reaction (same emoji again = remove). */
-  @Post(':messageId/reactions')
-  react(
-    @TenantId() companyId: string,
-    @Param('conversationId') conversationId: string,
-    @Param('messageId') messageId: string,
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: ReactToMessageDto,
-  ) {
-    return this.messagesService.reactToMessage(companyId, conversationId, messageId, user.sub, dto.emoji);
-  }
-
-  /** Group 3 (WhatsApp parity): edit a text message — sender only. */
-  @Patch(':messageId')
-  editMessage(
-    @TenantId() companyId: string,
-    @Param('conversationId') conversationId: string,
-    @Param('messageId') messageId: string,
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: EditMessageDto,
-  ) {
-    return this.messagesService.editMessage(companyId, conversationId, messageId, user.sub, dto.text);
   }
 }

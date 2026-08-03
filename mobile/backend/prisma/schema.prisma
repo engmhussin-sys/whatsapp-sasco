@@ -180,7 +180,6 @@ model User {
   ticketMessages    TicketMessage[] @relation("TicketMessageAuthor")
   hazardReports     HazardReport[] @relation("HazardReporter")
   sosAlerts         SosAlert[] @relation("SosRaiser")
-  messageReactions  MessageReaction[]
 
   // Multi-tenant data isolation: composite uniqueness scoped by company
   @@unique([companyId, email])
@@ -394,7 +393,6 @@ model Message {
   translations   MessageTranslation[]
   receipts       MessageReceipt[]
   attachments    MessageAttachment[]
-  reactions      MessageReaction[]
 
   @@index([conversationId])
   @@index([senderId])
@@ -429,22 +427,6 @@ model MessageReceipt {
 
   @@id([messageId, userId])
   @@map("message_receipts")
-}
-
-// Group 3 (WhatsApp parity) — one reaction per user per message (tapping
-// the same emoji again removes it; tapping a different emoji replaces
-// it — matches WhatsApp's own single-reaction-per-user behavior).
-model MessageReaction {
-  messageId String
-  userId    String
-  emoji     String
-  createdAt DateTime @default(now())
-
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([messageId, userId])
-  @@map("message_reactions")
 }
 
 // --------------------------------------------------------------------------
