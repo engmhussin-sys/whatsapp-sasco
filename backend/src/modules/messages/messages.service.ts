@@ -130,7 +130,7 @@ export class MessagesService {
       return created;
     });
 
-    await this.fanOutTranslations(companyId, message.id, dto.text, message.originalLang, conversationId, senderId);
+    await this.fanOutTranslations(companyId, message.id, dto.text, message.originalLang ?? 'en', conversationId, senderId);
 
     return this.findOne(companyId, senderId, message.id);
   }
@@ -332,10 +332,10 @@ export class MessagesService {
 
     let translatedCount = 0;
     await Promise.all(
-      toTranslate.map(async (m: { id: string; originalText: string | null; originalLang: string }) => {
+      toTranslate.map(async (m: { id: string; originalText: string | null; originalLang: string | null }) => {
         if (!m.originalText) return;
         try {
-          const result = await this.translationEngine.translate(companyId, m.originalText, m.originalLang, targetLanguage, userId);
+          const result = await this.translationEngine.translate(companyId, m.originalText, m.originalLang ?? 'ar', targetLanguage, userId);
           if (result.resolutionSource === 'SAME_LANGUAGE') return;
           await this.prisma.messageTranslation.upsert({
             where: { messageId_langCode: { messageId: m.id, langCode: targetLanguage } },
