@@ -1,5 +1,5 @@
 import { api } from '../api-client';
-import type { AppUser, Team, RoleDef } from '../types';
+import type { AppUser, Team, RoleDef, PermissionDef } from '../types';
 
 export const usersApi = {
   list: (companyId: string, search?: string) =>
@@ -41,4 +41,9 @@ export const rolesApi = {
 
   assign: (companyId: string, userId: string, roleId: string) =>
     api.post(`/companies/${companyId}/roles/assign`, { userId, roleId }),
+
+  setPermissions: (companyId: string, roleId: string, permissionCodes: string[]) =>
+    api.patch<RoleDef>(`/companies/${companyId}/roles/${roleId}/permissions`, { permissionCodes }),
+
+  listAllPermissions: (companyId: string) => api.get<PermissionDef[]>(`/companies/${companyId}/roles/permissions/catalog`),
 };

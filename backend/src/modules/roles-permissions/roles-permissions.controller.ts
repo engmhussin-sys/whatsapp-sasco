@@ -30,6 +30,11 @@ export class RolesPermissionsController {
     return this.service.findAll(companyId);
   }
 
+  @Get('permissions/catalog')
+  findAllPermissions() {
+    return this.service.findAllPermissions();
+  }
+
   @Get(':id')
   findOne(@TenantId() companyId: string, @Param('id') id: string) {
     return this.service.findOne(companyId, id);

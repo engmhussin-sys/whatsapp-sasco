@@ -78,6 +78,12 @@ export interface RoleDef {
   permissions: { permission: { code: string; description?: string | null } }[];
 }
 
+export interface PermissionDef {
+  id: string;
+  code: string;
+  description?: string | null;
+}
+
 export interface ConversationMember {
   userId: string;
   user: { id: string; firstName: string; lastName: string; avatarUrl?: string | null };
@@ -274,4 +280,26 @@ export interface FeatureAccessResult {
   limit: number | null;
   used: number;
   remaining: number | null;
+}
+
+export interface ExecutiveOverviewReport {
+  revenue: { mrr: number; arr: number };
+  companies: { total: number; active: number; trial: number; inactive: number };
+  expiringSoon: number;
+  failedPayments: { count: number; recent: { id: string; companyId: string; amount: number; currency: string; createdAt: string }[] };
+  growth: { thisMonth: number; lastMonth: number; changePercent: number | null };
+  latestCompanies: { id: string; name: string; createdAt: string }[];
+  latestPayments: { id: string; companyId: string; amount: number; currency: string; createdAt: string }[];
+  activityTimeline: { id: string; action: string; entityType: string; actorName: string; companyName: string | null; createdAt: string }[];
+}
+
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: { id: string; firstName: string; lastName: string; email: string } | null;
+  company?: { id: string; name: string } | null;
 }

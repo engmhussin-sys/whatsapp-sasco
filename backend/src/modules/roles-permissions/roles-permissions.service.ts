@@ -154,4 +154,14 @@ export class RolesPermissionsService {
     }
     return codes;
   }
+
+  /**
+   * Full permission catalog (platform-wide, not company-scoped — the
+   * Permission model is a fixed set of capability codes shared across
+   * every tenant). Powers the Permission Matrix UI: one row per
+   * permission, one column per role, checkbox at each intersection.
+   */
+  findAllPermissions() {
+    return this.prisma.permission.findMany({ orderBy: { code: 'asc' } });
+  }
 }

@@ -70,6 +70,38 @@ async function main() {
     update: {},
   });
 
+  // ---- Permission catalog (platform-wide, powers the Permission Matrix
+  // UI — every code below maps to a real capability the app already
+  // enforces or could enforce; grouped by domain for readability) ----------
+  const permissionCatalog: { code: string; description: string }[] = [
+    { code: 'users.view', description: 'عرض المستخدمين' },
+    { code: 'users.create', description: 'إنشاء مستخدمين' },
+    { code: 'users.edit', description: 'تعديل بيانات المستخدمين' },
+    { code: 'users.deactivate', description: 'تعطيل/تفعيل المستخدمين' },
+    { code: 'teams.view', description: 'عرض الفرق' },
+    { code: 'teams.manage', description: 'إدارة الفرق وأعضائها' },
+    { code: 'stations.view', description: 'عرض المحطات' },
+    { code: 'stations.manage', description: 'إدارة المحطات والخزانات' },
+    { code: 'tasks.view', description: 'عرض المهام' },
+    { code: 'tasks.create', description: 'إنشاء مهام وقوالب مهام' },
+    { code: 'tasks.assign', description: 'إسناد المهام للموظفين' },
+    { code: 'approvals.view', description: 'عرض طلبات الموافقة' },
+    { code: 'approvals.decide', description: 'الموافقة/الرفض على الطلبات' },
+    { code: 'shifts.view', description: 'عرض الورديات' },
+    { code: 'shifts.manage', description: 'فتح/إغلاق الورديات' },
+    { code: 'fuel_requests.view', description: 'عرض طلبات الوقود' },
+    { code: 'fuel_requests.decide', description: 'الموافقة على طلبات الوقود' },
+    { code: 'conversations.moderate', description: 'إدارة قنوات الدردشة والبث' },
+    { code: 'roles.manage', description: 'إدارة الأدوار والصلاحيات' },
+    { code: 'billing.view', description: 'عرض الفوترة والاشتراك' },
+    { code: 'billing.manage', description: 'إدارة الاشتراك والفواتير' },
+    { code: 'reports.view', description: 'عرض التقارير' },
+    { code: 'audit_logs.view', description: 'عرض سجلّ الأحداث' },
+  ];
+  for (const perm of permissionCatalog) {
+    await prisma.permission.upsert({ where: { code: perm.code }, create: perm, update: { description: perm.description } });
+  }
+
   // ---- Super Admin (platform-level, companyId = null) -----------------------
   const superAdminEmail = 'superadmin@workforceconnect.ai';
   const superAdmin = await prisma.user.upsert({
