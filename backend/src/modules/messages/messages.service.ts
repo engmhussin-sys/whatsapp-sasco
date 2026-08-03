@@ -277,10 +277,12 @@ export class MessagesService {
 
   /** Called by ChatGateway when a message is pushed to a connected recipient. */
   async markDelivered(messageId: string, userId: string) {
-    return this.prisma.messageReceipt.updateMany({
+    const result = await this.prisma.messageReceipt.updateMany({
       where: { messageId, userId, status: MessageStatus.SENT },
       data: { status: MessageStatus.DELIVERED },
     });
+    await this.recomputeMessageStatus(messageId);
+    return result;
   }
 
   /** Marks every unread message in a conversation up to `upToMessageId` (or the latest) as READ for this user. */
@@ -309,15 +311,55 @@ export class MessagesService {
       ...(cutoff ? { createdAt: { lte: cutoff.createdAt } } : {}),
     };
 
+    // Capture WHICH messages are about to flip to READ before the bulk
+    // update, so their parent Message.status can be recomputed after —
+    // updateMany() alone has no way to report which rows it touched.
+    const affected = await this.prisma.messageReceipt.findMany({
+      where: { userId, status: { in: [MessageStatus.SENT, MessageStatus.DELIVERED] }, message: messageWhere },
+      select: { messageId: true },
+    });
+
     await this.prisma.messageReceipt.updateMany({
       where: { userId, status: { in: [MessageStatus.SENT, MessageStatus.DELIVERED] }, message: messageWhere },
       data: { status: MessageStatus.READ },
     });
 
+    await Promise.all(affected.map((r: { messageId: string }) => this.recomputeMessageStatus(r.messageId)));
+
     await this.prisma.conversationMember.update({
       where: { conversationId_userId: { conversationId, userId } },
       data: { lastReadAt: new Date() },
     });
+  }
+
+  /**
+   * BUG FIX (confirmed via real testing: sender's ticks stayed stuck on
+   * "sent" forever). markDelivered/markRead only ever updated the
+   * per-RECIPIENT MessageReceipt row — the parent Message.status field
+   * (which is what the SENDER's own message list reads to render their
+   * own ticks) was never touched by anything. This aggregates every
+   * recipient's receipt into a single status for the sender to see:
+   * READ only once every recipient has read it, DELIVERED once every
+   * recipient has at least received it, otherwise SENT — matching
+   * WhatsApp's own group-chat tick semantics, and reducing correctly
+   * to the simple 1:1 case for DIRECT conversations.
+   */
+  private async recomputeMessageStatus(messageId: string) {
+    const receipts = await this.prisma.messageReceipt.findMany({ where: { messageId }, select: { status: true } });
+    if (receipts.length === 0) return;
+
+    let status: MessageStatus = MessageStatus.READ;
+    for (const r of receipts as { status: MessageStatus }[]) {
+      if (r.status === MessageStatus.SENT) {
+        status = MessageStatus.SENT;
+        break;
+      }
+      if (r.status === MessageStatus.DELIVERED && status === MessageStatus.READ) {
+        status = MessageStatus.DELIVERED;
+      }
+    }
+
+    await this.prisma.message.update({ where: { id: messageId }, data: { status } });
   }
 
   /**

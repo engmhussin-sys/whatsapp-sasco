@@ -595,3 +595,105 @@ describe('MessagesService.searchMessages() — Group 4', () => {
     );
   });
 });
+
+describe('MessagesService — delivery status aggregation (sender-visible ticks)', () => {
+  let service: MessagesService;
+  let prisma: any;
+  let conversations: any;
+
+  const companyId = 'company-A';
+  const conversationId = 'conv-1';
+  const userId = 'user-1';
+
+  beforeEach(async () => {
+    prisma = {
+      messageReceipt: { updateMany: jest.fn(), findMany: jest.fn() },
+      message: { findFirst: jest.fn(), update: jest.fn() },
+      conversationMember: { update: jest.fn() },
+    };
+    conversations = { assertMembership: jest.fn() };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: ConversationsService, useValue: conversations },
+        { provide: STORAGE_PROVIDER, useValue: {} },
+        { provide: TranslationEngineService, useValue: {} },
+        { provide: LanguageDetectorService, useValue: { detect: jest.fn() } },
+        { provide: TokenWalletService, useValue: {} },
+        { provide: UsageEngineService, useValue: {} },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MessagesService);
+  });
+
+  describe('markDelivered()', () => {
+    it('recomputes and writes the aggregate status onto the parent Message row', async () => {
+      prisma.messageReceipt.updateMany.mockResolvedValue({ count: 1 });
+      prisma.messageReceipt.findMany.mockResolvedValue([{ status: 'DELIVERED' }]);
+
+      await service.markDelivered('msg-1', userId);
+
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'DELIVERED' } });
+    });
+  });
+
+  describe('recomputeMessageStatus() semantics (exercised via markDelivered)', () => {
+    it('is SENT if ANY recipient still has not received it', async () => {
+      prisma.messageReceipt.updateMany.mockResolvedValue({ count: 0 });
+      prisma.messageReceipt.findMany.mockResolvedValue([{ status: 'DELIVERED' }, { status: 'SENT' }]);
+
+      await service.markDelivered('msg-1', userId);
+
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'SENT' } });
+    });
+
+    it('is DELIVERED if every recipient has it but not everyone has read it yet', async () => {
+      prisma.messageReceipt.updateMany.mockResolvedValue({ count: 0 });
+      prisma.messageReceipt.findMany.mockResolvedValue([{ status: 'READ' }, { status: 'DELIVERED' }]);
+
+      await service.markDelivered('msg-1', userId);
+
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'DELIVERED' } });
+    });
+
+    it('is READ only once EVERY recipient has read it', async () => {
+      prisma.messageReceipt.updateMany.mockResolvedValue({ count: 0 });
+      prisma.messageReceipt.findMany.mockResolvedValue([{ status: 'READ' }, { status: 'READ' }]);
+
+      await service.markDelivered('msg-1', userId);
+
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'READ' } });
+    });
+
+    it('does nothing if the message has no receipts at all (edge case, should not crash)', async () => {
+      prisma.messageReceipt.updateMany.mockResolvedValue({ count: 0 });
+      prisma.messageReceipt.findMany.mockResolvedValue([]);
+
+      await service.markDelivered('msg-1', userId);
+
+      expect(prisma.message.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('markRead()', () => {
+    it('recomputes status for every message that was actually flipped to READ', async () => {
+      conversations.assertMembership.mockResolvedValue({});
+      prisma.message.findFirst.mockResolvedValue(null); // no upToMessageId cutoff in this test
+      prisma.messageReceipt.findMany
+        .mockResolvedValueOnce([{ messageId: 'm1' }, { messageId: 'm2' }]) // "affected" lookup before the bulk update
+        .mockResolvedValueOnce([{ status: 'READ' }]) // recompute for m1
+        .mockResolvedValueOnce([{ status: 'READ' }]); // recompute for m2
+      prisma.messageReceipt.updateMany.mockResolvedValue({ count: 2 });
+      prisma.conversationMember.update.mockResolvedValue({});
+
+      await service.markRead(companyId, conversationId, userId);
+
+      expect(prisma.message.update).toHaveBeenCalledTimes(2);
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'm1' }, data: { status: 'READ' } });
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'm2' }, data: { status: 'READ' } });
+    });
+  });
+});

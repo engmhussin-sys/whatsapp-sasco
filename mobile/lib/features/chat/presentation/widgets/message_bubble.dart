@@ -167,7 +167,19 @@ class MessageBubble extends StatelessWidget {
                 ],
                 if (isMine) ...[
                   const SizedBox(width: 4),
-                  Icon(_statusIcon(message.status), size: 12, color: Colors.white70),
+                  Icon(
+                    _statusIcon(message.status),
+                    size: 12,
+                    // "Read" ticks go fully opaque white to stand out
+                    // against the brand-green bubble — WhatsApp's blue
+                    // convention is deliberately NOT used here, since
+                    // this project's own design rule explicitly
+                    // forbids any blue accent anywhere (see T3 rule:
+                    // "لا يوجد أي أثر للأزرق"). Sent/delivered stay
+                    // muted (white70) so "read" is the one that visibly
+                    // pops.
+                    color: message.status == MessageDeliveryStatus.read ? Colors.white : Colors.white70,
+                  ),
                 ],
               ],
             ),
