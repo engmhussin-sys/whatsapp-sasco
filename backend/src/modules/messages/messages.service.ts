@@ -6,6 +6,7 @@ import { STORAGE_PROVIDER, StorageProvider } from '../../common/storage/storage.
 import { SendTextMessageDto } from './dto/messages.dto';
 import { TranslationEngineService } from '../translation-engine/translation-engine.service';
 import { TokenWalletService } from '../billing-engine/token-wallet.service';
+import { UsageEngineService } from '../billing-engine/usage-engine.service';
 
 @Injectable()
 export class MessagesService {
@@ -17,6 +18,7 @@ export class MessagesService {
     @Inject(STORAGE_PROVIDER) private storage: StorageProvider,
     private translationEngine: TranslationEngineService,
     private tokenWallet: TokenWalletService,
+    private usageEngine: UsageEngineService,
   ) {}
 
   /**
@@ -71,6 +73,20 @@ export class MessagesService {
               // and move on rather than retroactively undoing a
               // translation the recipient has already received.
               this.logger.warn(`Token wallet debit failed for message ${messageId}: ${(walletErr as Error).message}`);
+            }
+
+            // USAGE ENGINE: separate from the wallet debit above — this
+            // feeds the "monthly_ai_tokens" PlanFeatureLimit so
+            // FeatureEngine.checkAccess()/InvoiceEngine's overage billing
+            // can see real consumption, independent of whether the
+            // company also happens to be on a prepaid-token plan. A
+            // company with no such feature configured on its plan (or no
+            // subscription at all) simply has nothing to record against —
+            // that's expected, not an error, so it's equally best-effort.
+            try {
+              await this.usageEngine.recordUsage(companyId, 'monthly_ai_tokens', result.tokensUsed);
+            } catch (usageErr) {
+              this.logger.warn(`Usage tracking failed for message ${messageId}: ${(usageErr as Error).message}`);
             }
           }
         } catch (err) {

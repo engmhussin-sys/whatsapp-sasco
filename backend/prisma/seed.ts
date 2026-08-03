@@ -34,6 +34,41 @@ async function main() {
     create: { code: 'ar', name: 'Arabic', nativeName: 'العربية', isRtl: true },
     update: {},
   });
+  // ---- Languages most commonly spoken by fuel-station / labor workers in
+  // Saudi Arabia (Pakistani, Indian, Bangladeshi, Filipino, Nepali, and
+  // Indonesian workforces are all very common in this sector) — matches
+  // exactly the language set mobile/lib/.../language_detector.service.ts
+  // was already built anticipating (ar, en, ur, hi, bn, ne, tl).
+  await prisma.language.upsert({
+    where: { code: 'ur' },
+    create: { code: 'ur', name: 'Urdu', nativeName: 'اردو', isRtl: true },
+    update: {},
+  });
+  await prisma.language.upsert({
+    where: { code: 'hi' },
+    create: { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', isRtl: false },
+    update: {},
+  });
+  await prisma.language.upsert({
+    where: { code: 'bn' },
+    create: { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', isRtl: false },
+    update: {},
+  });
+  await prisma.language.upsert({
+    where: { code: 'tl' },
+    create: { code: 'tl', name: 'Tagalog', nativeName: 'Tagalog', isRtl: false },
+    update: {},
+  });
+  await prisma.language.upsert({
+    where: { code: 'ne' },
+    create: { code: 'ne', name: 'Nepali', nativeName: 'नेपाली', isRtl: false },
+    update: {},
+  });
+  await prisma.language.upsert({
+    where: { code: 'id' },
+    create: { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia', isRtl: false },
+    update: {},
+  });
 
   // ---- Super Admin (platform-level, companyId = null) -----------------------
   const superAdminEmail = 'superadmin@workforceconnect.ai';
@@ -62,7 +97,7 @@ async function main() {
       industry: 'Fuel Stations',
       defaultLanguage: 'ar',
       subscription: { create: { plan: 'PROFESSIONAL', seatsLimit: 50 } },
-      supportedLanguages: { create: [{ langCode: 'ar' }, { langCode: 'en' }] },
+      supportedLanguages: { create: [{ langCode: 'ar' }, { langCode: 'en' }, { langCode: 'ur' }, { langCode: 'hi' }, { langCode: 'bn' }] },
     },
     update: {},
   });

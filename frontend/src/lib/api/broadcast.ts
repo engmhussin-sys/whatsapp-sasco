@@ -6,7 +6,20 @@ export interface BroadcastResult {
   recipientCount: number;
 }
 
+export type BroadcastTargetType = 'ALL' | 'ROLE' | 'STATION' | 'TEAM' | 'USER';
+
+export interface SendBroadcastPayload {
+  text: string;
+  sourceLanguage: string;
+  targetType: BroadcastTargetType;
+  role?: string;
+  stationId?: string;
+  teamId?: string;
+  userId?: string;
+  urgent?: boolean;
+}
+
 export const broadcastApi = {
-  send: (companyId: string, text: string, sourceLanguage: string, urgent = false) =>
-    api.post<BroadcastResult>(`/companies/${companyId}/broadcast`, { text, sourceLanguage, urgent }),
+  send: (companyId: string, payload: SendBroadcastPayload) =>
+    api.post<BroadcastResult>(`/companies/${companyId}/broadcast`, payload),
 };

@@ -5,6 +5,7 @@ import { ConversationsService } from '../../../src/modules/conversations/convers
 import { STORAGE_PROVIDER } from '../../../src/common/storage/storage.interface';
 import { TranslationEngineService } from '../../../src/modules/translation-engine/translation-engine.service';
 import { TokenWalletService } from '../../../src/modules/billing-engine/token-wallet.service';
+import { UsageEngineService } from '../../../src/modules/billing-engine/usage-engine.service';
 
 describe('MessagesService — Translation Engine activation', () => {
   let service: MessagesService;
@@ -12,6 +13,7 @@ describe('MessagesService — Translation Engine activation', () => {
   let conversations: any;
   let translationEngine: any;
   let tokenWallet: any;
+  let usageEngine: any;
 
   const senderId = 'sender-1';
   const conversationId = 'conv-1';
@@ -30,6 +32,7 @@ describe('MessagesService — Translation Engine activation', () => {
     conversations = { assertMembership: jest.fn(), assertCanPost: jest.fn() };
     translationEngine = { translate: jest.fn() };
     tokenWallet = { debit: jest.fn().mockResolvedValue({}) };
+    usageEngine = { recordUsage: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -39,6 +42,7 @@ describe('MessagesService — Translation Engine activation', () => {
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: translationEngine },
         { provide: TokenWalletService, useValue: tokenWallet },
+        { provide: UsageEngineService, useValue: usageEngine },
       ],
     }).compile();
 
@@ -180,5 +184,57 @@ describe('MessagesService — Translation Engine activation', () => {
 
     await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
     expect(prisma.messageTranslation.upsert).toHaveBeenCalled(); // translation itself was still persisted
+  });
+
+  it('USAGE ENGINE: records "monthly_ai_tokens" usage for PROVIDER-sourced translations', async () => {
+    let call = 0;
+    prisma.conversationMember.findMany.mockImplementation(() => {
+      call++;
+      if (call === 1) return Promise.resolve([]);
+      return Promise.resolve([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'fr' } }]);
+    });
+    translationEngine.translate.mockResolvedValue({
+      translatedText: 'Bonjour',
+      resolutionSource: 'PROVIDER',
+      providerType: 'OPENAI',
+      tokensUsed: 25,
+    });
+
+    await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+
+    expect(usageEngine.recordUsage).toHaveBeenCalledWith(companyId, 'monthly_ai_tokens', 25);
+  });
+
+  it('USAGE ENGINE: does NOT record usage for cache/dictionary/memory hits', async () => {
+    let call = 0;
+    prisma.conversationMember.findMany.mockImplementation(() => {
+      call++;
+      if (call === 1) return Promise.resolve([]);
+      return Promise.resolve([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'fr' } }]);
+    });
+    translationEngine.translate.mockResolvedValue({ translatedText: 'Bonjour', resolutionSource: 'DICTIONARY', providerType: null });
+
+    await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+
+    expect(usageEngine.recordUsage).not.toHaveBeenCalled();
+  });
+
+  it('USAGE ENGINE: a recordUsage failure (e.g. no subscription / unknown feature) is caught — the translation stays delivered', async () => {
+    let call = 0;
+    prisma.conversationMember.findMany.mockImplementation(() => {
+      call++;
+      if (call === 1) return Promise.resolve([]);
+      return Promise.resolve([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'fr' } }]);
+    });
+    translationEngine.translate.mockResolvedValue({
+      translatedText: 'Bonjour',
+      resolutionSource: 'PROVIDER',
+      providerType: 'OPENAI',
+      tokensUsed: 25,
+    });
+    usageEngine.recordUsage.mockRejectedValue(new Error('Company has no active subscription to meter usage against'));
+
+    await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
+    expect(prisma.messageTranslation.upsert).toHaveBeenCalled();
   });
 });

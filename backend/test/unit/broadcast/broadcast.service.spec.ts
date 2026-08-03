@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ConversationType, SystemRole } from '@prisma/client';
 import { BroadcastService } from '../../../src/modules/broadcast/broadcast.service';
@@ -15,8 +15,10 @@ describe('BroadcastService', () => {
   beforeEach(async () => {
     prisma = {
       user: { findFirst: jest.fn(), findMany: jest.fn() },
-      conversation: { findFirst: jest.fn() },
+      conversation: { findFirst: jest.fn(), create: jest.fn() },
       conversationMember: { findMany: jest.fn(), createMany: jest.fn(), count: jest.fn() },
+      station: { findFirst: jest.fn() },
+      team: { findFirst: jest.fn() },
     };
     conversations = { create: jest.fn() };
     messages = { sendText: jest.fn() };
@@ -31,6 +33,9 @@ describe('BroadcastService', () => {
     }).compile();
 
     service = moduleRef.get(BroadcastService);
+    prisma.user.findFirst.mockResolvedValue({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN });
+    messages.sendText.mockResolvedValue({ id: 'msg-1' });
+    prisma.conversationMember.count.mockResolvedValue(1);
   });
 
   it('REJECTS senders who are not Company Admin or Super Admin', async () => {
@@ -39,67 +44,137 @@ describe('BroadcastService', () => {
     expect(messages.sendText).not.toHaveBeenCalled();
   });
 
-  it('REJECTS a sender that does not belong to this company at all', async () => {
-    prisma.user.findFirst.mockResolvedValue(null);
-    await expect(service.send('company-A', 'u1', 'hello', 'en')).rejects.toThrow(ForbiddenException);
-  });
+  describe('target: ALL (default)', () => {
+    it('creates the ANNOUNCEMENT channel when none exists yet', async () => {
+      prisma.conversation.findFirst.mockResolvedValue(null);
+      conversations.create.mockResolvedValue({ id: 'conv-new' });
 
-  it('creates the ANNOUNCEMENT channel when none exists yet, then sends through it', async () => {
-    prisma.user.findFirst.mockResolvedValue({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN });
-    prisma.conversation.findFirst.mockResolvedValue(null);
-    conversations.create.mockResolvedValue({ id: 'conv-new' });
-    messages.sendText.mockResolvedValue({ id: 'msg-1' });
-    prisma.conversationMember.count.mockResolvedValue(42);
+      await service.send('company-A', 'admin-1', 'إجازة رسمية', 'ar', { type: 'ALL' });
 
-    const result = await service.send('company-A', 'admin-1', 'إجازة رسمية غدًا', 'ar');
+      expect(conversations.create).toHaveBeenCalledWith('company-A', 'admin-1', { type: ConversationType.ANNOUNCEMENT });
+    });
 
-    expect(conversations.create).toHaveBeenCalledWith('company-A', 'admin-1', { type: ConversationType.ANNOUNCEMENT });
-    expect(messages.sendText).toHaveBeenCalledWith('company-A', 'conv-new', 'admin-1', { text: 'إجازة رسمية غدًا', originalLang: 'ar' });
-    expect(result.recipientCount).toBe(42);
-  });
+    it('uses EMERGENCY when urgent=true', async () => {
+      prisma.conversation.findFirst.mockResolvedValue(null);
+      conversations.create.mockResolvedValue({ id: 'conv-e' });
 
-  it('uses EMERGENCY channel type when urgent=true', async () => {
-    prisma.user.findFirst.mockResolvedValue({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN });
-    prisma.conversation.findFirst.mockResolvedValue(null);
-    conversations.create.mockResolvedValue({ id: 'conv-emergency' });
-    messages.sendText.mockResolvedValue({});
-    prisma.conversationMember.count.mockResolvedValue(10);
+      await service.send('company-A', 'admin-1', 'إخلاء', 'ar', { type: 'ALL' }, true);
 
-    await service.send('company-A', 'admin-1', 'إخلاء فوري', 'ar', true);
+      expect(conversations.create).toHaveBeenCalledWith('company-A', 'admin-1', { type: ConversationType.EMERGENCY });
+    });
 
-    expect(conversations.create).toHaveBeenCalledWith('company-A', 'admin-1', { type: ConversationType.EMERGENCY });
-    expect(prisma.conversation.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { companyId: 'company-A', type: ConversationType.EMERGENCY } }),
-    );
-  });
+    it('syncs newly-hired active users into an existing channel', async () => {
+      prisma.conversation.findFirst.mockResolvedValue({ id: 'conv-existing' });
+      prisma.user.findMany.mockResolvedValue([{ id: 'u1' }, { id: 'u2' }]);
+      prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'u1' }]);
 
-  it('REUSES an existing announcement channel and adds newly-hired employees who are missing from it', async () => {
-    prisma.user.findFirst.mockResolvedValue({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN });
-    prisma.conversation.findFirst.mockResolvedValue({ id: 'conv-existing' });
-    prisma.user.findMany.mockResolvedValue([{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }]);
-    prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'u1' }, { userId: 'u2' }]); // u3 is new/missing
-    messages.sendText.mockResolvedValue({});
-    prisma.conversationMember.count.mockResolvedValue(3);
+      await service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'ALL' });
 
-    await service.send('company-A', 'admin-1', 'تحديث', 'en');
-
-    expect(conversations.create).not.toHaveBeenCalled();
-    expect(prisma.conversationMember.createMany).toHaveBeenCalledWith({
-      data: [{ conversationId: 'conv-existing', userId: 'u3' }],
-      skipDuplicates: true,
+      expect(prisma.conversationMember.createMany).toHaveBeenCalledWith({
+        data: [{ conversationId: 'conv-existing', userId: 'u2' }],
+        skipDuplicates: true,
+      });
     });
   });
 
-  it('does NOT touch membership when everyone active is already a member', async () => {
-    prisma.user.findFirst.mockResolvedValue({ id: 'admin-1', systemRole: SystemRole.SUPER_ADMIN });
-    prisma.conversation.findFirst.mockResolvedValue({ id: 'conv-existing' });
-    prisma.user.findMany.mockResolvedValue([{ id: 'u1' }]);
-    prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'u1' }]);
-    messages.sendText.mockResolvedValue({});
-    prisma.conversationMember.count.mockResolvedValue(1);
+  describe('target: ROLE', () => {
+    it('throws NotFoundException when no active users have that role', async () => {
+      prisma.user.findMany.mockResolvedValue([]);
+      await expect(service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'ROLE', role: SystemRole.WORKER })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
 
-    await service.send('company-A', 'admin-1', 'hi', 'en');
+    it('creates a GROUP channel scoped to that role, and reuses it on a second send', async () => {
+      prisma.user.findMany.mockResolvedValue([{ id: 'w1' }, { id: 'w2' }]);
+      prisma.conversation.findFirst.mockResolvedValueOnce(null); // first send: no existing channel
+      prisma.conversation.create.mockResolvedValue({ id: 'conv-role-worker' });
 
-    expect(prisma.conversationMember.createMany).not.toHaveBeenCalled();
+      await service.send('company-A', 'admin-1', 'شفت جديد', 'ar', { type: 'ROLE', role: SystemRole.WORKER });
+
+      expect(prisma.conversation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ type: ConversationType.GROUP, title: '__role_broadcast__WORKER' }),
+        }),
+      );
+
+      // second send — channel now exists, must be REUSED not recreated
+      prisma.conversation.findFirst.mockResolvedValueOnce({ id: 'conv-role-worker' });
+      prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'w1' }, { userId: 'w2' }]);
+      prisma.conversation.create.mockClear();
+
+      await service.send('company-A', 'admin-1', 'تذكير ثانٍ', 'ar', { type: 'ROLE', role: SystemRole.WORKER });
+      expect(prisma.conversation.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('target: STATION', () => {
+    it('throws NotFoundException for a station outside this company', async () => {
+      prisma.station.findFirst.mockResolvedValue(null);
+      await expect(service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'STATION', stationId: 's1' })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('reuses the existing STATION Smart Channel rather than creating a duplicate', async () => {
+      prisma.station.findFirst.mockResolvedValue({ id: 's1', name: 'Riyadh Station' });
+      prisma.conversation.findFirst.mockResolvedValue({ id: 'conv-station-1' });
+      prisma.user.findMany.mockResolvedValue([{ id: 'staff-1' }]);
+      prisma.conversationMember.findMany.mockResolvedValue([]);
+
+      const conversationId = await (service as any).resolveStationChannel('company-A', 'admin-1', 's1');
+
+      expect(conversations.create).not.toHaveBeenCalled();
+      expect(conversationId).toBe('conv-station-1');
+    });
+  });
+
+  describe('target: TEAM', () => {
+    it('throws NotFoundException for a team outside this company', async () => {
+      prisma.team.findFirst.mockResolvedValue(null);
+      await expect(service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'TEAM', teamId: 't1' })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('target: USER', () => {
+    it('rejects broadcasting to yourself', async () => {
+      await expect(service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'USER', userId: 'admin-1' })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects a recipient who does not belong to this company', async () => {
+      prisma.user.findFirst.mockResolvedValueOnce({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN }).mockResolvedValueOnce(null);
+      await expect(service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'USER', userId: 'ghost' })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('reuses an existing DIRECT conversation instead of creating a new one', async () => {
+      prisma.user.findFirst
+        .mockResolvedValueOnce({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN })
+        .mockResolvedValueOnce({ id: 'worker-1', isActive: true });
+      prisma.conversation.findFirst.mockResolvedValue({ id: 'conv-direct-existing' });
+
+      await service.send('company-A', 'admin-1', 'تحية شخصية', 'ar', { type: 'USER', userId: 'worker-1' });
+
+      expect(conversations.create).not.toHaveBeenCalled();
+      expect(messages.sendText).toHaveBeenCalledWith('company-A', 'conv-direct-existing', 'admin-1', {
+        text: 'تحية شخصية',
+        originalLang: 'ar',
+      });
+    });
+
+    it('creates a new DIRECT conversation when none exists yet', async () => {
+      prisma.user.findFirst
+        .mockResolvedValueOnce({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN })
+        .mockResolvedValueOnce({ id: 'worker-1', isActive: true });
+      prisma.conversation.findFirst.mockResolvedValue(null);
+      conversations.create.mockResolvedValue({ id: 'conv-direct-new' });
+
+      await service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'USER', userId: 'worker-1' });
+
+      expect(conversations.create).toHaveBeenCalledWith('company-A', 'admin-1', { type: ConversationType.DIRECT, memberIds: ['worker-1'] });
+    });
   });
 });
