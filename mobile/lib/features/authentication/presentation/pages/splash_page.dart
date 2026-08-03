@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -16,13 +17,16 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
+    debugPrint('🔍 [TRACE] SplashPage.initState() — about to add AuthSessionCheckRequested');
     context.read<AuthBloc>().add(const AuthSessionCheckRequested());
+    debugPrint('🔍 [TRACE] SplashPage.initState() — add() call returned (event dispatched)');
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
+        debugPrint('🔍 [TRACE] SplashPage BlocListener fired — status=${state.status}');
         if (state.status == AuthStatus.authenticated) {
           context.go(RouteNames.home);
         } else if (state.status == AuthStatus.unauthenticated) {

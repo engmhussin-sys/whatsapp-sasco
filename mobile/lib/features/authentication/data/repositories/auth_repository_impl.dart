@@ -84,12 +84,22 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, UserEntity?>> getCurrentUser() async {
     try {
+      // ignore: avoid_print
+      print('🔍 [TRACE] AuthRepositoryImpl.getCurrentUser — before getAccessToken()');
       final token = await _secureStorage.getAccessToken();
+      // ignore: avoid_print
+      print('🔍 [TRACE] AuthRepositoryImpl.getCurrentUser — after getAccessToken(), token=${token != null}');
       if (token == null) return const Right(null);
+      // ignore: avoid_print
+      print('🔍 [TRACE] AuthRepositoryImpl.getCurrentUser — before getUser()');
       final userJson = await _secureStorage.getUser();
+      // ignore: avoid_print
+      print('🔍 [TRACE] AuthRepositoryImpl.getCurrentUser — after getUser(), found=${userJson != null}');
       if (userJson == null) return const Right(null);
       return Right(UserModel.fromJson(userJson));
-    } catch (_) {
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('🔍 [TRACE] AuthRepositoryImpl.getCurrentUser — CAUGHT EXCEPTION: $e\n$st');
       return const Left(CacheFailure());
     }
   }
