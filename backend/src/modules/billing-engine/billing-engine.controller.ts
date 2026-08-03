@@ -113,6 +113,12 @@ export class BillingEngineController {
     return this.invoiceEngine.issue(id);
   }
 
+  @Post('invoices/:id/mark-paid')
+  @Roles(SystemRole.SUPER_ADMIN)
+  markInvoicePaid(@Param('id') id: string) {
+    return this.invoiceEngine.markPaid(id);
+  }
+
   // ---- Coupons --------------------------------------------------------------
   @Post('coupons/validate')
   validateCoupon(@Body() dto: ValidateCouponDto) {

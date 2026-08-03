@@ -51,6 +51,8 @@ export const billingApi = {
     api.post<Invoice>(`/companies/${companyId}/billing/invoices/generate`, opts ?? {}),
   issueInvoice: (companyId: string, invoiceId: string) =>
     api.post<Invoice>(`/companies/${companyId}/billing/invoices/${invoiceId}/issue`, {}),
+  markInvoicePaid: (companyId: string, invoiceId: string) =>
+    api.post<Invoice>(`/companies/${companyId}/billing/invoices/${invoiceId}/mark-paid`, {}),
 
   getWallet: (companyId: string) => api.get<TokenWallet>(`/companies/${companyId}/billing/wallet`),
   creditWallet: (companyId: string, amount: number, reason: string) =>

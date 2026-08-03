@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { companiesApi } from '@/lib/api/companies';
 import { ApiError } from '@/lib/api-client';
 import type { Company } from '@/lib/types';
@@ -18,6 +19,7 @@ const emptyForm = {
 };
 
 export default function CompaniesPage() {
+  const router = useRouter();
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -89,30 +91,34 @@ export default function CompaniesPage() {
       {companies && (
         <div className="card overflow-x-auto p-0">
           <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-right">
+            <thead className="border-b border-ink-100 bg-ink-50 text-right">
               <tr>
                 <th className="px-4 py-2">الاسم</th>
                 <th className="px-4 py-2">المعرّف</th>
                 <th className="px-4 py-2">الخطة</th>
                 <th className="px-4 py-2">الحالة</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody>
               {companies.map((c) => (
-                <tr key={c.id} className="border-b border-slate-100">
-                  <td className="px-4 py-2">{c.name}</td>
-                  <td className="px-4 py-2 text-slate-500">{c.slug}</td>
+                <tr
+                  key={c.id}
+                  onClick={() => router.push(`/super-admin/companies/${c.id}`)}
+                  className="cursor-pointer border-b border-ink-100 transition hover:bg-brand-50/40"
+                >
+                  <td className="px-4 py-2 font-medium">{c.name}</td>
+                  <td className="px-4 py-2 text-ink-500">{c.slug}</td>
                   <td className="px-4 py-2">{c.subscription?.plan ?? '—'}</td>
                   <td className="px-4 py-2">
-                    <span className={c.isActive ? 'text-green-600' : 'text-red-600'}>
-                      {c.isActive ? 'نشطة' : 'معطّلة'}
-                    </span>
+                    <span className={c.isActive ? 'text-brand-600' : 'text-red-600'}>{c.isActive ? 'نشطة' : 'معطّلة'}</span>
                   </td>
+                  <td className="px-4 py-2 text-left text-ink-300">إدارة الفوترة ←</td>
                 </tr>
               ))}
               {companies.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={5} className="px-4 py-6 text-center text-ink-400">
                     لا توجد شركات بعد
                   </td>
                 </tr>
