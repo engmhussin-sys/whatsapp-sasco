@@ -64,9 +64,27 @@ class SafetyCubit extends Cubit<SafetyState> {
     );
   }
 
-  Future<void> reportHazard({required HazardKind kind, String? stationId, String? note, String? photoUrl}) async {
+  Future<void> reportHazard({
+    required HazardKind kind,
+    String? stationId,
+    String? note,
+    String? photoUrl,
+    String? photoFilePath,
+  }) async {
     emit(state.copyWith(hazardSubmitStatus: SafetySubmitStatus.submitting, clearError: true));
-    final result = await _repository.reportHazard(companyId, kind: kind, stationId: stationId, note: note, photoUrl: photoUrl);
+
+    // Upload the local photo FIRST (if any) to get a real URL — matches
+    // the backend's two-step design (small standalone upload endpoint,
+    // not a multipart create). A failed upload still lets the report
+    // go through text-only rather than blocking the whole submission on
+    // the photo specifically.
+    String? finalPhotoUrl = photoUrl;
+    if (photoFilePath != null) {
+      final uploadResult = await _repository.uploadHazardPhoto(companyId, photoFilePath);
+      finalPhotoUrl = uploadResult.fold((failure) => null, (url) => url);
+    }
+
+    final result = await _repository.reportHazard(companyId, kind: kind, stationId: stationId, note: note, photoUrl: finalPhotoUrl);
     result.fold(
       (failure) => emit(state.copyWith(hazardSubmitStatus: SafetySubmitStatus.failure, errorMessage: failure.message)),
       (hazard) => emit(state.copyWith(

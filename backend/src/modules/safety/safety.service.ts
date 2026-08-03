@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { HazardStatus, NotificationType, SystemRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatGateway } from '../websocket/chat.gateway';
+import { STORAGE_PROVIDER, StorageProvider } from '../../common/storage/storage.interface';
 
 /**
  * SAFETY LAYER (T8) — hazard reporting + SOS. Mirrors the `approvals`
@@ -19,7 +20,24 @@ export class SafetyService {
     private prisma: PrismaService,
     private notifications: NotificationsService,
     private chatGateway: ChatGateway,
+    @Inject(STORAGE_PROVIDER) private storage: StorageProvider,
   ) {}
+
+  /**
+   * Uploads a hazard-report photo (or optional voice note) and returns
+   * its URL, for the caller to include in the subsequent
+   * POST .../hazards JSON body. A separate small endpoint rather than a
+   * multipart hazard-creation endpoint — keeps the JSON create path
+   * simple and reusable for text-only hazard reports.
+   */
+  async uploadHazardPhoto(companyId: string, file: { buffer: Buffer; originalname: string; mimetype: string }) {
+    const stored = await this.storage.save(file.buffer, {
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      folder: `hazard-photos/${companyId}`,
+    });
+    return { url: stored.url };
+  }
 
   // ---- Hazard reports ---------------------------------------------------
 

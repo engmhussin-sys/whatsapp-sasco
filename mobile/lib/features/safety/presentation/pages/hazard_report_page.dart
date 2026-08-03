@@ -17,8 +17,9 @@ import '../cubit/safety_cubit.dart';
 /// delivery — the `record` package is already a project dependency and
 /// used elsewhere (voice messages), so adding it here is mechanical
 /// follow-up work, intentionally left out given the time available for
-/// this pass. Camera capture IS fully wired using the same ImagePicker
-/// pattern already used in tasks/dynamic_form_field_widget.dart.
+/// this pass. Camera capture IS fully wired end-to-end: captured, then
+/// uploaded to the server via SafetyCubit.reportHazard's photoFilePath
+/// param before the report is created.
 class HazardReportPage extends StatefulWidget {
   final UserEntity currentUser;
   const HazardReportPage({super.key, required this.currentUser});
@@ -63,10 +64,7 @@ class _HazardReportPageState extends State<HazardReportPage> {
     _cubit.reportHazard(
       kind: _selectedKind!,
       note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
-      // photoUrl intentionally omitted — no upload endpoint exists yet
-      // for hazard photos (see SCOPE NOTE above); the LOCAL photo is
-      // still shown as a preview so the worker sees their capture was
-      // registered, even though it isn't sent to the server in this pass.
+      photoFilePath: _photo?.path,
     );
   }
 
@@ -105,7 +103,7 @@ class _HazardReportPageState extends State<HazardReportPage> {
                       onTap: () => setState(() => _selectedKind = k.kind),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: selected ? const Color(0xFFFEF2F2) : Colors.white,
+                          color: selected ? AppColors.danger.withValues(alpha: 0.08) : Colors.white,
                           border: Border.all(color: selected ? AppColors.danger : AppColors.divider, width: selected ? 2 : 1),
                           borderRadius: BorderRadius.circular(16),
                         ),

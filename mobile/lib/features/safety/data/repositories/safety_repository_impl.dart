@@ -50,6 +50,21 @@ class SafetyRepositoryImpl implements SafetyRepository {
   }
 
   @override
+  Future<Either<Failure, String>> uploadHazardPhoto(String companyId, String filePath) async {
+    if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
+    try {
+      final url = await _remote.uploadHazardPhoto(companyId, filePath);
+      return Right(url);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(ServerFailure('تعذّر رفع الصورة: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, SosAlertEntity>> raiseSos(String companyId, {String? stationId, double? latitude, double? longitude}) async {
     // SOS is deliberately allowed to attempt even on a flaky connection —
     // the network check is skipped here; a failed request simply surfaces

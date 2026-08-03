@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { HazardStatus, SystemRole } from '@prisma/client';
 import { SafetyService } from './safety.service';
 import { ReportHazardDto, UpdateHazardStatusDto, RaiseSosDto } from './dto/safety.dto';
@@ -8,11 +9,22 @@ import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/authenticated-user.interface';
 
+const MAX_HAZARD_PHOTO_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+
 @ApiTags('safety')
 @ApiBearerAuth()
 @Controller('companies/:companyId')
 export class SafetyController {
   constructor(private safety: SafetyService) {}
+
+  /** Upload FIRST, get a URL, then include it in POST .../hazards below. */
+  @Post('hazards/photo')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_HAZARD_PHOTO_SIZE_BYTES } }))
+  uploadHazardPhoto(@TenantId() companyId: string, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('file is required');
+    return this.safety.uploadHazardPhoto(companyId, file);
+  }
 
   @Post('hazards')
   reportHazard(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser, @Body() dto: ReportHazardDto) {

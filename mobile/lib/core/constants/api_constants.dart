@@ -45,6 +45,7 @@ class ApiConstants {
   static String updateUser(String companyId, String userId) => '/companies/$companyId/users/$userId';
 
   static String hazards(String companyId) => '/companies/$companyId/hazards';
+  static String hazardPhoto(String companyId) => '/companies/$companyId/hazards/photo';
   static String sos(String companyId) => '/companies/$companyId/sos';
 
   static String tasks(String companyId) => '/companies/$companyId/tasks';

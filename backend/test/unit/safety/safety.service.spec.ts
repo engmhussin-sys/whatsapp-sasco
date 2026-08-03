@@ -5,12 +5,14 @@ import { SafetyService } from '../../../src/modules/safety/safety.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { NotificationsService } from '../../../src/modules/notifications/notifications.service';
 import { ChatGateway } from '../../../src/modules/websocket/chat.gateway';
+import { STORAGE_PROVIDER } from '../../../src/common/storage/storage.interface';
 
 describe('SafetyService', () => {
   let service: SafetyService;
   let prisma: any;
   let notifications: any;
   let chatGateway: any;
+  let storage: any;
 
   beforeEach(async () => {
     prisma = {
@@ -20,6 +22,7 @@ describe('SafetyService', () => {
     };
     notifications = { create: jest.fn().mockResolvedValue({}) };
     chatGateway = { server: { to: jest.fn().mockReturnValue({ emit: jest.fn() }) } };
+    storage = { save: jest.fn() };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -27,6 +30,7 @@ describe('SafetyService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: NotificationsService, useValue: notifications },
         { provide: ChatGateway, useValue: chatGateway },
+        { provide: STORAGE_PROVIDER, useValue: storage },
       ],
     }).compile();
 
@@ -108,6 +112,24 @@ describe('SafetyService', () => {
       expect(prisma.sosAlert.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { companyId: 'company-A', resolvedAt: null } }),
       );
+    });
+  });
+
+  describe('uploadHazardPhoto()', () => {
+    it('saves via the storage provider under a company-scoped folder and returns the URL', async () => {
+      storage.save.mockResolvedValue({ url: 'https://x/uploads/hazard-photos/company-A/abc.jpg', path: '/tmp/abc.jpg', sizeBytes: 123, mimeType: 'image/jpeg' });
+
+      const result = await service.uploadHazardPhoto('company-A', {
+        buffer: Buffer.from('fake'),
+        originalname: 'photo.jpg',
+        mimetype: 'image/jpeg',
+      });
+
+      expect(storage.save).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        expect.objectContaining({ fileName: 'photo.jpg', mimeType: 'image/jpeg', folder: 'hazard-photos/company-A' }),
+      );
+      expect(result).toEqual({ url: 'https://x/uploads/hazard-photos/company-A/abc.jpg' });
     });
   });
 });
