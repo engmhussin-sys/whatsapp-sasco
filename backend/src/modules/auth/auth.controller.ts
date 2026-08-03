@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
@@ -27,6 +27,22 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.login(dto, this.meta(req));
+  }
+
+  // TESTING-PHASE ONLY — both no-op with 401 unless ENABLE_TEST_ACCOUNTS=true
+  // on the server. See AuthService for the full safety rationale.
+  @Public()
+  @Get('test-accounts')
+  listTestAccounts() {
+    return this.authService.listTestAccounts();
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('test-accounts/:userId/login')
+  @HttpCode(HttpStatus.OK)
+  testAccountLogin(@Param('userId') userId: string, @Req() req: Request) {
+    return this.authService.testAccountLogin(userId, this.meta(req));
   }
 
   @Public()

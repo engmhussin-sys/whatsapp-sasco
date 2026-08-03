@@ -10,7 +10,9 @@ import type { AuthUser, LoginResponse } from './types';
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string, companyId?: string) => Promise<void>;
+  login: (identifier: { email?: string; phone?: string }, password: string, companyId?: string) => Promise<void>;
+  /** Testing-phase only — issues real tokens for a seeded account with one click, no password. Backend rejects this entirely unless ENABLE_TEST_ACCOUNTS=true is set there. */
+  testLogin: (userId: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -27,12 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  async function login(email: string, password: string, companyId?: string) {
-    const result = await api.post<LoginResponse>(
-      '/auth/login',
-      { email, password, companyId },
-      { skipAuth: true },
-    );
+  function applySession(result: LoginResponse) {
     tokenStore.setSession(result.accessToken, result.refreshToken, result.user);
     setUser(result.user);
 
@@ -41,6 +38,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       router.push('/company-admin/dashboard');
     }
+  }
+
+  async function login(identifier: { email?: string; phone?: string }, password: string, companyId?: string) {
+    const result = await api.post<LoginResponse>(
+      '/auth/login',
+      { ...identifier, password, companyId },
+      { skipAuth: true },
+    );
+    applySession(result);
+  }
+
+  async function testLogin(userId: string) {
+    const result = await api.post<LoginResponse>(`/auth/test-accounts/${userId}/login`, {}, { skipAuth: true });
+    applySession(result);
   }
 
   async function logout() {
@@ -58,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/login');
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, testLogin, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

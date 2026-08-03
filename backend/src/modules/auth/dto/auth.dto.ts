@@ -1,16 +1,24 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsUUID } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsUUID, ValidateIf } from 'class-validator';
 
 export class LoginDto {
+  // Exactly one of email/phone must be provided — station workers often
+  // have no email at all, so phone-based login is a first-class path,
+  // not a fallback.
+  @ValidateIf((o) => !o.phone)
   @IsEmail()
-  email: string;
+  email?: string;
+
+  @ValidateIf((o) => !o.email)
+  @IsString()
+  phone?: string;
 
   @IsString()
   @MinLength(8)
   password: string;
 
-  // Optional: allows email to be reused across companies (unique per companyId+email).
+  // Optional: allows email/phone to be reused across companies (unique per companyId+identifier).
   // If omitted, backend resolves company via a verified single match or requires it
-  // for multi-company emails (edge case documented in API docs).
+  // for multi-company identifiers (edge case documented in API docs).
   @IsOptional()
   @IsUUID()
   companyId?: string;

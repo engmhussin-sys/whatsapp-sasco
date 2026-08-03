@@ -18,6 +18,7 @@ describe('AuthService', () => {
     id: 'user-1',
     companyId: 'company-a',
     email: 'worker@company-a.com',
+    phone: '+966500000000',
     systemRole: SystemRole.WORKER,
     isActive: true,
     passwordHash: '',
@@ -29,6 +30,8 @@ describe('AuthService', () => {
     prisma = {
       user: {
         findFirst: jest.fn().mockResolvedValue(mockUser),
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
         update: jest.fn().mockResolvedValue(mockUser),
       },
       refreshToken: {
@@ -91,6 +94,75 @@ describe('AuthService', () => {
       await expect(
         authService.login({ email: 'nobody@nowhere.com', password: 'x' }, {}),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('logs in via PHONE instead of email when phone is provided (no email at all needed)', async () => {
+      const result = await authService.login(
+        { phone: mockUser.phone, password: 'CorrectPassw0rd!' } as any,
+        {},
+      );
+
+      expect(prisma.user.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ phone: mockUser.phone }) }),
+      );
+      expect(result.accessToken).toBe('signed.jwt.token');
+    });
+
+    it('rejects when NEITHER email nor phone is provided', async () => {
+      await expect(authService.login({ password: 'CorrectPassw0rd!' } as any, {})).rejects.toThrow(UnauthorizedException);
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('test accounts (testing-phase convenience, hard-gated)', () => {
+    const originalEnv = process.env.ENABLE_TEST_ACCOUNTS;
+
+    afterEach(() => {
+      process.env.ENABLE_TEST_ACCOUNTS = originalEnv;
+    });
+
+    it('listTestAccounts() REJECTS when ENABLE_TEST_ACCOUNTS is unset (the default/production state)', async () => {
+      delete process.env.ENABLE_TEST_ACCOUNTS;
+      await expect(authService.listTestAccounts()).rejects.toThrow(UnauthorizedException);
+      expect(prisma.user.findMany).not.toHaveBeenCalled();
+    });
+
+    it('listTestAccounts() REJECTS when the flag is any value other than the exact string "true"', async () => {
+      process.env.ENABLE_TEST_ACCOUNTS = 'yes';
+      await expect(authService.listTestAccounts()).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('listTestAccounts() never exposes passwordHash — only safe display fields', async () => {
+      process.env.ENABLE_TEST_ACCOUNTS = 'true';
+      prisma.user.findMany.mockResolvedValue([
+        { id: 'u1', email: 'a@b.com', phone: '+966500000000', firstName: 'A', lastName: 'B', systemRole: 'WORKER', company: { id: 'c1', name: 'Co' } },
+      ]);
+
+      const result = await authService.listTestAccounts();
+
+      expect(result[0]).not.toHaveProperty('passwordHash');
+      expect(result[0].label).toContain('Co');
+    });
+
+    it('testAccountLogin() REJECTS when the flag is off, even for a real user id', async () => {
+      delete process.env.ENABLE_TEST_ACCOUNTS;
+      await expect(authService.testAccountLogin('user-1', {})).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('testAccountLogin() issues real tokens WITHOUT any password check when the flag is on', async () => {
+      process.env.ENABLE_TEST_ACCOUNTS = 'true';
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+
+      const result = await authService.testAccountLogin('user-1', {});
+
+      expect(result.accessToken).toBe('signed.jwt.token');
+      expect(result.user.id).toBe(mockUser.id);
+    });
+
+    it('testAccountLogin() rejects a deactivated user even with the flag on', async () => {
+      process.env.ENABLE_TEST_ACCOUNTS = 'true';
+      prisma.user.findUnique.mockResolvedValue({ ...mockUser, isActive: false });
+      await expect(authService.testAccountLogin('user-1', {})).rejects.toThrow(UnauthorizedException);
     });
   });
 

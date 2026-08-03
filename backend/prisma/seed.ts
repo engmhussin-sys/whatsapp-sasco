@@ -42,6 +42,7 @@ async function main() {
     create: {
       id: 'seed-super-admin',
       email: superAdminEmail,
+      phone: '+966500000099',
       passwordHash: await hash(DEMO_PASSWORD),
       firstName: 'Platform',
       lastName: 'Admin',
@@ -72,6 +73,7 @@ async function main() {
     create: {
       companyId: company.id,
       email: companyAdminEmail,
+      phone: '+966500000000',
       passwordHash: await hash(DEMO_PASSWORD),
       firstName: 'سارة',
       lastName: 'المدير',
@@ -325,12 +327,76 @@ async function main() {
     });
   }
 
+  // ---- Additional lightweight test companies (multi-company/multi-role
+  // testing convenience, per explicit request during the testing phase —
+  // each is intentionally shallow: just the 3 core roles + phone numbers,
+  // not full operational depth like "Demo Fuel Company" above) ----------------
+  interface QuickTestAccount {
+    label: string;
+    email: string;
+    phone: string;
+    role: string;
+  }
+  const quickTestAccounts: QuickTestAccount[] = [];
+
+  const testCompanyDefs = [
+    { slug: 'northstar-logistics', name: 'Northstar Logistics', industry: 'Logistics', phonePrefix: '+966501' },
+    { slug: 'gulf-retail-group', name: 'Gulf Retail Group', industry: 'Retail', phonePrefix: '+966502' },
+  ];
+
+  for (const def of testCompanyDefs) {
+    const testCompany = await prisma.company.upsert({
+      where: { slug: def.slug },
+      create: {
+        name: def.name,
+        slug: def.slug,
+        industry: def.industry,
+        defaultLanguage: 'ar',
+        subscription: { create: { plan: 'PROFESSIONAL', seatsLimit: 50 } },
+        supportedLanguages: { create: [{ langCode: 'ar' }, { langCode: 'en' }] },
+      },
+      update: {},
+    });
+
+    const roles: { role: SystemRole; firstName: string; lastName: string; suffix: string }[] = [
+      { role: SystemRole.COMPANY_ADMIN, firstName: 'Admin', lastName: def.name, suffix: '01' },
+      { role: SystemRole.TEAM_LEAD, firstName: 'Lead', lastName: def.name, suffix: '02' },
+      { role: SystemRole.WORKER, firstName: 'Worker', lastName: def.name, suffix: '03' },
+    ];
+
+    for (const r of roles) {
+      const email = `${r.role.toLowerCase()}@${def.slug}.com`;
+      const phone = `${def.phonePrefix}${r.suffix}`;
+      await prisma.user.upsert({
+        where: { companyId_email: { companyId: testCompany.id, email } },
+        create: {
+          companyId: testCompany.id,
+          email,
+          phone,
+          passwordHash: await hash(DEMO_PASSWORD),
+          firstName: r.firstName,
+          lastName: r.lastName,
+          systemRole: r.role,
+          status: 'ACTIVE',
+          preferredLanguage: 'ar',
+          preferences: { create: {} },
+        },
+        update: {},
+      });
+      quickTestAccounts.push({ label: `${r.role} — ${def.name}`, email, phone, role: r.role });
+    }
+  }
+
   console.log('\nSeed complete. Demo accounts (all use the same password):');
   console.log(`  Password for every account below: ${DEMO_PASSWORD}\n`);
   console.log(`  Super Admin:    ${superAdminEmail}`);
   console.log(`  Company Admin:  ${companyAdminEmail}  (companyId: ${company.id})`);
   console.log(`  Team Lead:      ${teamLeadEmail}`);
   console.log(`  Worker:         ${workerEmail}`);
+  console.log('\n  Additional test companies:');
+  for (const acc of quickTestAccounts) {
+    console.log(`    ${acc.label}: ${acc.email} / ${acc.phone}`);
+  }
 }
 
 main()

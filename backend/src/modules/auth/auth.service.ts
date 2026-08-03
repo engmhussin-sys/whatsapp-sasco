@@ -67,9 +67,13 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, meta: { userAgent?: string; ipAddress?: string }) {
+    if (!dto.email && !dto.phone) {
+      throw new UnauthorizedException('Either email or phone is required');
+    }
+
     const user = await this.prisma.user.findFirst({
       where: {
-        email: dto.email,
+        ...(dto.email ? { email: dto.email } : { phone: dto.phone }),
         ...(dto.companyId ? { companyId: dto.companyId } : {}),
       },
     });
@@ -94,6 +98,69 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
+    const tokens = await this.issueTokens(user, meta);
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        systemRole: user.systemRole,
+        companyId: user.companyId,
+        preferredLanguage: user.preferredLanguage,
+      },
+    };
+  }
+
+  /**
+   * TESTING-PHASE CONVENIENCE ONLY — hard-gated behind ENABLE_TEST_ACCOUNTS.
+   * Both methods below no-op (throw) unless that env var is explicitly set
+   * to "true", so there is zero risk of this ever being reachable in a real
+   * deployment unless someone deliberately flips it on. Never exposes
+   * password hashes or any secret — only id/label/email/phone/role, and the
+   * login path issues real tokens WITHOUT checking a password at all (that's
+   * the whole point — one click, no credential to remember during testing).
+   */
+  private assertTestAccountsEnabled() {
+    if (process.env.ENABLE_TEST_ACCOUNTS !== 'true') {
+      throw new UnauthorizedException('Test accounts are not enabled on this environment');
+    }
+  }
+
+  async listTestAccounts() {
+    this.assertTestAccountsEnabled();
+    const users = await this.prisma.user.findMany({
+      where: { isActive: true, status: 'ACTIVE' },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        systemRole: true,
+        company: { select: { id: true, name: true } },
+      },
+      orderBy: [{ company: { name: 'asc' } }, { systemRole: 'asc' }],
+    });
+    return users.map((u: (typeof users)[number]) => ({
+      id: u.id,
+      label: `${u.firstName} ${u.lastName} — ${u.systemRole}${u.company ? ` @ ${u.company.name}` : ' (platform)'}`,
+      email: u.email,
+      phone: u.phone,
+      role: u.systemRole,
+      companyName: u.company?.name ?? null,
+    }));
+  }
+
+  async testAccountLogin(userId: string, meta: { userAgent?: string; ipAddress?: string }) {
+    this.assertTestAccountsEnabled();
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Test account not found or inactive');
+    }
+
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     const tokens = await this.issueTokens(user, meta);
     return {
       ...tokens,
