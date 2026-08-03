@@ -102,6 +102,34 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, UserEntity>> updatePreferredLanguage(String languageCode) async {
+    if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
+    try {
+      final currentUserJson = await _secureStorage.getUser();
+      if (currentUserJson == null) return const Left(CacheFailure());
+      final current = UserModel.fromJson(currentUserJson);
+      if (current.companyId == null) {
+        return const Left(ServerFailure('لا يمكن تغيير اللغة لحساب مدير المنصة من هنا'));
+      }
+      final updated = await _remote.updatePreferredLanguage(
+        companyId: current.companyId!,
+        userId: current.id,
+        languageCode: languageCode,
+      );
+      await _secureStorage.updateUser(updated.toJson());
+      return Right(updated);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on UnauthorizedException catch (e) {
+      return Left(UnauthorizedFailure(e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(ServerFailure('تعذّر تحديث اللغة: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, UserEntity?>> getCurrentUser() async {
     try {
       final token = await _secureStorage.getAccessToken();

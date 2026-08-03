@@ -8,6 +8,7 @@ import 'package:workforce_connect_ai/features/authentication/domain/entities/use
 import 'package:workforce_connect_ai/features/authentication/domain/usecases/get_current_user_usecase.dart';
 import 'package:workforce_connect_ai/features/authentication/domain/usecases/login_usecase.dart';
 import 'package:workforce_connect_ai/features/authentication/domain/usecases/logout_usecase.dart';
+import 'package:workforce_connect_ai/features/authentication/domain/usecases/update_preferred_language_usecase.dart';
 import 'package:workforce_connect_ai/features/authentication/presentation/bloc/auth_bloc.dart';
 
 class MockLoginUseCase extends Mock implements LoginUseCase {}
@@ -16,10 +17,13 @@ class MockLogoutUseCase extends Mock implements LogoutUseCase {}
 
 class MockGetCurrentUserUseCase extends Mock implements GetCurrentUserUseCase {}
 
+class MockUpdatePreferredLanguageUseCase extends Mock implements UpdatePreferredLanguageUseCase {}
+
 void main() {
   late MockLoginUseCase loginUseCase;
   late MockLogoutUseCase logoutUseCase;
   late MockGetCurrentUserUseCase getCurrentUserUseCase;
+  late MockUpdatePreferredLanguageUseCase updatePreferredLanguageUseCase;
   late AuthBloc bloc;
 
   const tUser = UserEntity(
@@ -41,10 +45,12 @@ void main() {
     loginUseCase = MockLoginUseCase();
     logoutUseCase = MockLogoutUseCase();
     getCurrentUserUseCase = MockGetCurrentUserUseCase();
+    updatePreferredLanguageUseCase = MockUpdatePreferredLanguageUseCase();
     bloc = AuthBloc(
       loginUseCase: loginUseCase,
       logoutUseCase: logoutUseCase,
       getCurrentUserUseCase: getCurrentUserUseCase,
+      updatePreferredLanguageUseCase: updatePreferredLanguageUseCase,
     );
   });
 
@@ -117,6 +123,42 @@ void main() {
       act: (b) => b.add(const AuthSessionExpired()),
       expect: () => [
         const AuthState(status: AuthStatus.unauthenticated, errorMessage: 'انتهت صلاحية الجلسة، الرجاء تسجيل الدخول مجددًا'),
+      ],
+    );
+  });
+
+  group('AuthLanguageChanged (T5)', () {
+    const tUserBn = UserEntity(
+      id: 'user-1',
+      email: 'worker@company.com',
+      firstName: 'Sara',
+      lastName: 'Ahmed',
+      systemRole: SystemRole.worker,
+      companyId: 'company-1',
+      preferredLanguage: 'bn',
+    );
+
+    blocTest<AuthBloc, AuthState>(
+      'emits an updated user with the new preferredLanguage on success',
+      setUp: () =>
+          when(() => updatePreferredLanguageUseCase('bn')).thenAnswer((_) async => const Right(tUserBn)),
+      build: () => bloc,
+      seed: () => const AuthState(status: AuthStatus.authenticated, user: tUser),
+      act: (b) => b.add(const AuthLanguageChanged('bn')),
+      expect: () => [
+        const AuthState(status: AuthStatus.authenticated, user: tUserBn),
+      ],
+    );
+
+    blocTest<AuthBloc, AuthState>(
+      'keeps the OLD user and surfaces an error message when the server call fails',
+      setUp: () => when(() => updatePreferredLanguageUseCase('bn'))
+          .thenAnswer((_) async => const Left(NetworkFailure())),
+      build: () => bloc,
+      seed: () => const AuthState(status: AuthStatus.authenticated, user: tUser),
+      act: (b) => b.add(const AuthLanguageChanged('bn')),
+      expect: () => [
+        AuthState(status: AuthStatus.authenticated, user: tUser, errorMessage: const NetworkFailure().message),
       ],
     );
   });

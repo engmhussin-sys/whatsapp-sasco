@@ -14,6 +14,7 @@ abstract class AuthRemoteDataSource {
   Future<void> logout(String refreshToken);
   Future<void> requestPasswordReset(String email);
   Future<void> resetPassword({required String resetToken, required String newPassword});
+  Future<UserModel> updatePreferredLanguage({required String companyId, required String userId, required String languageCode});
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -55,5 +56,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       data: {'resetToken': resetToken, 'newPassword': newPassword},
       skipAuth: true,
     );
+  }
+
+  @override
+  Future<UserModel> updatePreferredLanguage({
+    required String companyId,
+    required String userId,
+    required String languageCode,
+  }) async {
+    final data = await _client.patch<Map<String, dynamic>>(
+      ApiConstants.updateUser(companyId, userId),
+      data: {'preferredLanguage': languageCode},
+    );
+    return UserModel.fromJson(data);
   }
 }

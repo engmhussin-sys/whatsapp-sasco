@@ -30,3 +30,15 @@ class AuthLogoutRequested extends AuthEvent {
 class AuthSessionExpired extends AuthEvent {
   const AuthSessionExpired();
 }
+
+/// T5: dispatched from Profile (language picker) — persists to the
+/// server via AuthRepository, then updates AuthState.user so every
+/// widget reading currentUser.preferredLanguage (ChatPage, etc.) picks
+/// up the new language immediately without an app restart.
+class AuthLanguageChanged extends AuthEvent {
+  final String languageCode;
+  const AuthLanguageChanged(this.languageCode);
+
+  @override
+  List<Object?> get props => [languageCode];
+}

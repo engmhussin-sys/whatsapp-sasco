@@ -15,6 +15,13 @@ abstract class SecureStorageService {
   Future<String?> getRefreshToken();
   Future<Map<String, dynamic>?> getUser();
   Future<void> updateAccessToken(String accessToken);
+
+  /// Overwrites the persisted user object only (tokens untouched) — used
+  /// after a profile change (e.g. preferredLanguage) so the app opens in
+  /// the correct language on next launch even before the network call
+  /// that re-validates the session completes.
+  Future<void> updateUser(Map<String, dynamic> user);
+
   Future<void> clearSession();
 }
 
@@ -52,6 +59,10 @@ class SecureStorageServiceImpl implements SecureStorageService {
   @override
   Future<void> updateAccessToken(String accessToken) =>
       _storage.write(key: StorageKeys.accessToken, value: accessToken);
+
+  @override
+  Future<void> updateUser(Map<String, dynamic> user) =>
+      _storage.write(key: StorageKeys.currentUser, value: jsonEncode(user));
 
   @override
   Future<void> clearSession() async {
