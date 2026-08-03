@@ -17,14 +17,23 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tiles = <_HomeTile>[
-      _HomeTile('المحادثات', Icons.chat_bubble_outline_rounded, AppColors.brand, () => context.push(RouteNames.conversations)),
-      _HomeTile('المهام', Icons.checklist_rounded, const Color(0xFF2563EB), () => context.push(RouteNames.tasks)),
-      _HomeTile('الموافقات', Icons.fact_check_outlined, const Color(0xFF7C3AED), () => context.push(RouteNames.approvals)),
-      _HomeTile('الورديات', Icons.schedule_rounded, AppColors.accent, () => context.push(RouteNames.shift)),
-      _HomeTile('طلبات الوقود', Icons.local_gas_station_rounded, AppColors.brandDark, () => context.push(RouteNames.fuelRequests)),
-      _HomeTile('المحطات', Icons.store_outlined, const Color(0xFF0891B2), () => context.push(RouteNames.stations)),
-    ];
+    // Company-scoped screens (Chat/Tasks/Approvals/Shift/Fuel/Stations) all
+    // require a companyId — Super Admin operates at the platform level and
+    // has none. Hiding these tiles (rather than showing them and crashing
+    // on tap) turns what was a raw type-cast error into a clear, expected
+    // state for this role.
+    final hasCompanyContext = user.companyId != null;
+
+    final tiles = hasCompanyContext
+        ? <_HomeTile>[
+            _HomeTile('المحادثات', Icons.chat_bubble_outline_rounded, AppColors.brand, () => context.push(RouteNames.conversations)),
+            _HomeTile('المهام', Icons.checklist_rounded, const Color(0xFF2563EB), () => context.push(RouteNames.tasks)),
+            _HomeTile('الموافقات', Icons.fact_check_outlined, const Color(0xFF7C3AED), () => context.push(RouteNames.approvals)),
+            _HomeTile('الورديات', Icons.schedule_rounded, AppColors.accent, () => context.push(RouteNames.shift)),
+            _HomeTile('طلبات الوقود', Icons.local_gas_station_rounded, AppColors.brandDark, () => context.push(RouteNames.fuelRequests)),
+            _HomeTile('المحطات', Icons.store_outlined, const Color(0xFF0891B2), () => context.push(RouteNames.stations)),
+          ]
+        : <_HomeTile>[];
 
     return Scaffold(
       backgroundColor: AppColors.surfaceLight,
@@ -74,21 +83,39 @@ class HomePage extends StatelessWidget {
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 1.15,
+            if (tiles.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(Icons.admin_panel_settings_outlined, size: 48, color: AppColors.textSecondary),
+                      const SizedBox(height: 12),
+                      Text(
+                        'حساب مدير المنصة (Super Admin) غير مرتبط بشركة مُحدَّدة — استخدم لوحة الويب لإدارة الشركات، أو سجّل دخولًا بحساب تابع لشركة لاستخدام شاشات المحادثات والمهام والورديات.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.6),
+                      ),
+                    ],
+                  ),
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => _HomeTileCard(tile: tiles[index]),
-                  childCount: tiles.length,
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: 1.15,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _HomeTileCard(tile: tiles[index]),
+                    childCount: tiles.length,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
