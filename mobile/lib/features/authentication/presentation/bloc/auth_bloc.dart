@@ -1,6 +1,5 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecase/usecase.dart';
 import '../../domain/entities/user_entity.dart';
@@ -31,9 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onSessionCheckRequested(AuthSessionCheckRequested event, Emitter<AuthState> emit) async {
-    debugPrint('🔍 [TRACE] AuthBloc._onSessionCheckRequested — handler ENTERED');
     final result = await _getCurrentUserUseCase(const NoParams());
-    debugPrint('🔍 [TRACE] AuthBloc._onSessionCheckRequested — usecase returned, isLeft=${result.isLeft()}');
     result.fold(
       (failure) => emit(state.copyWith(status: AuthStatus.unauthenticated)),
       (user) => emit(user != null

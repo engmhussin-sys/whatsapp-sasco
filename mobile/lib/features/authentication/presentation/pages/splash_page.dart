@@ -1,11 +1,16 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../bloc/auth_bloc.dart';
 
+/// Triggers the session check and shows a loading UI — that's it.
+/// Navigation AWAY from splash is handled EXCLUSIVELY by app_router.dart's
+/// `redirect` callback (driven by `refreshListenable` on AuthBloc's
+/// stream). This page deliberately does NOT call context.go() itself —
+/// doing so previously raced against the router's own refreshListenable
+/// reacting to the same stream emission, which caused SplashPage to be
+/// rebuilt in an infinite loop instead of navigating away. Single source
+/// of truth for navigation = no more race.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -17,49 +22,37 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    debugPrint('🔍 [TRACE] SplashPage.initState() — about to add AuthSessionCheckRequested');
     context.read<AuthBloc>().add(const AuthSessionCheckRequested());
-    debugPrint('🔍 [TRACE] SplashPage.initState() — add() call returned (event dispatched)');
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        debugPrint('🔍 [TRACE] SplashPage BlocListener fired — status=${state.status}');
-        if (state.status == AuthStatus.authenticated) {
-          context.go(RouteNames.home);
-        } else if (state.status == AuthStatus.unauthenticated) {
-          context.go(RouteNames.login);
-        }
-      },
-      child: Scaffold(
-        body: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [AppColors.brand, AppColors.brandDark],
-            ),
+    return Scaffold(
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.brand, AppColors.brandDark],
           ),
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const _SplashMark(),
-                const SizedBox(height: 40),
-                const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white70),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'منصة تواصل وتشغيل فرق العمل',
-                  style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
-                ),
-              ],
-            ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const _SplashMark(),
+              const SizedBox(height: 40),
+              const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white70),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'منصة تواصل وتشغيل فرق العمل',
+                style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
+              ),
+            ],
           ),
         ),
       ),

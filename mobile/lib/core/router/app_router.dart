@@ -34,12 +34,24 @@ GoRouter buildAppRouter() {
     refreshListenable: GoRouterRefreshStream(authBloc.stream),
     redirect: (context, state) {
       final authStatus = authBloc.state.status;
-      final isSplash = state.matchedLocation == RouteNames.splash;
       final isAuthRoute = state.matchedLocation == RouteNames.login || state.matchedLocation == RouteNames.forgotPassword;
+      final isSplash = state.matchedLocation == RouteNames.splash;
 
-      if (isSplash) return null; // Splash itself decides where to go next
-      if (authStatus == AuthStatus.unauthenticated && !isAuthRoute) return RouteNames.login;
-      if (authStatus == AuthStatus.authenticated && isAuthRoute) return RouteNames.home;
+      // Session check still in flight (AuthBloc hasn't settled on
+      // authenticated/unauthenticated yet) — stay put, SplashPage shows
+      // a loading indicator. This is the ONLY place that decides
+      // navigation; SplashPage itself does NOT call context.go() —
+      // doing so from both here (via refreshListenable) AND a
+      // BlocListener reacting to the same AuthBloc stream caused a
+      // real, confirmed race that bounced back to /splash indefinitely.
+      if (authStatus == AuthStatus.unknown) return null;
+
+      if (authStatus == AuthStatus.unauthenticated) {
+        return isAuthRoute ? null : RouteNames.login;
+      }
+      if (authStatus == AuthStatus.authenticated) {
+        return (isAuthRoute || isSplash) ? RouteNames.home : null;
+      }
       return null;
     },
     routes: [
