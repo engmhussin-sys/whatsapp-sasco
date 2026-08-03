@@ -534,3 +534,57 @@ describe('MessagesService.editMessage() — Group 3', () => {
     });
   });
 });
+
+describe('MessagesService.searchMessages() — Group 4', () => {
+  let service: MessagesService;
+  let prisma: any;
+  let conversations: any;
+
+  const companyId = 'company-A';
+  const conversationId = 'conv-1';
+  const userId = 'user-1';
+
+  beforeEach(async () => {
+    prisma = { message: { findMany: jest.fn() } };
+    conversations = { assertMembership: jest.fn() };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: ConversationsService, useValue: conversations },
+        { provide: STORAGE_PROVIDER, useValue: {} },
+        { provide: TranslationEngineService, useValue: {} },
+        { provide: TokenWalletService, useValue: {} },
+        { provide: UsageEngineService, useValue: {} },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MessagesService);
+  });
+
+  it('checks membership before searching', async () => {
+    conversations.assertMembership.mockRejectedValue(new Error('not a member'));
+    await expect(service.searchMessages(companyId, conversationId, userId, 'test')).rejects.toThrow('not a member');
+    expect(prisma.message.findMany).not.toHaveBeenCalled();
+  });
+
+  it('returns an empty array without querying the DB for a blank/whitespace-only query', async () => {
+    const result = await service.searchMessages(companyId, conversationId, userId, '   ');
+    expect(result).toEqual([]);
+    expect(prisma.message.findMany).not.toHaveBeenCalled();
+  });
+
+  it('searches originalText case-insensitively, excludes deleted messages, caps at 50', async () => {
+    prisma.message.findMany.mockResolvedValue([{ id: 'm1' }]);
+
+    await service.searchMessages(companyId, conversationId, userId, 'مرحبا');
+
+    expect(prisma.message.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { conversationId, deletedAt: null, originalText: { contains: 'مرحبا', mode: 'insensitive' } },
+        take: 50,
+      }),
+    );
+  });
+});

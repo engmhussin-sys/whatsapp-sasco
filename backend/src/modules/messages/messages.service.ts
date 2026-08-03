@@ -441,4 +441,29 @@ export class MessagesService {
       data: { originalText: newText, editedAt: new Date() },
     });
   }
+
+  /**
+   * Group 4 (WhatsApp parity) — search within a single conversation.
+   * Deliberately searches only `originalText` (what was actually typed),
+   * NOT translations — matching what the sender/reader would expect
+   * "search" to mean, and avoiding an N+1 join across every language's
+   * translation row for every message.
+   */
+  async searchMessages(companyId: string, conversationId: string, userId: string, query: string) {
+    await this.conversationsService.assertMembership(companyId, conversationId, userId);
+    if (!query.trim()) return [];
+
+    return this.prisma.message.findMany({
+      where: {
+        conversationId,
+        deletedAt: null,
+        originalText: { contains: query, mode: 'insensitive' },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+  }
 }

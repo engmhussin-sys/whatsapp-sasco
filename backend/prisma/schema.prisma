@@ -164,6 +164,10 @@ model User {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   lastLoginAt       DateTime?
+  // Group 4 (WhatsApp parity): "last seen" — updated on WebSocket
+  // disconnect (see ChatGateway), so it reflects the last moment the
+  // user was actually connected, not just their last login.
+  lastSeenAt        DateTime?
 
   // Relations
   roles             UserRole[]
@@ -354,6 +358,13 @@ model ConversationMember {
   userId         String
   joinedAt       DateTime  @default(now())
   lastReadAt     DateTime?
+
+  // Group 4 (WhatsApp parity): per-member mute/archive — deliberately on
+  // the MEMBER row, not the Conversation itself, since muting/archiving
+  // is a personal preference (muting a group for yourself must never
+  // mute it for everyone else in it).
+  isMuted        Boolean   @default(false)
+  isArchived     Boolean   @default(false)
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)

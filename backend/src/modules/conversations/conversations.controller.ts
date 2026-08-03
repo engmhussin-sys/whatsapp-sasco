@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ConversationsService } from './conversations.service';
 import { CreateConversationDto } from './dto/conversations.dto';
@@ -18,12 +18,38 @@ export class ConversationsController {
   }
 
   @Get()
-  findAll(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.conversationsService.findAllForUser(companyId, user.sub);
+  findAll(
+    @TenantId() companyId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('includeArchived') includeArchived?: string,
+  ) {
+    return this.conversationsService.findAllForUser(companyId, user.sub, includeArchived === 'true');
   }
 
   @Get(':id')
   findOne(@TenantId() companyId: string, @Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.conversationsService.findOne(companyId, user.sub, id);
+  }
+
+  /** Group 4 (WhatsApp parity): mute/unmute — per-member. */
+  @Patch(':id/mute')
+  setMuted(
+    @TenantId() companyId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('isMuted') isMuted: boolean,
+  ) {
+    return this.conversationsService.setMuted(companyId, id, user.sub, isMuted);
+  }
+
+  /** Group 4 (WhatsApp parity): archive/unarchive — per-member. */
+  @Patch(':id/archive')
+  setArchived(
+    @TenantId() companyId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('isArchived') isArchived: boolean,
+  ) {
+    return this.conversationsService.setArchived(companyId, id, user.sub, isArchived);
   }
 }

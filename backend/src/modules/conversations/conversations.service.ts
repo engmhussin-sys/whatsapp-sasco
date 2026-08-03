@@ -4,7 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { ChatPolicyService } from '../chat-policy/chat-policy.service';
 import { CreateConversationDto } from './dto/conversations.dto';
 
-const MEMBER_SELECT = { id: true, firstName: true, lastName: true, avatarUrl: true };
+const MEMBER_SELECT = { id: true, firstName: true, lastName: true, avatarUrl: true, lastSeenAt: true };
 
 @Injectable()
 export class ConversationsService {
@@ -169,9 +169,15 @@ export class ConversationsService {
     });
   }
 
-  async findAllForUser(companyId: string, userId: string) {
+  async findAllForUser(companyId: string, userId: string, includeArchived = false) {
     return this.prisma.conversation.findMany({
-      where: { companyId, members: { some: { userId } } },
+      where: {
+        companyId,
+        // Group 4 (WhatsApp parity): archiving is per-member — this
+        // ONLY hides it from the user who archived it, matching the
+        // model comment on ConversationMember.isArchived exactly.
+        members: { some: { userId, ...(includeArchived ? {} : { isArchived: false }) } },
+      },
       include: {
         members: { include: { user: { select: MEMBER_SELECT } } },
         messages: { take: 1, orderBy: { createdAt: 'desc' } },
@@ -216,5 +222,23 @@ export class ConversationsService {
     if (!user || (user.systemRole !== SystemRole.COMPANY_ADMIN && user.systemRole !== SystemRole.SUPER_ADMIN)) {
       throw new ForbiddenException('This channel is read-only for your role — only Company Admins may post here');
     }
+  }
+
+  /** Group 4 (WhatsApp parity): mute/unmute — per-member, no effect on anyone else. */
+  async setMuted(companyId: string, conversationId: string, userId: string, isMuted: boolean) {
+    await this.assertMembership(companyId, conversationId, userId);
+    return this.prisma.conversationMember.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { isMuted },
+    });
+  }
+
+  /** Group 4 (WhatsApp parity): archive/unarchive — per-member, no effect on anyone else. */
+  async setArchived(companyId: string, conversationId: string, userId: string, isArchived: boolean) {
+    await this.assertMembership(companyId, conversationId, userId);
+    return this.prisma.conversationMember.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { isArchived },
+    });
   }
 }

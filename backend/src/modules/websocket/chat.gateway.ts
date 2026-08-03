@@ -76,8 +76,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  handleDisconnect(client: AuthedSocket) {
-    if (client.user) this.logger.log(`Socket disconnected: user=${client.user.sub}`);
+  async handleDisconnect(client: AuthedSocket) {
+    if (!client.user) return;
+    this.logger.log(`Socket disconnected: user=${client.user.sub}`);
+    // Best-effort — "last seen" is a nice-to-have, never worth crashing
+    // the disconnect handler over.
+    try {
+      await this.prisma.user.update({ where: { id: client.user.sub }, data: { lastSeenAt: new Date() } });
+    } catch (err) {
+      this.logger.warn(`Failed to record lastSeenAt for user=${client.user.sub}: ${(err as Error).message}`);
+    }
   }
 
   @SubscribeMessage('joinConversation')

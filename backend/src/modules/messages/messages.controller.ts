@@ -40,6 +40,17 @@ export class MessagesController {
     return this.messagesService.list(companyId, conversationId, user.sub, cursor, take ? parseInt(take, 10) : undefined);
   }
 
+  /** Group 4 (WhatsApp parity): search within THIS conversation only. */
+  @Get('search')
+  search(
+    @TenantId() companyId: string,
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('q') query: string,
+  ) {
+    return this.messagesService.searchMessages(companyId, conversationId, user.sub, query ?? '');
+  }
+
   @Post('text')
   sendText(
     @TenantId() companyId: string,
