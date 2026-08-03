@@ -122,15 +122,33 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       where: { conversationId: data.conversationId },
       select: { userId: true },
     });
+    // Enriches the notification with a sender name + short preview —
+    // cheap enough (one extra small query) that it's worth doing here
+    // rather than shipping a bare {conversationId, messageId} payload
+    // that would force every recipient device to do its own fetch just
+    // to render a useful "Ahmed: hello" notification.
+    const sender = await this.prisma.user.findUnique({ where: { id: client.user.sub }, select: { firstName: true, lastName: true } });
+    const senderName = sender ? `${sender.firstName} ${sender.lastName}` : '';
+    const preview = data.text.length > 80 ? `${data.text.slice(0, 80)}…` : data.text;
+
     for (const m of members) {
       if (m.userId === client.user.sub) continue;
       this.server.to(`user:${m.userId}`).emit('message:notification', {
         conversationId: data.conversationId,
         messageId: message.id,
+        senderName,
+        preview,
       });
       // Best-effort: mark delivered if the recipient has an active socket in that room.
-      const room = this.server.sockets.adapter.rooms.get(`conversation:${data.conversationId}`);
-      if (room && room.size > 0) {
+      // Uses the official socket.io v4 room-membership API
+      // (in(room).fetchSockets()) rather than poking at `.adapter.rooms`
+      // directly — that direct-access path threw a real production
+      // crash ("Cannot read properties of undefined (reading 'rooms')")
+      // and, separately, doesn't even type-check cleanly against
+      // NestJS's `Server` typing for a namespaced gateway. fetchSockets()
+      // is documented, async, and fully typed for exactly this check.
+      const socketsInRoom = await this.server.in(`conversation:${data.conversationId}`).fetchSockets();
+      if (socketsInRoom.length > 0) {
         await this.messagesService.markDelivered(message.id, m.userId);
       }
     }

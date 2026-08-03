@@ -110,17 +110,26 @@ async function main() {
   // row makes OpenAI the platform-wide default; `apiKeyEnvVar` only names
   // WHICH Railway environment variable holds the key — the actual secret
   // must still be set there separately (never stored in this seed file).
-  await prisma.translationProviderConfig.upsert({
-    where: { companyId_providerType: { companyId: null, providerType: 'OPENAI' } },
-    create: {
-      companyId: null,
-      providerType: 'OPENAI',
-      apiKeyEnvVar: 'OPENAI_API_KEY',
-      isActive: true,
-      priority: 0,
-    },
-    update: {},
+  // NOTE: Prisma's compound-unique `where` clause does NOT accept `null`
+  // for a nullable field (confirmed via a real production failure:
+  // "Argument `companyId` must not be null") — upsert() with
+  // companyId_providerType: { companyId: null, ... } always throws.
+  // findFirst + conditional create/update is the correct pattern for a
+  // nullable-field "unique" lookup.
+  const existingTranslationConfig = await prisma.translationProviderConfig.findFirst({
+    where: { companyId: null, providerType: 'OPENAI' },
   });
+  if (!existingTranslationConfig) {
+    await prisma.translationProviderConfig.create({
+      data: {
+        companyId: null,
+        providerType: 'OPENAI',
+        apiKeyEnvVar: 'OPENAI_API_KEY',
+        isActive: true,
+        priority: 0,
+      },
+    });
+  }
 
   // ---- Super Admin (platform-level, companyId = null) -----------------------
   const superAdminEmail = 'superadmin@workforceconnect.ai';
