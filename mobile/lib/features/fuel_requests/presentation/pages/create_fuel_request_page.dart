@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/domain/entities/user_entity.dart';
 import '../../../stations/domain/entities/station_entity.dart';
 import '../../../stations/presentation/bloc/stations_cubit.dart';
@@ -37,13 +38,27 @@ class _CreateFuelRequestPageState extends State<CreateFuelRequestPage> {
             }
           },
           builder: (context, fuelState) {
-            return BlocBuilder<StationsCubit, StationsState>(
+            return BlocConsumer<StationsCubit, StationsState>(
+              listener: (context, stationsState) {
+                if (stationsState.status == StationsStatus.failure) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('تعذّر تحميل المحطات: ${stationsState.errorMessage ?? "خطأ غير معروف"}')),
+                  );
+                }
+              },
               builder: (context, stationsState) {
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (stationsState.status == StationsStatus.loading)
+                        const Padding(padding: EdgeInsets.only(bottom: 12), child: LinearProgressIndicator()),
+                      if (stationsState.status == StationsStatus.success && stationsState.stations.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: Text('لا توجد محطات مُسجَّلة لشركتك بعد — تواصل مع مدير الشركة لإضافتها.', style: TextStyle(color: AppColors.danger)),
+                        ),
                       DropdownButtonFormField<StationEntity>(
                         decoration: const InputDecoration(labelText: 'المحطة'),
                         value: _selectedStation,
@@ -101,7 +116,12 @@ class _CreateFuelRequestPageState extends State<CreateFuelRequestPage> {
   }
 
   Future<void> _submit() async {
-    if (_selectedStation == null || _selectedTankId == null) return;
+    if (_selectedStation == null || _selectedTankId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اختر المحطة والخزان أولًا')),
+      );
+      return;
+    }
     final currentLevel = double.tryParse(_currentLevelController.text) ?? 0;
     final requestedQuantity = double.tryParse(_requestedQuantityController.text) ?? 0;
 
