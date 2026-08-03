@@ -8,6 +8,8 @@ const navItems = [
   { href: '/super-admin/companies', label: 'الشركات' },
   { href: '/super-admin/plans', label: 'الخطط والميزات' },
   { href: '/super-admin/coupons', label: 'الكوبونات' },
+  { href: '/super-admin/audit-logs', label: 'سجلّ الأحداث' },
+  { href: '/super-admin/support', label: 'الدعم الفني' },
   { href: '/super-admin/subscription', label: 'اشتراكات الشركات' },
   { href: '/messaging', label: 'المحادثات' },
 ];

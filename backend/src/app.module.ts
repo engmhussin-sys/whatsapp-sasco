@@ -32,6 +32,7 @@ import { BillingEngineModule } from './modules/billing-engine/billing-engine.mod
 import { ReportsModule } from './modules/reports/reports.module';
 import { BroadcastModule } from './modules/broadcast/broadcast.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -71,6 +72,7 @@ import { HealthController } from './health.controller';
     ReportsModule,
     BroadcastModule,
     NotificationsModule,
+    SupportTicketsModule,
   ],
   controllers: [HealthController],
   providers: [

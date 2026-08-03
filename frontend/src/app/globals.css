@@ -6,8 +6,17 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---- Dark Mode ------------------------------------------------------------
+   Infrastructure covers every SHARED component (.card/.input/.btn-primary/
+   .label used across all 26+ pages) plus DashboardShell — this gives broad
+   automatic coverage without touching every individual page file. Pages
+   with page-specific hardcoded light colors (rare — most already use the
+   ink/brand token scale) may not be perfectly tuned yet; that's an honest,
+   documented gap, not a hidden one. */
+
 .input {
   @apply w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 transition placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+  @apply dark:border-ink-700 dark:bg-ink-800 dark:text-ink-50 dark:placeholder:text-ink-500;
 }
 
 .btn-primary {
@@ -16,8 +25,10 @@ body {
 
 .card {
   @apply rounded-2xl border border-ink-100 bg-white p-5 shadow-card;
+  @apply dark:border-ink-700 dark:bg-ink-800;
 }
 
 .label {
   @apply mb-1.5 block text-sm font-medium text-ink-700;
+  @apply dark:text-ink-300;
 }

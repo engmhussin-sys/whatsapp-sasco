@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/lib/auth-context';
+import { ThemeProvider } from '@/lib/theme-context';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -27,9 +28,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
+        {/* Applies the saved theme class BEFORE hydration/paint — without
+            this, the page would briefly flash light mode even for a user
+            who chose dark, then snap to dark a moment later. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try {
+              const saved = localStorage.getItem('theme');
+              if (saved === 'dark') document.documentElement.classList.add('dark');
+            } catch (e) {}`,
+          }}
+        />
       </head>
-      <body className="min-h-screen bg-ink-50 text-ink-900" style={{ fontFamily: "'Cairo', 'Segoe UI', Tahoma, sans-serif" }}>
-        <AuthProvider>{children}</AuthProvider>
+      <body
+        className="min-h-screen bg-ink-50 text-ink-900 dark:bg-ink-900 dark:text-ink-50"
+        style={{ fontFamily: "'Cairo', 'Segoe UI', Tahoma, sans-serif" }}
+      >
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

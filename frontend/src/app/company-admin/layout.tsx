@@ -7,6 +7,8 @@ const navItems = [
   { href: '/company-admin/dashboard', label: 'لوحة التحكم' },
   { href: '/company-admin/billing', label: 'الاشتراك والفوترة' },
   { href: '/company-admin/broadcast', label: 'إرسال للفريق' },
+  { href: '/company-admin/audit-logs', label: 'سجلّ الأحداث' },
+  { href: '/company-admin/support', label: 'الدعم الفني' },
   { href: '/company-admin/users', label: 'المستخدمون' },
   { href: '/company-admin/teams', label: 'الفرق' },
   { href: '/company-admin/stations', label: 'المحطات' },

@@ -103,6 +103,7 @@ model Company {
   subscription      Subscription?
   supportedLanguages CompanyLanguage[]
   auditLogs         AuditLog[]
+  supportTickets    SupportTicket[]
 
   // Sprint 2: Task Engine / Approval Engine / domain modules
   taskTemplates TaskTemplate[]
@@ -173,6 +174,8 @@ model User {
   preferences       UserPreference?
   auditLogs         AuditLog[]
   notifications     Notification[]
+  supportTickets    SupportTicket[] @relation("TicketCreator")
+  ticketMessages    TicketMessage[] @relation("TicketMessageAuthor")
 
   // Multi-tenant data isolation: composite uniqueness scoped by company
   @@unique([companyId, email])
@@ -1621,4 +1624,55 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// ==========================================================================
+// SUPPORT TICKETS
+// ==========================================================================
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model SupportTicket {
+  id          String         @id @default(uuid())
+  companyId   String?
+  company     Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User           @relation("TicketCreator", fields: [createdById], references: [id])
+  subject     String
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  resolvedAt  DateTime?
+
+  messages TicketMessage[]
+
+  @@index([companyId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id        String        @id @default(uuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation("TicketMessageAuthor", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_messages")
 }
