@@ -1,17 +1,63 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MessageStatus, MessageType, AttachmentKind } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { STORAGE_PROVIDER, StorageProvider } from '../../common/storage/storage.interface';
 import { SendTextMessageDto } from './dto/messages.dto';
+import { TranslationEngineService } from '../translation-engine/translation-engine.service';
 
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(
     private prisma: PrismaService,
     private conversationsService: ConversationsService,
     @Inject(STORAGE_PROVIDER) private storage: StorageProvider,
+    private translationEngine: TranslationEngineService,
   ) {}
+
+  /**
+   * ACTIVATION of the Translation Engine into the real chat flow: for
+   * every OTHER member of the conversation whose preferredLanguage
+   * differs from the message's originalLang, run it through the Smart
+   * Translation Policy and persist the result to MessageTranslation.
+   * Deliberately non-fatal — a translation failure (e.g. no AI provider
+   * configured for this company yet) must never prevent the message
+   * itself from being sent; it's logged and simply skipped for that
+   * language, using the message's original text as if the two
+   * languages matched.
+   */
+  private async fanOutTranslations(companyId: string, messageId: string, text: string, originalLang: string, conversationId: string, senderId: string) {
+    const otherMembers = await this.prisma.conversationMember.findMany({
+      where: { conversationId, userId: { not: senderId } },
+      include: { user: { select: { id: true, preferredLanguage: true } } },
+    });
+
+    const targetLanguages = Array.from(
+      new Set(
+        otherMembers
+          .map((m: { user: { preferredLanguage: string } }) => m.user.preferredLanguage)
+          .filter((lang: string) => lang && lang !== originalLang),
+      ),
+    ) as string[];
+
+    await Promise.all(
+      targetLanguages.map(async (targetLanguage) => {
+        try {
+          const result = await this.translationEngine.translate(companyId, text, originalLang, targetLanguage, senderId);
+          if (result.resolutionSource === 'SAME_LANGUAGE') return; // nothing to persist
+          await this.prisma.messageTranslation.upsert({
+            where: { messageId_langCode: { messageId, langCode: targetLanguage } },
+            create: { messageId, langCode: targetLanguage, translatedText: result.translatedText, engine: result.providerType ?? result.resolutionSource, version: 1 },
+            update: { translatedText: result.translatedText, engine: result.providerType ?? result.resolutionSource },
+          });
+        } catch (err) {
+          this.logger.warn(`Translation to "${targetLanguage}" failed for message ${messageId}: ${(err as Error).message}`);
+        }
+      }),
+    );
+  }
 
   async sendText(companyId: string, conversationId: string, senderId: string, dto: SendTextMessageDto) {
     await this.conversationsService.assertMembership(companyId, conversationId, senderId);
@@ -45,6 +91,8 @@ export class MessagesService {
 
       return created;
     });
+
+    await this.fanOutTranslations(companyId, message.id, dto.text, message.originalLang, conversationId, senderId);
 
     return this.findOne(companyId, senderId, message.id);
   }
@@ -145,6 +193,7 @@ export class MessagesService {
         sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
         attachments: true,
         receipts: true,
+        translations: true,
       },
     });
   }
@@ -156,6 +205,7 @@ export class MessagesService {
         sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
         attachments: true,
         receipts: true,
+        translations: true,
         conversation: { select: { id: true, companyId: true } },
       },
     });
