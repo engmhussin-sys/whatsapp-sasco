@@ -185,6 +185,8 @@ model User {
   hazardReports     HazardReport[] @relation("HazardReporter")
   sosAlerts         SosAlert[] @relation("SosRaiser")
   messageReactions  MessageReaction[]
+  joinRequests      ConversationJoinRequest[] @relation("JoinRequester")
+  decidedJoinRequests ConversationJoinRequest[] @relation("JoinRequestDecider")
 
   // Multi-tenant data isolation: composite uniqueness scoped by company
   @@unique([companyId, email])
@@ -348,6 +350,7 @@ model Conversation {
 
   members  ConversationMember[]
   messages Message[]
+  joinRequests ConversationJoinRequest[]
 
   @@index([companyId])
   @@map("conversations")
@@ -371,6 +374,32 @@ model ConversationMember {
 
   @@id([conversationId, userId])
   @@map("conversation_members")
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A worker requesting to join a GROUP conversation they discovered via
+/// the "تصفّح المجموعات" list — approved/rejected by whoever can create
+/// groups in the first place (COMPANY_ADMIN/TEAM_LEAD/SUPER_ADMIN),
+/// mirroring the exact same authority already established for group
+/// creation rather than inventing a separate per-group-admin concept.
+model ConversationJoinRequest {
+  id             String            @id @default(uuid())
+  conversationId String
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  requesterId    String
+  requester      User              @relation("JoinRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  status         JoinRequestStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  decidedAt      DateTime?
+  decidedById    String?
+  decidedBy      User?             @relation("JoinRequestDecider", fields: [decidedById], references: [id])
+
+  @@map("conversation_join_requests")
 }
 
 model Message {

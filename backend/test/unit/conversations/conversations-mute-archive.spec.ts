@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConversationsService } from '../../../src/modules/conversations/conversations.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { ChatPolicyService } from '../../../src/modules/chat-policy/chat-policy.service';
+import { NotificationsService } from '../../../src/modules/notifications/notifications.service';
 
 describe('ConversationsService — Group 4 mute/archive', () => {
   let service: ConversationsService;
@@ -21,6 +22,7 @@ describe('ConversationsService — Group 4 mute/archive', () => {
         ConversationsService,
         { provide: PrismaService, useValue: prisma },
         { provide: ChatPolicyService, useValue: {} },
+        { provide: NotificationsService, useValue: {} },
       ],
     }).compile();
 

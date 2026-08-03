@@ -1,16 +1,19 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConversationType, SystemRole } from '@prisma/client';
+import { ConversationType, JoinRequestStatus, NotificationType, SystemRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ChatPolicyService } from '../chat-policy/chat-policy.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateConversationDto } from './dto/conversations.dto';
 
 const MEMBER_SELECT = { id: true, firstName: true, lastName: true, avatarUrl: true, lastSeenAt: true };
+const GROUP_ADMIN_ROLES = [SystemRole.COMPANY_ADMIN, SystemRole.TEAM_LEAD, SystemRole.SUPER_ADMIN];
 
 @Injectable()
 export class ConversationsService {
   constructor(
     private prisma: PrismaService,
     private chatPolicy: ChatPolicyService,
+    private notifications: NotificationsService,
   ) {}
 
   async create(companyId: string, creatorId: string, dto: CreateConversationDto) {
@@ -240,5 +243,138 @@ export class ConversationsService {
       where: { conversationId_userId: { conversationId, userId } },
       data: { isArchived },
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Join Requests — a worker discovers a GROUP conversation they aren't in
+  // yet and asks to join it; approved/rejected by whoever can create
+  // groups in the first place (same GROUP_ADMIN_ROLES as createGroup),
+  // rather than inventing a separate per-group-owner concept.
+  // -------------------------------------------------------------------------
+
+  /** GROUP conversations in this company the user is NOT already a member of, with their own pending-request status if any. */
+  async listJoinableGroups(companyId: string, userId: string) {
+    const groups = await this.prisma.conversation.findMany({
+      where: { companyId, type: ConversationType.GROUP, members: { none: { userId } } },
+      include: {
+        members: { select: { userId: true } },
+        joinRequests: { where: { requesterId: userId }, orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return groups.map((g: { id: string; title: string | null; members: { userId: string }[]; joinRequests: { status: JoinRequestStatus }[] }) => ({
+      id: g.id,
+      title: g.title,
+      memberCount: g.members.length,
+      myRequestStatus: g.joinRequests[0]?.status ?? null,
+    }));
+  }
+
+  async requestToJoin(companyId: string, conversationId: string, requesterId: string) {
+    const conversation = await this.prisma.conversation.findFirst({ where: { id: conversationId, companyId, type: ConversationType.GROUP } });
+    if (!conversation) throw new NotFoundException('Group conversation not found');
+
+    const alreadyMember = await this.prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId: requesterId } },
+    });
+    if (alreadyMember) throw new BadRequestException('You are already a member of this group');
+
+    const existingPending = await this.prisma.conversationJoinRequest.findFirst({
+      where: { conversationId, requesterId, status: JoinRequestStatus.PENDING },
+    });
+    if (existingPending) throw new BadRequestException('You already have a pending request for this group');
+
+    const request = await this.prisma.conversationJoinRequest.create({
+      data: { conversationId, requesterId },
+    });
+
+    // Best-effort: notify every admin/lead in the company — none of this
+    // blocks the request itself from succeeding if notification delivery
+    // has a hiccup.
+    const admins = await this.prisma.user.findMany({
+      where: { companyId, systemRole: { in: GROUP_ADMIN_ROLES } },
+      select: { id: true },
+    });
+    const requester = await this.prisma.user.findUnique({ where: { id: requesterId }, select: { firstName: true, lastName: true } });
+    await Promise.all(
+      admins.map((admin: { id: string }) =>
+        this.notifications
+          .create({
+            userId: admin.id,
+            companyId,
+            type: NotificationType.SYSTEM,
+            title: 'طلب انضمام جديد',
+            body: `${requester?.firstName ?? ''} ${requester?.lastName ?? ''} طلب الانضمام إلى "${conversation.title ?? 'مجموعة'}"`,
+          })
+          .catch(() => undefined),
+      ),
+    );
+
+    return request;
+  }
+
+  /** Pending requests for a specific group — admin/lead only. */
+  async listPendingJoinRequests(companyId: string, conversationId: string, requesterId: string) {
+    await this.assertGroupAdmin(companyId, requesterId);
+    const conversation = await this.prisma.conversation.findFirst({ where: { id: conversationId, companyId, type: ConversationType.GROUP } });
+    if (!conversation) throw new NotFoundException('Group conversation not found');
+
+    return this.prisma.conversationJoinRequest.findMany({
+      where: { conversationId, status: JoinRequestStatus.PENDING },
+      include: { requester: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async decideJoinRequest(companyId: string, requestId: string, deciderId: string, approve: boolean) {
+    await this.assertGroupAdmin(companyId, deciderId);
+
+    const request = await this.prisma.conversationJoinRequest.findFirst({
+      where: { id: requestId, conversation: { companyId } },
+      include: { conversation: true },
+    });
+    if (!request) throw new NotFoundException('Join request not found');
+    if (request.status !== JoinRequestStatus.PENDING) throw new BadRequestException('This request has already been decided');
+
+    if (approve) {
+      // Adding the member and marking the request APPROVED must succeed
+      // or fail together — a partial state (member added but request
+      // still shows PENDING, or vice versa) would confuse the requester
+      // and the admin's own request list equally.
+      await this.prisma.$transaction([
+        this.prisma.conversationMember.create({ data: { conversationId: request.conversationId, userId: request.requesterId } }),
+        this.prisma.conversationJoinRequest.update({
+          where: { id: requestId },
+          data: { status: JoinRequestStatus.APPROVED, decidedAt: new Date(), decidedById: deciderId },
+        }),
+      ]);
+    } else {
+      await this.prisma.conversationJoinRequest.update({
+        where: { id: requestId },
+        data: { status: JoinRequestStatus.REJECTED, decidedAt: new Date(), decidedById: deciderId },
+      });
+    }
+
+    await this.notifications
+      .create({
+        userId: request.requesterId,
+        companyId,
+        type: NotificationType.SYSTEM,
+        title: approve ? 'تمت الموافقة على طلب الانضمام' : 'رُفض طلب الانضمام',
+        body: approve
+          ? `تمت إضافتك إلى "${request.conversation.title ?? 'المجموعة'}"`
+          : `تعذَّر ضمّك إلى "${request.conversation.title ?? 'المجموعة'}"`,
+      })
+      .catch(() => undefined);
+
+    return { requestId, approved: approve };
+  }
+
+  private async assertGroupAdmin(companyId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
+    if (!user || !GROUP_ADMIN_ROLES.includes(user.systemRole)) {
+      throw new ForbiddenException('Only a Company Admin, Team Lead, or Super Admin can manage join requests');
+    }
   }
 }
