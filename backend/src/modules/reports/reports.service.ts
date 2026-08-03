@@ -155,4 +155,101 @@ export class ReportsService {
       })),
     };
   }
+
+  /**
+   * Super Admin EXECUTIVE dashboard — richer than platformOverview()
+   * above (which predates the Executive Dashboard module and is left
+   * unchanged since the current dashboard page still calls it). This
+   * adds MRR/ARR, trial/active/inactive company breakdown, expiring
+   * subscriptions, failed payments, month-over-month growth, and a
+   * cross-company activity timeline.
+   *
+   * ⚠️ MRR CALCULATION CAVEAT (documented honestly, not hidden): this
+   * sums BillingPlan.basePrice for every active, non-trial subscription.
+   * For PER_USER/HYBRID plans this is the FLAT component only — it does
+   * NOT add per-seat overage revenue (that only exists per-invoice,
+   * after usage is billed, and varies month to month by actual headcount
+   * rather than being a stable "recurring" figure the way MRR is meant
+   * to represent). This is a reasonable, standard simplification for an
+   * MRR figure, but it will under-count true revenue for companies with
+   * heavy overage usage — a fully accurate figure would need to average
+   * recent invoice totals instead, which is a documented follow-up.
+   */
+  async executiveOverview() {
+    const now = new Date();
+    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalCompanies,
+      activeSubs,
+      trialSubs,
+      expiringSoon,
+      failedPaymentsCount,
+      newSubsThisMonth,
+      newSubsLastMonth,
+      failedPayments30d,
+      latestCompanies,
+      latestPayments,
+      activityTimeline,
+    ] = await Promise.all([
+      this.prisma.company.count(),
+      this.prisma.companySubscription.findMany({ where: { isActive: true, isTrial: false }, include: { plan: true } }),
+      this.prisma.companySubscription.count({ where: { isActive: true, isTrial: true } }),
+      this.prisma.companySubscription.count({ where: { isActive: true, currentPeriodEnd: { gte: now, lte: in7Days } } }),
+      this.prisma.paymentTransaction.count({ where: { status: 'FAILED', createdAt: { gte: last30Days } } }),
+      this.prisma.companySubscription.count({ where: { createdAt: { gte: startOfThisMonth } } }),
+      this.prisma.companySubscription.count({ where: { createdAt: { gte: startOfLastMonth, lt: startOfThisMonth } } }),
+      this.prisma.paymentTransaction.findMany({
+        where: { status: 'FAILED', createdAt: { gte: last30Days } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      this.prisma.company.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, name: true, createdAt: true } }),
+      this.prisma.paymentTransaction.findMany({
+        where: { status: 'SUCCEEDED' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, companyId: true, amount: true, currency: true, createdAt: true },
+      }),
+      this.prisma.auditLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+        include: {
+          actor: { select: { firstName: true, lastName: true } },
+          company: { select: { name: true } },
+        },
+      }),
+    ]);
+
+    const mrr = activeSubs.reduce((sum: number, sub: { plan: { basePrice: unknown } }) => sum + Number(sub.plan.basePrice), 0);
+    const activeCompaniesCount = activeSubs.length;
+    const inactiveCompaniesCount = Math.max(0, totalCompanies - activeCompaniesCount - trialSubs);
+    const growthRate = newSubsLastMonth > 0 ? Math.round(((newSubsThisMonth - newSubsLastMonth) / newSubsLastMonth) * 1000) / 10 : null;
+
+    return {
+      revenue: { mrr: Math.round(mrr * 100) / 100, arr: Math.round(mrr * 12 * 100) / 100 },
+      companies: {
+        total: totalCompanies,
+        active: activeCompaniesCount,
+        trial: trialSubs,
+        inactive: inactiveCompaniesCount,
+      },
+      expiringSoon,
+      failedPayments: { count: failedPaymentsCount, recent: failedPayments30d },
+      growth: { thisMonth: newSubsThisMonth, lastMonth: newSubsLastMonth, changePercent: growthRate },
+      latestCompanies,
+      latestPayments,
+      activityTimeline: activityTimeline.map((log: any) => ({
+        id: log.id,
+        action: log.action,
+        entityType: log.entityType,
+        actorName: log.actor ? `${log.actor.firstName} ${log.actor.lastName}` : 'النظام',
+        companyName: log.company?.name ?? null,
+        createdAt: log.createdAt,
+      })),
+    };
+  }
 }
