@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/message_attachment_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../../domain/usecases/get_messages_usecase.dart';
@@ -46,6 +47,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatMessageReceived>(_onMessageReceived);
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
     on<ChatRetranslateRequested>(_onRetranslateRequested);
+    on<ChatSendAttachmentRequested>(_onSendAttachmentRequested);
   }
 
   Future<void> _onStarted(ChatStarted event, Emitter<ChatState> emit) async {
@@ -148,6 +150,23 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           (messages) => emit(state.copyWith(isRetranslating: false, messages: messages.reversed.toList())),
         );
       },
+    );
+  }
+
+  Future<void> _onSendAttachmentRequested(ChatSendAttachmentRequested event, Emitter<ChatState> emit) async {
+    emit(state.copyWith(isSending: true));
+    final result = await _repository.sendAttachment(
+      companyId,
+      conversationId,
+      filePath: event.filePath,
+      kind: event.kind,
+      caption: event.caption,
+    );
+    result.fold(
+      (failure) => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
+      // Same de-dupe note as _onTextMessageSent: the socket also echoes
+      // this back; _onMessageReceived below is id-based so no duplicate.
+      (message) => emit(state.copyWith(isSending: false, messages: [...state.messages, message])),
     );
   }
 

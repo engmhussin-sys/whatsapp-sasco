@@ -102,6 +102,26 @@ async function main() {
     await prisma.permission.upsert({ where: { code: perm.code }, create: perm, update: { description: perm.description } });
   }
 
+  // ---- Platform-default Translation Provider config --------------------------
+  // WITHOUT this row, TranslationProviderRegistry.resolveForCompany() finds
+  // no active config for ANY company and silently falls back to
+  // OFFLINE_STUB (which just returns "[targetLang] originalText" — exactly
+  // the "[ar]"/"[en]" tags seen in the app when this was missing). This
+  // row makes OpenAI the platform-wide default; `apiKeyEnvVar` only names
+  // WHICH Railway environment variable holds the key — the actual secret
+  // must still be set there separately (never stored in this seed file).
+  await prisma.translationProviderConfig.upsert({
+    where: { companyId_providerType: { companyId: null, providerType: 'OPENAI' } },
+    create: {
+      companyId: null,
+      providerType: 'OPENAI',
+      apiKeyEnvVar: 'OPENAI_API_KEY',
+      isActive: true,
+      priority: 0,
+    },
+    update: {},
+  });
+
   // ---- Super Admin (platform-level, companyId = null) -----------------------
   const superAdminEmail = 'superadmin@workforceconnect.ai';
   const superAdmin = await prisma.user.upsert({

@@ -64,3 +64,15 @@ class ChatRetranslateRequested extends ChatEvent {
   @override
   List<Object?> get props => [targetLanguage];
 }
+
+/// Group 1 (WhatsApp parity) — send an image/document. [caption] is
+/// optional; a default label is used when omitted (see
+/// ChatRepositoryImpl._defaultCaptionFor).
+class ChatSendAttachmentRequested extends ChatEvent {
+  final String filePath;
+  final MessageAttachmentKind kind;
+  final String? caption;
+  const ChatSendAttachmentRequested({required this.filePath, required this.kind, this.caption});
+  @override
+  List<Object?> get props => [filePath, kind, caption];
+}

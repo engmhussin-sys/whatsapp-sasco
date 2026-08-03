@@ -2,7 +2,9 @@ import 'package:dio/dio.dart' as dio;
 import 'package:http_parser/http_parser.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../domain/entities/message_attachment_entity.dart' show MessageAttachmentKind;
 import '../models/conversation_model.dart';
+import '../models/message_attachment_model.dart';
 import '../models/message_model.dart';
 
 abstract class ChatRemoteDataSource {
@@ -10,6 +12,13 @@ abstract class ChatRemoteDataSource {
   Future<List<MessageModel>> getMessages(String companyId, String conversationId, {String? cursor});
   Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text);
   Future<MessageModel> sendVoiceMessage(String companyId, String conversationId, String audioFilePath, int durationMs);
+  Future<MessageAttachmentModel> uploadAttachment(
+    String companyId,
+    String conversationId,
+    String messageId,
+    String filePath,
+    MessageAttachmentKind kind,
+  );
   Future<void> markRead(String companyId, String conversationId, {String? upToMessageId});
   Future<void> retranslateConversation(String companyId, String conversationId, String targetLanguage);
 }
@@ -78,5 +87,24 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       ApiConstants.retranslateConversation(companyId, conversationId),
       data: {'targetLanguage': targetLanguage},
     );
+  }
+
+  @override
+  Future<MessageAttachmentModel> uploadAttachment(
+    String companyId,
+    String conversationId,
+    String messageId,
+    String filePath,
+    MessageAttachmentKind kind,
+  ) async {
+    final formData = dio.FormData.fromMap({
+      'file': await dio.MultipartFile.fromFile(filePath),
+      'kind': kind.apiValue,
+    });
+    final data = await _client.post<Map<String, dynamic>>(
+      ApiConstants.messageAttachments(companyId, conversationId, messageId),
+      data: formData,
+    );
+    return MessageAttachmentModel.fromJson(data);
   }
 }

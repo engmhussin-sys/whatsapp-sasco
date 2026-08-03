@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/conversation_entity.dart';
+import '../entities/message_attachment_entity.dart';
 import '../entities/message_entity.dart';
 
 abstract class ChatRepository {
@@ -16,6 +17,19 @@ abstract class ChatRepository {
     String audioFilePath,
     int durationMs,
   );
+
+  /// Images/documents: creates a message (with [caption] as its text —
+  /// backend has no separate "media-only" message shape) then uploads
+  /// the file as that message's attachment. Two real network calls
+  /// under the hood, matching exactly how the backend is built (an
+  /// attachment always belongs to an EXISTING message).
+  Future<Either<Failure, MessageEntity>> sendAttachment(
+    String companyId,
+    String conversationId, {
+    required String filePath,
+    required MessageAttachmentKind kind,
+    String? caption,
+  });
 
   Future<Either<Failure, void>> markRead(String companyId, String conversationId, {String? upToMessageId});
 

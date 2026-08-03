@@ -1,0 +1,110 @@
+name: workforce_connect_ai
+description: "WorkForce Connect AI (SASCO) - Mobile app for fuel station workforce management"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # -- State management --------------------------------------------------
+  flutter_bloc: ^8.1.6
+  bloc: ^8.1.4
+  equatable: ^2.0.5
+
+  # -- Dependency Injection ------------------------------------------------
+  get_it: ^7.7.0
+
+  # -- Networking -----------------------------------------------------------
+  dio: ^5.5.0
+  http_parser: ^4.0.2
+  socket_io_client: ^2.0.3+1
+  connectivity_plus: ^6.0.5
+
+  # -- Routing --------------------------------------------------------------
+  go_router: ^14.2.3
+
+  # -- Secure storage & session ----------------------------------------------
+  flutter_secure_storage: ^9.2.2
+
+  # -- Offline-first: local database + request queue -------------------------
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # -- Functional error handling (Either/Failure, Clean Architecture) --------
+  dartz: ^0.10.1
+
+  # -- Localization (JSON-based, no code-gen required to add a language) -----
+  easy_localization: ^3.0.7
+
+  # -- Media: voice recording/playback, photo/video/signature capture --------
+  record: ^6.0.0
+  just_audio: ^0.9.40
+  image_picker: ^1.1.2
+  file_picker: ^8.1.4
+  signature: ^5.5.0
+  geolocator: ^13.0.1
+  flutter_tts: ^4.2.0
+
+  # -- Notifications (Phase 1: interfaces + local wiring; Firebase project
+  #    credentials themselves are NOT configured yet — see core/notifications) --
+  firebase_messaging: ^15.1.0
+  flutter_local_notifications: ^17.2.2
+
+  # -- Branding / Typography --------------------------------------------------
+  google_fonts: ^6.2.1
+
+  # -- Misc -------------------------------------------------------------------
+  intl: ^0.20.2
+  uuid: ^4.4.2
+  cached_network_image: ^3.4.1
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  bloc_test: ^9.1.7
+  mocktail: ^1.0.4
+  # -- App icon + splash screen generation from a single source image --------
+  # Run `dart run flutter_launcher_icons` and `dart run flutter_native_splash:create`
+  # after dropping the real SASCO logo into assets/images/ (see that folder's
+  # README) — see the "SASCO Branding" section of mobile/README.md.
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/translations/
+    - assets/images/
+
+# ---- App icon config (flutter_launcher_icons) --------------------------------
+# Points at a placeholder until the real SASCO logo file is added — see
+# assets/images/README.md. Re-run `dart run flutter_launcher_icons` after
+# replacing the placeholder.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#0C7C42"
+  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+  min_sdk_android: 21
+
+# ---- Splash screen config (flutter_native_splash) -----------------------------
+flutter_native_splash:
+  color: "#0C7C42"
+  image: "assets/images/splash_logo.png"
+  color_dark: "#085C31"
+  image_dark: "assets/images/splash_logo.png"
+  android_12:
+    color: "#0C7C42"
+    image: "assets/images/splash_logo.png"
+    color_dark: "#085C31"
+    image_dark: "assets/images/splash_logo.png"
