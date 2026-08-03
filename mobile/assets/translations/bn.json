@@ -73,5 +73,8 @@
     "my_language": "আমার ভাষা",
     "change_language": "ভাষা পরিবর্তন",
     "tab": "অ্যাকাউন্ট"
+  },
+  "notifications": {
+    "new_message": "নতুন বার্তা"
   }
 }

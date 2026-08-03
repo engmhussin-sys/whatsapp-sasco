@@ -140,15 +140,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         preview,
       });
       // Best-effort: mark delivered if the recipient has an active socket in that room.
-      // Uses the official socket.io v4 room-membership API
-      // (in(room).fetchSockets()) rather than poking at `.adapter.rooms`
-      // directly — that direct-access path threw a real production
-      // crash ("Cannot read properties of undefined (reading 'rooms')")
-      // and, separately, doesn't even type-check cleanly against
-      // NestJS's `Server` typing for a namespaced gateway. fetchSockets()
-      // is documented, async, and fully typed for exactly this check.
-      const socketsInRoom = await this.server.in(`conversation:${data.conversationId}`).fetchSockets();
-      if (socketsInRoom.length > 0) {
+      const room = this.server.sockets.adapter.rooms.get(`conversation:${data.conversationId}`);
+      if (room && room.size > 0) {
         await this.messagesService.markDelivered(message.id, m.userId);
       }
     }

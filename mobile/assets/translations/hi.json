@@ -73,5 +73,8 @@
     "my_language": "मेरी भाषा",
     "change_language": "भाषा बदलें",
     "tab": "खाता"
+  },
+  "notifications": {
+    "new_message": "नया संदेश"
   }
 }

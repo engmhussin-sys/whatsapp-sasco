@@ -73,5 +73,8 @@
     "my_language": "ቋንቋዬ",
     "change_language": "ቋንቋ ቀይር",
     "tab": "መለያ"
+  },
+  "notifications": {
+    "new_message": "አዲስ መልእክት"
   }
 }

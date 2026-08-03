@@ -73,5 +73,8 @@
     "my_language": "Wika ko",
     "change_language": "Palitan ang wika",
     "tab": "Account"
+  },
+  "notifications": {
+    "new_message": "Bagong mensahe"
   }
 }

@@ -65,6 +65,7 @@ abstract class ChatRepository {
   void leaveConversation(String conversationId);
   void sendTypingIndicator(String conversationId, bool isTyping);
   Stream<MessageEntity> get onMessageReceived;
+  Stream<Map<String, dynamic>> get onNotification;
   Stream<Map<String, dynamic>> get onTypingChanged;
   Stream<String> get onMessagesReadByPeer;
 }
