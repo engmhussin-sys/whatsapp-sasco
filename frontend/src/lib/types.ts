@@ -163,3 +163,115 @@ export interface ShiftLogItem {
   endedAt?: string | null;
   shift?: ShiftItem;
 }
+
+// ---- Reports Engine -------------------------------------------------------
+
+export interface CompanyOverviewReport {
+  users: { total: number; active: number };
+  teams: number;
+  stations: number;
+  approvals: { pending: number };
+  fuelRequests: { pending: number };
+  tasksByStatus: Record<string, number>;
+  messagesLast30Days: number;
+}
+
+export interface BillingOverviewReport {
+  subscription: {
+    planName: string;
+    planCode: string;
+    billingModel: string;
+    isActive: boolean;
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    cancelledAt: string | null;
+  } | null;
+  invoiceTotalsByStatus: Record<string, { count: number; total: number }>;
+  recentInvoices: Invoice[];
+  tokenWalletBalance: number;
+}
+
+export interface TranslationOverviewReport {
+  periodDays: number;
+  totalCalls: number;
+  cacheHitRate: number;
+  byResolutionSource: Record<string, number>;
+  byProvider: Record<string, number>;
+  totalTokensUsed: number;
+  totalCostEstimate: number;
+}
+
+export interface PlatformOverviewReport {
+  companies: number;
+  activeSubscriptions: number;
+  totalUsers: number;
+  totalPaidRevenue: number;
+  companiesByPlan: { planId: string; planName: string; companyCount: number }[];
+}
+
+// ---- Billing Engine ---------------------------------------------------------
+
+export interface BillingPlan {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  billingModel: 'PER_USER' | 'MONTHLY_TIER' | 'PAY_AS_YOU_GO' | 'AI_TOKEN_PACKAGE' | 'HYBRID';
+  basePrice: number;
+  currency: string;
+  isActive: boolean;
+  featureLimits?: { includedLimit: number | null; overageUnitPrice: number | null; feature: { code: string; name: string; unit: string } }[];
+}
+
+export interface CompanySubscriptionInfo {
+  id: string;
+  companyId: string;
+  planId: string;
+  plan: BillingPlan;
+  isActive: boolean;
+  startedAt: string;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  cancelledAt: string | null;
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  description: string;
+  featureCode: string | null;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  periodStart: string;
+  periodEnd: string;
+  subtotal: number;
+  discountTotal: number;
+  taxTotal: number;
+  total: number;
+  currency: string;
+  status: 'DRAFT' | 'ISSUED' | 'PAID' | 'OVERDUE' | 'VOID';
+  issuedAt: string | null;
+  dueAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  lineItems: InvoiceLineItem[];
+}
+
+export interface TokenWallet {
+  id: string;
+  companyId: string;
+  balanceTokens: number;
+}
+
+export interface FeatureAccessResult {
+  allowed: boolean;
+  reason?: 'NOT_INCLUDED_IN_PLAN' | 'LIMIT_EXCEEDED' | 'NO_ACTIVE_SUBSCRIPTION';
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+}
