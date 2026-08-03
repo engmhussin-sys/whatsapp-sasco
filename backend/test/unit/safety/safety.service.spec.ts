@@ -34,11 +34,19 @@ describe('SafetyService', () => {
   });
 
   describe('reportHazard()', () => {
-    it('creates a hazard report with the given kind and optional fields', async () => {
+    it('creates a hazard report with the given kind and optional fields, including audioUrl', async () => {
       prisma.hazardReport.create.mockResolvedValue({ id: 'h1' });
-      await service.reportHazard('company-A', 'user-1', 'FUEL_LEAK', 'station-1', 'تسرب صغير', 'https://x/photo.jpg');
+      await service.reportHazard('company-A', 'user-1', 'FUEL_LEAK', 'station-1', 'تسرب صغير', 'https://x/photo.jpg', 'https://x/note.m4a');
       expect(prisma.hazardReport.create).toHaveBeenCalledWith({
-        data: { companyId: 'company-A', reportedById: 'user-1', kind: 'FUEL_LEAK', stationId: 'station-1', note: 'تسرب صغير', photoUrl: 'https://x/photo.jpg' },
+        data: {
+          companyId: 'company-A',
+          reportedById: 'user-1',
+          kind: 'FUEL_LEAK',
+          stationId: 'station-1',
+          note: 'تسرب صغير',
+          photoUrl: 'https://x/photo.jpg',
+          audioUrl: 'https://x/note.m4a',
+        },
       });
     });
   });

@@ -17,6 +17,10 @@ export class ReportHazardDto {
   @IsOptional()
   @IsString()
   photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  audioUrl?: string;
 }
 
 export class UpdateHazardStatusDto {

@@ -1,10 +1,12 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:get_it/get_it.dart';
 
 import '../ai/speech_to_text_interface.dart';
 import '../ai/text_to_speech_interface.dart';
 import '../ai/translation_interface.dart';
+import '../tts/tts_service.dart';
 import '../network/dio_client.dart';
 import '../network/interceptors/auth_interceptor.dart';
 import '../network/network_info.dart';
@@ -141,6 +143,14 @@ Future<void> initDependencyInjection() async {
         getCurrentUserUseCase: sl(),
         updatePreferredLanguageUseCase: sl(),
       ));
+
+  // TtsService — client-side, immediate spoken readout (see
+  // core/tts/tts_service.dart for why this is distinct from
+  // TextToSpeechService above). Registered here, right after AuthBloc,
+  // since it reads the current user's preferredLanguage from it.
+  // Deliberately NOT wired into any screen yet — per explicit
+  // instruction, screens are connected in a follow-up pass.
+  sl.registerLazySingleton<TtsService>(() => FlutterTtsServiceImpl(tts: FlutterTts(), authBloc: sl()));
 
   // ==== Feature: Chat ===========================================================
   sl.registerLazySingleton<ChatRemoteDataSource>(() => ChatRemoteDataSourceImpl(sl()));

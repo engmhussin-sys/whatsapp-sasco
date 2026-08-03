@@ -16,7 +16,7 @@ export class SafetyController {
 
   @Post('hazards')
   reportHazard(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser, @Body() dto: ReportHazardDto) {
-    return this.safety.reportHazard(companyId, user.sub, dto.kind, dto.stationId, dto.note, dto.photoUrl);
+    return this.safety.reportHazard(companyId, user.sub, dto.kind, dto.stationId, dto.note, dto.photoUrl, dto.audioUrl);
   }
 
   @Get('hazards')

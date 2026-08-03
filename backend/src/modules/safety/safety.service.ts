@@ -23,9 +23,9 @@ export class SafetyService {
 
   // ---- Hazard reports ---------------------------------------------------
 
-  reportHazard(companyId: string, reportedById: string, kind: string, stationId?: string, note?: string, photoUrl?: string) {
+  reportHazard(companyId: string, reportedById: string, kind: string, stationId?: string, note?: string, photoUrl?: string, audioUrl?: string) {
     return this.prisma.hazardReport.create({
-      data: { companyId, reportedById, kind: kind as never, stationId, note, photoUrl },
+      data: { companyId, reportedById, kind: kind as never, stationId, note, photoUrl, audioUrl },
     });
   }
 
