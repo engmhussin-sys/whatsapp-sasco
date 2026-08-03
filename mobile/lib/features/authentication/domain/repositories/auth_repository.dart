@@ -3,8 +3,11 @@ import '../../../../core/error/failures.dart';
 import '../entities/user_entity.dart';
 
 abstract class AuthRepository {
+  // Exactly one of email/phone must be provided — mirrors the backend's
+  // LoginDto (auth.service.ts), which accepts either.
   Future<Either<Failure, UserEntity>> login({
-    required String email,
+    String? email,
+    String? phone,
     required String password,
     String? companyId,
   });

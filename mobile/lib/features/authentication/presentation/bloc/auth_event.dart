@@ -12,13 +12,14 @@ class AuthSessionCheckRequested extends AuthEvent {
 }
 
 class AuthLoginRequested extends AuthEvent {
-  final String email;
+  final String? email;
+  final String? phone;
   final String password;
   final String? companyId;
-  const AuthLoginRequested({required this.email, required this.password, this.companyId});
+  const AuthLoginRequested({this.email, this.phone, required this.password, this.companyId});
 
   @override
-  List<Object?> get props => [email, password, companyId];
+  List<Object?> get props => [email, phone, password, companyId];
 }
 
 class AuthLogoutRequested extends AuthEvent {

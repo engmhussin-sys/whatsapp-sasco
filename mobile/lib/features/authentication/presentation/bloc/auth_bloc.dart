@@ -47,7 +47,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLoginRequested(AuthLoginRequested event, Emitter<AuthState> emit) async {
     emit(state.copyWith(isSubmitting: true, clearError: true));
     final result = await _loginUseCase(
-      LoginParams(email: event.email, password: event.password, companyId: event.companyId),
+      LoginParams(email: event.email, phone: event.phone, password: event.password, companyId: event.companyId),
     );
     result.fold(
       (failure) => emit(state.copyWith(isSubmitting: false, errorMessage: _messageFor(failure))),

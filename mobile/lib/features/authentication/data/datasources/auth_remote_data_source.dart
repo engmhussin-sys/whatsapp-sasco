@@ -10,7 +10,7 @@ class AuthTokens {
 }
 
 abstract class AuthRemoteDataSource {
-  Future<AuthTokens> login({required String email, required String password, String? companyId});
+  Future<AuthTokens> login({String? email, String? phone, required String password, String? companyId});
   Future<void> logout(String refreshToken);
   Future<void> requestPasswordReset(String email);
   Future<void> resetPassword({required String resetToken, required String newPassword});
@@ -22,11 +22,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   AuthRemoteDataSourceImpl(this._client);
 
   @override
-  Future<AuthTokens> login({required String email, required String password, String? companyId}) async {
+  Future<AuthTokens> login({String? email, String? phone, required String password, String? companyId}) async {
     final data = await _client.post<Map<String, dynamic>>(
       ApiConstants.login,
       data: {
-        'email': email,
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
         'password': password,
         if (companyId != null && companyId.isNotEmpty) 'companyId': companyId,
       },

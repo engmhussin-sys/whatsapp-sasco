@@ -5,6 +5,9 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/sasco_logo.dart';
 import '../bloc/auth_bloc.dart';
+import '../widgets/country_phone_field.dart';
+
+enum _LoginMode { phone, email }
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,7 +21,10 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _companyIdController = TextEditingController();
+  final _phoneFieldKey = GlobalKey<CountryPhoneFieldState>();
   bool _obscurePassword = true;
+  _LoginMode _mode = _LoginMode.phone; // phone-first, per fuel-station workers rarely having email
+  String _fullPhone = '';
 
   @override
   void dispose() {
@@ -31,7 +37,8 @@ class _LoginPageState extends State<LoginPage> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     context.read<AuthBloc>().add(AuthLoginRequested(
-          email: _emailController.text.trim(),
+          email: _mode == _LoginMode.email ? _emailController.text.trim() : null,
+          phone: _mode == _LoginMode.phone ? _fullPhone : null,
           password: _passwordController.text,
           companyId: _companyIdController.text.trim().isEmpty ? null : _companyIdController.text.trim(),
         ));
@@ -45,13 +52,9 @@ class _LoginPageState extends State<LoginPage> {
         child: Builder(
           builder: (context) {
             // Navigation on successful login is handled EXCLUSIVELY by
-            // app_router.dart's `redirect` callback (authenticated +
-            // on an auth route -> home) — no BlocListener-driven
-            // context.go() here. See splash_page.dart's comment for
-            // why: calling context.go() from a listener reacting to
-            // the same AuthBloc stream that also drives the router's
-            // refreshListenable caused a confirmed navigation race.
-              return LayoutBuilder(
+            // app_router.dart's `redirect` callback — see splash_page.dart's
+            // comment for why (a confirmed navigation race otherwise).
+            return LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -74,9 +77,35 @@ class _LoginPageState extends State<LoginPage> {
                           Text(
                             'أدخل بيانات حسابك للمتابعة',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                           ),
-                          const SizedBox(height: 28),
+                          const SizedBox(height: 24),
+
+                          // ---- Phone / Email toggle ----
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(color: AppColors.brandLight, borderRadius: BorderRadius.circular(12)),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _ModeButton(
+                                    label: 'رقم الهاتف',
+                                    selected: _mode == _LoginMode.phone,
+                                    onTap: () => setState(() => _mode = _LoginMode.phone),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _ModeButton(
+                                    label: 'البريد الإلكتروني',
+                                    selected: _mode == _LoginMode.email,
+                                    onTap: () => setState(() => _mode = _LoginMode.email),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
                           Form(
                             key: _formKey,
                             child: Column(
@@ -89,9 +118,9 @@ class _LoginPageState extends State<LoginPage> {
                                       margin: const EdgeInsets.only(bottom: 16),
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: AppColors.danger.withOpacity(0.08),
+                                        color: AppColors.danger.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: AppColors.danger.withOpacity(0.25)),
+                                        border: Border.all(color: AppColors.danger.withValues(alpha: 0.25)),
                                       ),
                                       child: Row(
                                         children: [
@@ -105,15 +134,20 @@ class _LoginPageState extends State<LoginPage> {
                                     );
                                   },
                                 ),
-                                TextFormField(
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: const InputDecoration(
-                                    labelText: 'البريد الإلكتروني',
-                                    prefixIcon: Icon(Icons.mail_outline_rounded),
+
+                                if (_mode == _LoginMode.phone)
+                                  CountryPhoneField(key: _phoneFieldKey, onChanged: (full) => _fullPhone = full)
+                                else
+                                  TextFormField(
+                                    controller: _emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    decoration: const InputDecoration(
+                                      labelText: 'البريد الإلكتروني',
+                                      prefixIcon: Icon(Icons.mail_outline_rounded),
+                                    ),
+                                    validator: (v) => (v == null || !v.contains('@')) ? 'أدخل بريدًا صحيحًا' : null,
                                   ),
-                                  validator: (v) => (v == null || !v.contains('@')) ? 'أدخل بريدًا صحيحًا' : null,
-                                ),
+
                                 const SizedBox(height: 14),
                                 TextFormField(
                                   controller: _passwordController,
@@ -168,9 +202,40 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 );
-            },
-          );
+              },
+            );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _ModeButton({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(9),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: selected ? AppColors.brandDark : AppColors.textSecondary,
+          ),
         ),
       ),
     );

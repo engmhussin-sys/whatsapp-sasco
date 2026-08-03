@@ -23,13 +23,14 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, UserEntity>> login({
-    required String email,
+    String? email,
+    String? phone,
     required String password,
     String? companyId,
   }) async {
     if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
     try {
-      final tokens = await _remote.login(email: email, password: password, companyId: companyId);
+      final tokens = await _remote.login(email: email, phone: phone, password: password, companyId: companyId);
       await _secureStorage.saveSession(
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
