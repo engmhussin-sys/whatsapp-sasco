@@ -7,6 +7,7 @@ import { usersApi } from '@/lib/api/users';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import type { Conversation, AppUser } from '@/lib/types';
+import { displayText } from '@/lib/message-display';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { Loading } from '@/components/Loading';
 
@@ -94,7 +95,11 @@ export default function ConversationListPage() {
                 <div>
                   <p className="font-medium">{otherMemberName(conv)}</p>
                   <p className="truncate text-sm text-slate-500">
-                    {lastMessage ? (lastMessage.type === 'VOICE' ? '🎤 رسالة صوتية' : lastMessage.originalText) : 'لا رسائل بعد'}
+                    {lastMessage
+                      ? lastMessage.type === 'VOICE'
+                        ? '🎤 رسالة صوتية'
+                        : displayText(lastMessage, user?.preferredLanguage ?? 'ar')
+                      : 'لا رسائل بعد'}
                   </p>
                 </div>
                 <span className="text-xs text-slate-400">{conv.type}</span>

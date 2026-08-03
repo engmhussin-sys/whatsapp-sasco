@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { chatSocket } from '@/lib/websocket-client';
 import type { Conversation, Message } from '@/lib/types';
+import { displayText, isTranslatedFor, translationMissingFor } from '@/lib/message-display';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { Loading } from '@/components/Loading';
 
@@ -180,13 +181,31 @@ export default function ChatPage() {
         <div className="flex flex-col gap-3">
           {messages.map((m) => {
             const mine = m.senderId === user?.id;
+            const myLang = user?.preferredLanguage ?? 'ar';
+            const translated = isTranslatedFor(m, myLang);
+            const missing = translationMissingFor(m, myLang);
             return (
               <div key={m.id} className={`flex ${mine ? 'justify-start' : 'justify-end'}`}>
                 <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm ${mine ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
                   {m.type === 'VOICE' && m.audioUrl ? (
                     <audio controls src={`${ORIGIN}${m.audioUrl}`} className="max-w-full" />
                   ) : (
-                    <p>{m.originalText}</p>
+                    <>
+                      <p className={translated ? 'font-semibold' : undefined}>{displayText(m, myLang)}</p>
+                      {translated && (
+                        <div className={`mt-1.5 border-t border-dashed pt-1.5 ${mine ? 'border-brand-300' : 'border-slate-300'}`}>
+                          <p className={`text-[10px] ${mine ? 'text-brand-100' : 'text-slate-400'}`}>
+                            النص الأصلي ({m.originalLang})
+                          </p>
+                          <p className={`text-xs ${mine ? 'text-brand-50' : 'text-slate-600'}`}>{m.originalText}</p>
+                        </div>
+                      )}
+                      {missing && (
+                        <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                          تعذّرت الترجمة — هذا هو النص الأصلي
+                        </span>
+                      )}
+                    </>
                   )}
                   <p className={`mt-1 text-[10px] ${mine ? 'text-brand-100' : 'text-slate-400'}`}>
                     {new Date(m.createdAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}

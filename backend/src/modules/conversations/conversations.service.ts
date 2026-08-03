@@ -180,7 +180,7 @@ export class ConversationsService {
       },
       include: {
         members: { include: { user: { select: MEMBER_SELECT } } },
-        messages: { take: 1, orderBy: { createdAt: 'desc' } },
+        messages: { take: 1, orderBy: { createdAt: 'desc' }, include: { translations: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });

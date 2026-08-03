@@ -98,6 +98,11 @@ export interface Conversation {
   updatedAt: string;
 }
 
+export interface MessageTranslation {
+  langCode: string;
+  translatedText: string;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -106,6 +111,8 @@ export interface Message {
   type: 'TEXT' | 'VOICE' | 'SYSTEM';
   status: 'SENT' | 'DELIVERED' | 'READ';
   originalText?: string | null;
+  originalLang?: string | null;
+  translations?: MessageTranslation[];
   audioUrl?: string | null;
   createdAt: string;
 }
