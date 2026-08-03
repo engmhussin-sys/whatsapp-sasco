@@ -5,6 +5,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { STORAGE_PROVIDER, StorageProvider } from '../../common/storage/storage.interface';
 import { SendTextMessageDto } from './dto/messages.dto';
 import { TranslationEngineService } from '../translation-engine/translation-engine.service';
+import { LanguageDetectorService } from '../translation-engine/language-detector.service';
 import { TokenWalletService } from '../billing-engine/token-wallet.service';
 import { UsageEngineService } from '../billing-engine/usage-engine.service';
 
@@ -17,6 +18,7 @@ export class MessagesService {
     private conversationsService: ConversationsService,
     @Inject(STORAGE_PROVIDER) private storage: StorageProvider,
     private translationEngine: TranslationEngineService,
+    private languageDetector: LanguageDetectorService,
     private tokenWallet: TokenWalletService,
     private usageEngine: UsageEngineService,
   ) {}
@@ -100,7 +102,18 @@ export class MessagesService {
     await this.conversationsService.assertMembership(companyId, conversationId, senderId);
     await this.conversationsService.assertCanPost(companyId, conversationId, senderId);
 
-    const sender = await this.prisma.user.findUnique({ where: { id: senderId } });
+    // BUG FIX (confirmed via real bilingual testing): this used to
+    // default straight to sender.preferredLanguage — WRONG whenever a
+    // bilingual person types in a language different from their
+    // account's profile setting (e.g. an Arabic-profile user typing in
+    // English). That mislabeled originalLang, which made the recipient
+    // side's `myLang == originalLang` check wrongly treat the message
+    // as "already my language" and skip translation entirely — not a
+    // failed translation, a translation that was never even attempted.
+    // detect() only runs when the client didn't explicitly say what
+    // language it is (dto.originalLang) — an explicit value from a
+    // client that knows better (e.g. a language picker) always wins.
+    const originalLang = dto.originalLang ?? this.languageDetector.detect(dto.text).languageCode;
 
     const message = await this.prisma.$transaction(async (tx: any) => {
       const created = await tx.message.create({
@@ -110,7 +123,7 @@ export class MessagesService {
           type: MessageType.TEXT,
           status: MessageStatus.SENT,
           originalText: dto.text,
-          originalLang: dto.originalLang ?? sender?.preferredLanguage ?? 'en',
+          originalLang,
           replyToId: dto.replyToId,
         },
       });

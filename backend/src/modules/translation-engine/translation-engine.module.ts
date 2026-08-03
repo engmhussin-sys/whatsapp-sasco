@@ -34,6 +34,6 @@ import { LanguageDetectorService } from './language-detector.service';
     LanguageDetectorService,
     TranslationEngineService,
   ],
-  exports: [TranslationEngineService, TranslationProviderConfigService],
+  exports: [TranslationEngineService, TranslationProviderConfigService, LanguageDetectorService],
 })
 export class TranslationEngineModule {}

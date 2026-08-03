@@ -4,6 +4,7 @@ import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { ConversationsService } from '../../../src/modules/conversations/conversations.service';
 import { STORAGE_PROVIDER } from '../../../src/common/storage/storage.interface';
 import { TranslationEngineService } from '../../../src/modules/translation-engine/translation-engine.service';
+import { LanguageDetectorService } from '../../../src/modules/translation-engine/language-detector.service';
 import { TokenWalletService } from '../../../src/modules/billing-engine/token-wallet.service';
 import { UsageEngineService } from '../../../src/modules/billing-engine/usage-engine.service';
 
@@ -41,6 +42,7 @@ describe('MessagesService — Translation Engine activation', () => {
         { provide: ConversationsService, useValue: conversations },
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: translationEngine },
+        { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: tokenWallet },
         { provide: UsageEngineService, useValue: usageEngine },
       ],
@@ -264,6 +266,7 @@ describe('MessagesService.retranslateConversation() — T5 backfill', () => {
         { provide: ConversationsService, useValue: conversations },
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: translationEngine },
+        { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: { debit: jest.fn() } },
         { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
       ],
@@ -348,6 +351,7 @@ describe('MessagesService.deleteMessage() — Group 2 "Delete for everyone"', ()
         { provide: ConversationsService, useValue: {} },
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: {} },
+        { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
       ],
@@ -412,6 +416,7 @@ describe('MessagesService.reactToMessage() — Group 3', () => {
         { provide: ConversationsService, useValue: conversations },
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: {} },
+        { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
       ],
@@ -487,6 +492,7 @@ describe('MessagesService.editMessage() — Group 3', () => {
         { provide: ConversationsService, useValue: {} },
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: {} },
+        { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
       ],
@@ -555,6 +561,7 @@ describe('MessagesService.searchMessages() — Group 4', () => {
         { provide: ConversationsService, useValue: conversations },
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: {} },
+        { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
       ],
