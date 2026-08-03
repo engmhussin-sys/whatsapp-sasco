@@ -1,6 +1,26 @@
 import { api } from '../api-client';
 import type { CompanySubscriptionInfo, Invoice, BillingPlan, TokenWallet, FeatureAccessResult } from '../types';
 
+export interface BillingFeature {
+  id: string;
+  code: string;
+  name: string;
+  unit: 'COUNT' | 'TOKENS' | 'GB' | 'MINUTES';
+  description?: string | null;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  maxRedemptions: number | null;
+  redeemedCount: number;
+  validFrom: string | null;
+  validUntil: string | null;
+  isActive: boolean;
+}
+
 export const billingApi = {
   getSubscription: (companyId: string) => api.get<CompanySubscriptionInfo>(`/companies/${companyId}/billing/subscription`),
   subscribe: (companyId: string, planCode: string, periodMonths = 1) =>
@@ -22,6 +42,26 @@ export const billingApi = {
     api.get<FeatureAccessResult>(`/companies/${companyId}/billing/features/${featureCode}/access`),
 
   listPlans: () => api.get<BillingPlan[]>('/billing/plans'),
+  createPlan: (data: { code: string; name: string; description?: string; billingModel: string; basePrice: number; currency?: string }) =>
+    api.post<BillingPlan>('/billing/plans', data),
+
+  listFeatures: () => api.get<BillingFeature[]>('/billing/plans/features/all'),
+  createFeature: (data: { code: string; name: string; unit: string; description?: string }) =>
+    api.post<BillingFeature>('/billing/plans/features', data),
+
+  setPlanFeatureLimit: (planCode: string, data: { featureCode: string; includedLimit?: number; overageUnitPrice?: number }) =>
+    api.post(`/billing/plans/${planCode}/feature-limits`, data),
+
+  listCoupons: () => api.get<Coupon[]>('/billing/plans/coupons/all'),
+  createCoupon: (data: {
+    code: string;
+    discountType: string;
+    discountValue: number;
+    maxRedemptions?: number;
+    validFrom?: string;
+    validUntil?: string;
+  }) => api.post<Coupon>('/billing/plans/coupons', data),
+
   validateCoupon: (companyId: string, code: string, subtotal: number) =>
     api.post<{ valid: boolean; reason?: string; discountAmount?: number }>(`/companies/${companyId}/billing/coupons/validate`, {
       code,

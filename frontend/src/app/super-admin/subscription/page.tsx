@@ -8,11 +8,14 @@ import { ErrorBanner } from '@/components/ErrorBanner';
 import { Loading } from '@/components/Loading';
 
 /**
- * "Subscription Placeholder" as scoped for Phase 1: shows REAL subscription
- * data per company (plan/status/seats) fetched from the live API — there is
- * no mock data here. What's intentionally NOT built yet is billing/payment
- * processing, invoicing, and plan changes with proration, all of which
- * belong to Phase 3 (Enterprise) per the approved roadmap.
+ * Legacy per-company subscription overview (predates the Billing
+ * Engine) — kept as-is since it still reads real data from the older
+ * `Subscription` model, which is intentionally NOT wired to the new
+ * Billing Engine's `CompanySubscription` yet (see delivery notes: the
+ * two are deliberately left unconnected to avoid destabilizing the
+ * working MVP). For actual plan/feature/coupon management, see
+ * /super-admin/plans and /super-admin/coupons, which are backed by the
+ * real Billing Engine.
  */
 export default function SubscriptionPage() {
   const [companies, setCompanies] = useState<Company[] | null>(null);
@@ -27,9 +30,10 @@ export default function SubscriptionPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-lg font-bold">الاشتراكات</h1>
+      <h1 className="mb-2 text-lg font-bold">اشتراكات الشركات (نظرة قديمة)</h1>
       <p className="mb-4 text-sm text-slate-500">
-        عرض حالة الاشتراك الحالية لكل شركة. إدارة الفوترة والدفع جزء من المرحلة الثالثة (Enterprise) ولم يُبنَ بعد.
+        هذا الجدول يعرض بيانات النموذج القديم للاشتراكات. لإدارة الخطط والحدود والكوبونات الفعلية، استخدم صفحتَي
+        &quot;الخطط والميزات&quot; و&quot;الكوبونات&quot;. لعرض اشتراك شركة مُحدَّدة بمحرك الفوترة الجديد، افتح لوحة تلك الشركة.
       </p>
 
       {error && <ErrorBanner message={error} />}

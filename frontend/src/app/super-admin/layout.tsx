@@ -6,7 +6,9 @@ import { DashboardShell } from '@/components/DashboardShell';
 const navItems = [
   { href: '/super-admin/dashboard', label: 'الإحصائيات' },
   { href: '/super-admin/companies', label: 'الشركات' },
-  { href: '/super-admin/subscription', label: 'الاشتراكات' },
+  { href: '/super-admin/plans', label: 'الخطط والميزات' },
+  { href: '/super-admin/coupons', label: 'الكوبونات' },
+  { href: '/super-admin/subscription', label: 'اشتراكات الشركات' },
   { href: '/messaging', label: 'المحادثات' },
 ];
 
