@@ -7,6 +7,16 @@ import '../entities/message_entity.dart';
 abstract class ChatRepository {
   Future<Either<Failure, List<ConversationEntity>>> getConversations(String companyId);
 
+  /// [type] must be one of the backend's ConversationType values, e.g.
+  /// 'DIRECT' or 'GROUP'. [memberIds] excludes the creator — the server
+  /// adds them automatically.
+  Future<Either<Failure, ConversationEntity>> createConversation(
+    String companyId, {
+    required String type,
+    required List<String> memberIds,
+    String? title,
+  });
+
   Future<Either<Failure, List<MessageEntity>>> getMessages(String companyId, String conversationId, {String? cursor});
 
   Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId});

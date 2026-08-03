@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import '../di/injection_container.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
+import '../../features/authentication/domain/entities/user_entity.dart';
 import '../../features/authentication/presentation/pages/forgot_password_page.dart';
 import '../../features/authentication/presentation/pages/login_page.dart';
 import '../../features/authentication/presentation/pages/splash_page.dart';
@@ -9,6 +10,8 @@ import '../../features/chat/presentation/pages/conversation_list_page.dart';
 import '../../features/fuel_requests/presentation/pages/create_fuel_request_page.dart';
 import '../../features/fuel_requests/presentation/pages/fuel_request_details_page.dart';
 import '../../features/fuel_requests/presentation/pages/fuel_request_list_page.dart';
+import '../../features/directory/presentation/pages/user_search_page.dart';
+import '../../features/directory/presentation/pages/create_group_page.dart';
 import '../../features/approvals/presentation/pages/approvals_list_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/widgets/home_shell.dart';
@@ -83,6 +86,23 @@ GoRouter buildAppRouter() {
             GoRoute(
               path: RouteNames.conversations,
               builder: (context, state) => ConversationListPage(currentUser: authBloc.state.user!),
+            ),
+            GoRoute(
+              path: RouteNames.newChat,
+              builder: (context, state) => UserSearchPage(currentUser: authBloc.state.user!),
+            ),
+            GoRoute(
+              path: RouteNames.newGroup,
+              // Group creation is restricted to admins/leads — see
+              // CreateGroupPage's doc comment. Redirect defends the
+              // route itself (not just hiding the button) in case
+              // someone navigates here directly.
+              redirect: (context, state) {
+                final role = authBloc.state.user?.systemRole;
+                final allowed = role == SystemRole.companyAdmin || role == SystemRole.teamLead || role == SystemRole.superAdmin;
+                return allowed ? null : RouteNames.conversations;
+              },
+              builder: (context, state) => CreateGroupPage(currentUser: authBloc.state.user!),
             ),
             GoRoute(
               path: RouteNames.chat,

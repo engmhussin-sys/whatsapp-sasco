@@ -41,6 +41,25 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, ConversationEntity>> createConversation(
+    String companyId, {
+    required String type,
+    required List<String> memberIds,
+    String? title,
+  }) async {
+    try {
+      final result = await _remote.createConversation(companyId, type: type, memberIds: memberIds, title: title);
+      return Right(result);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(ServerFailure('تعذّر إنشاء المحادثة: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, List<MessageEntity>>> getMessages(String companyId, String conversationId, {String? cursor}) async {
     try {
       final result = await _remote.getMessages(companyId, conversationId, cursor: cursor);

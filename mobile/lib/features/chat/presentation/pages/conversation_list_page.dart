@@ -24,6 +24,11 @@ class ConversationListPage extends StatelessWidget {
       create: (_) => sl<ConversationsBloc>(param1: currentUser.companyId)..add(const ConversationsRequested()),
       child: Scaffold(
         backgroundColor: AppColors.surfaceLight,
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: AppColors.brand,
+          onPressed: () => _showNewConversationSheet(context),
+          child: const Icon(Icons.add_comment_outlined, color: Colors.white),
+        ),
         body: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
@@ -85,6 +90,50 @@ class ConversationListPage extends StatelessWidget {
                 );
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showNewConversationSheet(BuildContext context) {
+    final isAdmin = currentUser.systemRole == SystemRole.companyAdmin ||
+        currentUser.systemRole == SystemRole.teamLead ||
+        currentUser.systemRole == SystemRole.superAdmin;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.brand),
+              title: const Text('محادثة جديدة'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.push(RouteNames.newChat);
+              },
+            ),
+            // Group creation is admin/lead-only — see CreateGroupPage's
+            // doc comment and the route-level redirect guard in
+            // app_router.dart (this hides the option; the route itself
+            // is the actual enforcement).
+            if (isAdmin)
+              ListTile(
+                leading: const Icon(Icons.group_add_rounded, color: AppColors.brand),
+                title: const Text('مجموعة جديدة'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  context.push(RouteNames.newGroup);
+                },
+              ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { DirectoryService } from './directory.service';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
@@ -17,7 +17,7 @@ export class DirectoryController {
   }
 
   @Get('users')
-  getUsers(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.service.getDirectoryUsers(companyId, user.sub);
+  getUsers(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser, @Query('search') search?: string) {
+    return this.service.getDirectoryUsers(companyId, user.sub, search);
   }
 }

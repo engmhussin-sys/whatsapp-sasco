@@ -89,6 +89,10 @@ import '../../features/safety/data/datasources/safety_remote_data_source.dart';
 import '../../features/safety/data/repositories/safety_repository_impl.dart';
 import '../../features/safety/domain/repositories/safety_repository.dart';
 import '../../features/safety/presentation/cubit/safety_cubit.dart';
+import '../../features/directory/data/datasources/directory_remote_data_source.dart';
+import '../../features/directory/data/repositories/directory_repository_impl.dart';
+import '../../features/directory/domain/repositories/directory_repository.dart';
+import '../../features/directory/presentation/cubit/directory_search_cubit.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -250,5 +254,12 @@ Future<void> initDependencyInjection() async {
   sl.registerLazySingleton<SafetyRepository>(() => SafetyRepositoryImpl(remote: sl(), networkInfo: sl()));
   sl.registerFactoryParam<SafetyCubit, String, void>(
     (companyId, _) => SafetyCubit(repository: sl(), companyId: companyId),
+  );
+
+  // ==== Feature: Directory (user search + group creation) ============================
+  sl.registerLazySingleton<DirectoryRemoteDataSource>(() => DirectoryRemoteDataSourceImpl(sl()));
+  sl.registerLazySingleton<DirectoryRepository>(() => DirectoryRepositoryImpl(remote: sl(), networkInfo: sl()));
+  sl.registerFactoryParam<DirectorySearchCubit, String, void>(
+    (companyId, _) => DirectorySearchCubit(repository: sl(), companyId: companyId),
   );
 }

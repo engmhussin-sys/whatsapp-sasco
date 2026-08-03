@@ -9,6 +9,12 @@ import '../models/message_model.dart';
 
 abstract class ChatRemoteDataSource {
   Future<List<ConversationModel>> getConversations(String companyId);
+  Future<ConversationModel> createConversation(
+    String companyId, {
+    required String type,
+    required List<String> memberIds,
+    String? title,
+  });
   Future<List<MessageModel>> getMessages(String companyId, String conversationId, {String? cursor});
   Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId});
   Future<MessageModel> sendVoiceMessage(String companyId, String conversationId, String audioFilePath, int durationMs);
@@ -34,6 +40,24 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   Future<List<ConversationModel>> getConversations(String companyId) async {
     final data = await _client.get<List<dynamic>>(ApiConstants.conversations(companyId));
     return data.map((e) => ConversationModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  @override
+  Future<ConversationModel> createConversation(
+    String companyId, {
+    required String type,
+    required List<String> memberIds,
+    String? title,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      ApiConstants.conversations(companyId),
+      data: {
+        'type': type,
+        'memberIds': memberIds,
+        if (title != null) 'title': title,
+      },
+    );
+    return ConversationModel.fromJson(data);
   }
 
   @override

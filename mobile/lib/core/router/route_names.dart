@@ -8,6 +8,8 @@ class RouteNames {
   static const home = '/home';
   static const conversations = '/conversations';
   static const chat = '/conversations/:conversationId';
+  static const newChat = '/conversations/new';
+  static const newGroup = '/conversations/new-group';
 
   static const tasks = '/tasks';
   static const taskDetails = '/tasks/:taskId';

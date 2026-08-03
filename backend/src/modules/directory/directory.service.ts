@@ -106,10 +106,24 @@ export class DirectoryService {
     return new Set(visible.map((u: { id: string }) => u.id));
   }
 
-  async getDirectoryUsers(companyId: string, requesterId: string) {
+  async getDirectoryUsers(companyId: string, requesterId: string, search?: string) {
     const visibleIds = await this.getVisibleUserIds(companyId, requesterId);
     return this.prisma.user.findMany({
-      where: { companyId, id: { in: Array.from(visibleIds) }, isActive: true },
+      where: {
+        companyId,
+        id: { in: Array.from(visibleIds) },
+        isActive: true,
+        ...(search?.trim()
+          ? {
+              OR: [
+                { firstName: { contains: search.trim(), mode: 'insensitive' as const } },
+                { lastName: { contains: search.trim(), mode: 'insensitive' as const } },
+                { email: { contains: search.trim(), mode: 'insensitive' as const } },
+                { phone: { contains: search.trim(), mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      },
       select: DIRECTORY_USER_SELECT,
       orderBy: { firstName: 'asc' },
     });

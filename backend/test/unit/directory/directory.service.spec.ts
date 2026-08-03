@@ -144,4 +144,50 @@ describe('DirectoryService — Visibility Engine', () => {
       expect(visible.has('w-other-team-user')).toBe(false);
     });
   });
+
+  describe('getDirectoryUsers() — search', () => {
+    it('applies a case-insensitive OR search across name/email/phone on top of visibility scoping', async () => {
+      // COMPANY scope short-circuits to a plain findMany for ids — used
+      // here purely to exercise the search-filter branch cheaply.
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'admin-1',
+        systemRole: SystemRole.COMPANY_ADMIN,
+        directoryVisibilityScope: null,
+        teamMemberships: [],
+      });
+      prisma.user.findMany
+        .mockResolvedValueOnce([{ id: 'u1' }, { id: 'u2' }]) // getVisibleUserIds' COMPANY-scope lookup
+        .mockResolvedValueOnce([{ id: 'u1', firstName: 'Ahmed' }]); // the actual search query
+
+      await service.getDirectoryUsers('company-A', 'admin-1', 'Ahmed');
+
+      expect(prisma.user.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { firstName: { contains: 'Ahmed', mode: 'insensitive' } },
+              { lastName: { contains: 'Ahmed', mode: 'insensitive' } },
+              { email: { contains: 'Ahmed', mode: 'insensitive' } },
+              { phone: { contains: 'Ahmed', mode: 'insensitive' } },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('omits the OR clause entirely for a blank/whitespace-only search (no accidental empty-string match-everything)', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'admin-1',
+        systemRole: SystemRole.COMPANY_ADMIN,
+        directoryVisibilityScope: null,
+        teamMemberships: [],
+      });
+      prisma.user.findMany.mockResolvedValueOnce([{ id: 'u1' }]).mockResolvedValueOnce([]);
+
+      await service.getDirectoryUsers('company-A', 'admin-1', '   ');
+
+      const lastCallArgs = prisma.user.findMany.mock.calls[1][0];
+      expect(lastCallArgs.where.OR).toBeUndefined();
+    });
+  });
 });
