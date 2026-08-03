@@ -109,6 +109,18 @@ class ChatRepositoryImpl implements ChatRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, void>> retranslateConversation(String companyId, String conversationId, String targetLanguage) async {
+    try {
+      await _remote.retranslateConversation(companyId, conversationId, targetLanguage);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    }
+  }
+
   // ---- Real-time -------------------------------------------------------------
 
   @override

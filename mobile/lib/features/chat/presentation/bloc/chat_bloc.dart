@@ -45,6 +45,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatTypingIndicatorChanged>(_onTypingIndicatorChanged);
     on<ChatMessageReceived>(_onMessageReceived);
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
+    on<ChatRetranslateRequested>(_onRetranslateRequested);
   }
 
   Future<void> _onStarted(ChatStarted event, Emitter<ChatState> emit) async {
@@ -132,6 +133,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   void _onPeerTypingReceived(ChatPeerTypingReceived event, Emitter<ChatState> emit) {
     emit(state.copyWith(isPeerTyping: event.isTyping));
+  }
+
+  Future<void> _onRetranslateRequested(ChatRetranslateRequested event, Emitter<ChatState> emit) async {
+    emit(state.copyWith(isRetranslating: true));
+    final result = await _repository.retranslateConversation(companyId, conversationId, event.targetLanguage);
+    await result.fold(
+      (failure) async => emit(state.copyWith(isRetranslating: false, errorMessage: failure.message)),
+      (_) async {
+        // Reload so the newly-backfilled MessageTranslation rows show up.
+        final reload = await _getMessages(GetMessagesParams(companyId: companyId, conversationId: conversationId));
+        reload.fold(
+          (failure) => emit(state.copyWith(isRetranslating: false, errorMessage: failure.message)),
+          (messages) => emit(state.copyWith(isRetranslating: false, messages: messages.reversed.toList())),
+        );
+      },
+    );
   }
 
   @override

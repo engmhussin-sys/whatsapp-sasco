@@ -55,3 +55,12 @@ class ChatPeerTypingReceived extends ChatEvent {
   @override
   List<Object?> get props => [isTyping];
 }
+
+/// T5 "إعادة ترجمة" button — backfills translations for [targetLanguage]
+/// across older messages in this conversation, then reloads.
+class ChatRetranslateRequested extends ChatEvent {
+  final String targetLanguage;
+  const ChatRetranslateRequested(this.targetLanguage);
+  @override
+  List<Object?> get props => [targetLanguage];
+}

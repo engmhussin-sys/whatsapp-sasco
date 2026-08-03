@@ -11,6 +11,7 @@ abstract class ChatRemoteDataSource {
   Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text);
   Future<MessageModel> sendVoiceMessage(String companyId, String conversationId, String audioFilePath, int durationMs);
   Future<void> markRead(String companyId, String conversationId, {String? upToMessageId});
+  Future<void> retranslateConversation(String companyId, String conversationId, String targetLanguage);
 }
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
@@ -68,6 +69,14 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     await _client.post<dynamic>(
       ApiConstants.markRead(companyId, conversationId),
       data: {'upToMessageId': upToMessageId},
+    );
+  }
+
+  @override
+  Future<void> retranslateConversation(String companyId, String conversationId, String targetLanguage) async {
+    await _client.post<dynamic>(
+      ApiConstants.retranslateConversation(companyId, conversationId),
+      data: {'targetLanguage': targetLanguage},
     );
   }
 }

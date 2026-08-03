@@ -19,6 +19,11 @@ abstract class ChatRepository {
 
   Future<Either<Failure, void>> markRead(String companyId, String conversationId, {String? upToMessageId});
 
+  /// T5 "إعادة ترجمة" — backfills translations for this user's new
+  /// language across older messages in the conversation (translations
+  /// are otherwise only generated at send-time).
+  Future<Either<Failure, void>> retranslateConversation(String companyId, String conversationId, String targetLanguage);
+
   // ---- Real-time (WebSocket) -----------------------------------------------
   Future<void> connectRealtime();
   void disconnectRealtime();

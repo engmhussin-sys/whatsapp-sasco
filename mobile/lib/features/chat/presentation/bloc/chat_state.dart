@@ -8,6 +8,7 @@ class ChatState extends Equatable {
   final bool isSending;
   final bool isPeerTyping;
   final bool isSocketConnected;
+  final bool isRetranslating;
   final String? errorMessage;
 
   const ChatState({
@@ -16,6 +17,7 @@ class ChatState extends Equatable {
     this.isSending = false,
     this.isPeerTyping = false,
     this.isSocketConnected = false,
+    this.isRetranslating = false,
     this.errorMessage,
   });
 
@@ -25,6 +27,7 @@ class ChatState extends Equatable {
     bool? isSending,
     bool? isPeerTyping,
     bool? isSocketConnected,
+    bool? isRetranslating,
     String? errorMessage,
   }) {
     return ChatState(
@@ -33,10 +36,12 @@ class ChatState extends Equatable {
       isSending: isSending ?? this.isSending,
       isPeerTyping: isPeerTyping ?? this.isPeerTyping,
       isSocketConnected: isSocketConnected ?? this.isSocketConnected,
+      isRetranslating: isRetranslating ?? this.isRetranslating,
       errorMessage: errorMessage,
     );
   }
 
   @override
-  List<Object?> get props => [status, messages, isSending, isPeerTyping, isSocketConnected, errorMessage];
+  List<Object?> get props =>
+      [status, messages, isSending, isPeerTyping, isSocketConnected, isRetranslating, errorMessage];
 }
