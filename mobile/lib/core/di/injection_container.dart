@@ -23,6 +23,7 @@ import '../../features/authentication/domain/repositories/auth_repository.dart';
 import '../../features/authentication/domain/usecases/get_current_user_usecase.dart';
 import '../../features/authentication/domain/usecases/login_usecase.dart';
 import '../../features/authentication/domain/usecases/logout_usecase.dart';
+import '../../features/authentication/domain/usecases/update_preferred_language_usecase.dart';
 import '../../features/authentication/domain/usecases/request_password_reset_usecase.dart';
 import '../../features/authentication/domain/usecases/reset_password_usecase.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
@@ -81,6 +82,11 @@ import '../../features/profile/data/repositories/settings_repository_impl.dart';
 import '../../features/profile/domain/repositories/settings_repository.dart';
 import '../../features/profile/presentation/bloc/settings_cubit.dart';
 
+import '../../features/safety/data/datasources/safety_remote_data_source.dart';
+import '../../features/safety/data/repositories/safety_repository_impl.dart';
+import '../../features/safety/domain/repositories/safety_repository.dart';
+import '../../features/safety/presentation/cubit/safety_cubit.dart';
+
 final GetIt sl = GetIt.instance;
 
 /// Call once at app startup (see main.dart). Registration order matters:
@@ -125,10 +131,16 @@ Future<void> initDependencyInjection() async {
   sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
   sl.registerLazySingleton(() => RequestPasswordResetUseCase(sl()));
   sl.registerLazySingleton(() => ResetPasswordUseCase(sl()));
+  sl.registerLazySingleton(() => UpdatePreferredLanguageUseCase(sl()));
   // Singleton: AuthBloc's status drives the whole app's router redirect
   // logic (see core/router/app_router.dart), so exactly one instance
   // must exist for the app's lifetime.
-  sl.registerLazySingleton(() => AuthBloc(loginUseCase: sl(), logoutUseCase: sl(), getCurrentUserUseCase: sl()));
+  sl.registerLazySingleton(() => AuthBloc(
+        loginUseCase: sl(),
+        logoutUseCase: sl(),
+        getCurrentUserUseCase: sl(),
+        updatePreferredLanguageUseCase: sl(),
+      ));
 
   // ==== Feature: Chat ===========================================================
   sl.registerLazySingleton<ChatRemoteDataSource>(() => ChatRemoteDataSourceImpl(sl()));
@@ -219,4 +231,11 @@ Future<void> initDependencyInjection() async {
   // ==== Feature: Profile / Settings ==================================================
   sl.registerLazySingleton<SettingsRepository>(() => SettingsRepositoryImpl(sl()));
   sl.registerLazySingleton(() => SettingsCubit(sl()));
+
+  // ==== Feature: Safety (T8) =========================================================
+  sl.registerLazySingleton<SafetyRemoteDataSource>(() => SafetyRemoteDataSourceImpl(sl()));
+  sl.registerLazySingleton<SafetyRepository>(() => SafetyRepositoryImpl(remote: sl(), networkInfo: sl()));
+  sl.registerFactoryParam<SafetyCubit, String, void>(
+    (companyId, _) => SafetyCubit(repository: sl(), companyId: companyId),
+  );
 }

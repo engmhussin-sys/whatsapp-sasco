@@ -38,7 +38,8 @@
     "others_see": "Nakikita ng kasama",
     "voice_message": "Voice message",
     "hold_to_record": "Pindutin nang matagal",
-    "translation_failed": "Walang salin — orihinal ang nakikita"
+    "translation_failed": "Walang salin — orihinal ang nakikita",
+    "retranslate": "Isalin muli"
   },
   "tasks": {
     "today": "Gawain ngayon",
@@ -53,10 +54,24 @@
     "daily_alert": "Safety alert ngayon",
     "report_hazard": "Mag-ulat ng panganib",
     "sos": "Emergency SOS",
-    "sos_hold": "Pindutin ng 3 segundo"
+    "sos_hold": "Pindutin ng 3 segundo",
+    "tab": "Kaligtasan",
+    "ppe_helmet": "Helmet",
+    "ppe_vest": "Reflective Vest",
+    "ppe_gloves": "Guwantes",
+    "ppe_boots": "Safety Boots",
+    "hazard_fuel_leak": "Pagtagas ng Gasolina",
+    "hazard_fire_smoke": "Sunog / Usok",
+    "hazard_slippery_floor": "Madulas na Sahig",
+    "hazard_electrical": "Elektrikal",
+    "report_sent": "Matagumpay na naipadala ang ulat",
+    "take_photo": "Kumuha ng larawan",
+    "hazard_note_hint": "Magdagdag ng tala (opsyonal)",
+    "sos_sent": "Naipadala ang SOS — naabisuhan na ang mga supervisor"
   },
   "profile": {
     "my_language": "Wika ko",
-    "change_language": "Palitan ang wika"
+    "change_language": "Palitan ang wika",
+    "tab": "Account"
   }
 }

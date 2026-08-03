@@ -38,7 +38,8 @@
     "others_see": "साथी क्या देखेंगे",
     "voice_message": "आवाज़ संदेश",
     "hold_to_record": "रिकॉर्ड के लिए दबाए रखें",
-    "translation_failed": "अनुवाद उपलब्ध नहीं — मूल पाठ"
+    "translation_failed": "अनुवाद उपलब्ध नहीं — मूल पाठ",
+    "retranslate": "फिर से अनुवाद करें"
   },
   "tasks": {
     "today": "आज के काम",
@@ -53,10 +54,24 @@
     "daily_alert": "आज की सुरक्षा सूचना",
     "report_hazard": "खतरे की सूचना दें",
     "sos": "आपातकालीन मदद",
-    "sos_hold": "३ सेकंड दबाए रखें"
+    "sos_hold": "३ सेकंड दबाए रखें",
+    "tab": "सुरक्षा",
+    "ppe_helmet": "हेलमेट",
+    "ppe_vest": "सुरक्षा जैकेट",
+    "ppe_gloves": "दस्ताने",
+    "ppe_boots": "सुरक्षा जूते",
+    "hazard_fuel_leak": "ईंधन रिसाव",
+    "hazard_fire_smoke": "आग / धुआं",
+    "hazard_slippery_floor": "फिसलन भरा फर्श",
+    "hazard_electrical": "बिजली",
+    "report_sent": "रिपोर्ट सफलतापूर्वक भेजी गई",
+    "take_photo": "फोटो लें",
+    "hazard_note_hint": "नोट जोड़ें (वैकल्पिक)",
+    "sos_sent": "एसओएस भेजा गया — पर्यवेक्षकों को सूचित कर दिया गया है"
   },
   "profile": {
     "my_language": "मेरी भाषा",
-    "change_language": "भाषा बदलें"
+    "change_language": "भाषा बदलें",
+    "tab": "खाता"
   }
 }

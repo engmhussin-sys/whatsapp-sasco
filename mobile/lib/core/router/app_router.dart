@@ -12,8 +12,12 @@ import '../../features/fuel_requests/presentation/pages/fuel_request_details_pag
 import '../../features/fuel_requests/presentation/pages/fuel_request_list_page.dart';
 import '../../features/approvals/presentation/pages/approvals_list_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/widgets/home_shell.dart';
 import '../../features/profile/presentation/pages/language_settings_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/safety/presentation/pages/safety_home_page.dart';
+import '../../features/safety/presentation/pages/hazard_report_page.dart';
+import '../../features/safety/presentation/pages/sos_page.dart';
 import '../../features/shift/presentation/pages/shift_page.dart';
 import '../../features/stations/presentation/pages/station_pages.dart';
 import '../../features/tasks/presentation/pages/task_details_page.dart';
@@ -26,6 +30,16 @@ import 'route_names.dart';
 /// `extra` param — safe here because `redirect` below guarantees these
 /// routes are never reached while unauthenticated (state.user is always
 /// non-null by the time a builder for one of them runs).
+///
+/// T7 — REBUILT around StatefulShellRoute.indexedStack: four persistent
+/// bottom-nav branches (المحادثات · المهام · السلامة · حسابي), each
+/// keeping its own navigation stack. Every ABSOLUTE path string in
+/// route_names.dart is UNCHANGED — a branch's `routes:` list can hold
+/// multiple top-level GoRoutes without them needing to be relative
+/// children, so existing deep-links (e.g. RouteNames.chatPath(id)) keep
+/// working exactly as before. Approvals/Shift/FuelRequests/Stations
+/// move into the "حسابي" branch (reachable from HomePage's tiles,
+/// itself now the branch's landing content) — none were deleted.
 GoRouter buildAppRouter() {
   final authBloc = sl<AuthBloc>();
 
@@ -50,7 +64,10 @@ GoRouter buildAppRouter() {
         return isAuthRoute ? null : RouteNames.login;
       }
       if (authStatus == AuthStatus.authenticated) {
-        return (isAuthRoute || isSplash) ? RouteNames.home : null;
+        // Landing tab is now "المحادثات" (first bottom-nav branch)
+        // rather than the old tile-grid HomePage — HomePage still
+        // exists and is still reachable (see the "حسابي" branch below).
+        return (isAuthRoute || isSplash) ? RouteNames.conversations : null;
       }
       return null;
     },
@@ -59,63 +76,86 @@ GoRouter buildAppRouter() {
       GoRoute(path: RouteNames.login, builder: (context, state) => const LoginPage()),
       GoRoute(path: RouteNames.forgotPassword, builder: (context, state) => const ForgotPasswordPage()),
 
-      GoRoute(path: RouteNames.home, builder: (context, state) => HomePage(user: authBloc.state.user!)),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => HomeShell(navigationShell: navigationShell),
+        branches: [
+          // ---- Branch 0: المحادثات ----
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: RouteNames.conversations,
+              builder: (context, state) => ConversationListPage(currentUser: authBloc.state.user!),
+            ),
+            GoRoute(
+              path: RouteNames.chat,
+              builder: (context, state) => ChatPage(
+                conversationId: state.pathParameters['conversationId']!,
+                currentUser: authBloc.state.user!,
+              ),
+            ),
+          ]),
 
-      GoRoute(
-        path: RouteNames.conversations,
-        builder: (context, state) => ConversationListPage(currentUser: authBloc.state.user!),
-      ),
-      GoRoute(
-        path: RouteNames.chat,
-        builder: (context, state) => ChatPage(
-          conversationId: state.pathParameters['conversationId']!,
-          currentUser: authBloc.state.user!,
-        ),
-      ),
+          // ---- Branch 1: المهام ----
+          StatefulShellBranch(routes: [
+            GoRoute(path: RouteNames.tasks, builder: (context, state) => TaskListPage(currentUser: authBloc.state.user!)),
+            GoRoute(
+              path: RouteNames.taskDetails,
+              builder: (context, state) => TaskDetailsPage(
+                companyId: authBloc.state.user!.companyId!,
+                taskId: state.pathParameters['taskId']!,
+              ),
+            ),
+          ]),
 
-      GoRoute(path: RouteNames.tasks, builder: (context, state) => TaskListPage(currentUser: authBloc.state.user!)),
-      GoRoute(
-        path: RouteNames.taskDetails,
-        builder: (context, state) => TaskDetailsPage(
-          companyId: authBloc.state.user!.companyId!,
-          taskId: state.pathParameters['taskId']!,
-        ),
-      ),
+          // ---- Branch 2: السلامة (T8) ----
+          StatefulShellBranch(routes: [
+            GoRoute(path: RouteNames.safety, builder: (context, state) => SafetyHomePage(currentUser: authBloc.state.user!)),
+            GoRoute(
+              path: RouteNames.safetyHazardReport,
+              builder: (context, state) => HazardReportPage(currentUser: authBloc.state.user!),
+            ),
+            GoRoute(path: RouteNames.safetySos, builder: (context, state) => SosPage(currentUser: authBloc.state.user!)),
+          ]),
 
-      GoRoute(path: RouteNames.approvals, builder: (context, state) => ApprovalsListPage(currentUser: authBloc.state.user!)),
+          // ---- Branch 3: حسابي (Approvals/Shift/FuelRequests/Stations moved here — none deleted) ----
+          StatefulShellBranch(routes: [
+            GoRoute(path: RouteNames.home, builder: (context, state) => HomePage(user: authBloc.state.user!)),
+            GoRoute(path: RouteNames.profile, builder: (context, state) => ProfilePage(user: authBloc.state.user!)),
+            GoRoute(path: RouteNames.languageSettings, builder: (context, state) => const LanguageSettingsPage()),
 
-      GoRoute(path: RouteNames.shift, builder: (context, state) => ShiftPage(currentUser: authBloc.state.user!)),
+            GoRoute(path: RouteNames.approvals, builder: (context, state) => ApprovalsListPage(currentUser: authBloc.state.user!)),
 
-      GoRoute(
-        path: RouteNames.fuelRequests,
-        builder: (context, state) => FuelRequestListPage(currentUser: authBloc.state.user!),
-      ),
-      GoRoute(
-        path: RouteNames.createFuelRequest,
-        builder: (context, state) => CreateFuelRequestPage(currentUser: authBloc.state.user!),
-      ),
-      GoRoute(
-        path: RouteNames.fuelRequestDetails,
-        builder: (context, state) => FuelRequestDetailsPage(
-          companyId: authBloc.state.user!.companyId!,
-          fuelRequestId: state.pathParameters['fuelRequestId']!,
-        ),
-      ),
+            GoRoute(path: RouteNames.shift, builder: (context, state) => ShiftPage(currentUser: authBloc.state.user!)),
 
-      GoRoute(
-        path: RouteNames.stations,
-        builder: (context, state) => StationListPage(companyId: authBloc.state.user!.companyId!),
-      ),
-      GoRoute(
-        path: RouteNames.stationTanks,
-        builder: (context, state) => TankLevelsPage(
-          companyId: authBloc.state.user!.companyId!,
-          stationId: state.pathParameters['stationId']!,
-        ),
-      ),
+            GoRoute(
+              path: RouteNames.fuelRequests,
+              builder: (context, state) => FuelRequestListPage(currentUser: authBloc.state.user!),
+            ),
+            GoRoute(
+              path: RouteNames.createFuelRequest,
+              builder: (context, state) => CreateFuelRequestPage(currentUser: authBloc.state.user!),
+            ),
+            GoRoute(
+              path: RouteNames.fuelRequestDetails,
+              builder: (context, state) => FuelRequestDetailsPage(
+                companyId: authBloc.state.user!.companyId!,
+                fuelRequestId: state.pathParameters['fuelRequestId']!,
+              ),
+            ),
 
-      GoRoute(path: RouteNames.profile, builder: (context, state) => ProfilePage(user: authBloc.state.user!)),
-      GoRoute(path: RouteNames.languageSettings, builder: (context, state) => const LanguageSettingsPage()),
+            GoRoute(
+              path: RouteNames.stations,
+              builder: (context, state) => StationListPage(companyId: authBloc.state.user!.companyId!),
+            ),
+            GoRoute(
+              path: RouteNames.stationTanks,
+              builder: (context, state) => TankLevelsPage(
+                companyId: authBloc.state.user!.companyId!,
+                stationId: state.pathParameters['stationId']!,
+              ),
+            ),
+          ]),
+        ],
+      ),
     ],
   );
 }

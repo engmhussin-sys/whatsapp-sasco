@@ -38,7 +38,8 @@
     "others_see": "ساتھی کیا دیکھیں گے",
     "voice_message": "صوتی پیغام",
     "hold_to_record": "ریکارڈ کے لیے دبائے رکھیں",
-    "translation_failed": "ترجمہ دستیاب نہیں — اصل متن"
+    "translation_failed": "ترجمہ دستیاب نہیں — اصل متن",
+    "retranslate": "دوبارہ ترجمہ"
   },
   "tasks": {
     "today": "آج کے کام",
@@ -53,10 +54,24 @@
     "daily_alert": "آج کی حفاظتی ہدایت",
     "report_hazard": "خطرے کی اطلاع دیں",
     "sos": "ایمرجنسی مدد",
-    "sos_hold": "٣ سیکنڈ دبائے رکھیں"
+    "sos_hold": "٣ سیکنڈ دبائے رکھیں",
+    "tab": "حفاظت",
+    "ppe_helmet": "ہیلمٹ",
+    "ppe_vest": "حفاظتی جیکٹ",
+    "ppe_gloves": "دستانے",
+    "ppe_boots": "حفاظتی جوتے",
+    "hazard_fuel_leak": "ایندھن کا اخراج",
+    "hazard_fire_smoke": "آگ / دھواں",
+    "hazard_slippery_floor": "پھسلن والا فرش",
+    "hazard_electrical": "بجلی",
+    "report_sent": "رپورٹ کامیابی سے بھیج دی گئی",
+    "take_photo": "تصویر لیں",
+    "hazard_note_hint": "نوٹ شامل کریں (اختیاری)",
+    "sos_sent": "ایس او ایس بھیج دیا گیا — نگرانوں کو مطلع کر دیا گیا ہے"
   },
   "profile": {
     "my_language": "میری زبان",
-    "change_language": "زبان تبدیل کریں"
+    "change_language": "زبان تبدیل کریں",
+    "tab": "اکاؤنٹ"
   }
 }

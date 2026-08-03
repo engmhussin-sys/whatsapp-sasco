@@ -38,7 +38,8 @@
     "others_see": "ما يراه زملاؤك",
     "voice_message": "رسالة صوتية",
     "hold_to_record": "استمر بالضغط للتسجيل",
-    "translation_failed": "تعذّرت الترجمة — هذا هو النص الأصلي"
+    "translation_failed": "تعذّرت الترجمة — هذا هو النص الأصلي",
+    "retranslate": "إعادة الترجمة"
   },
   "tasks": {
     "today": "مهام اليوم",
@@ -53,10 +54,24 @@
     "daily_alert": "تنبيه السلامة اليوم",
     "report_hazard": "بلّغ عن خطر",
     "sos": "استغاثة طوارئ",
-    "sos_hold": "استمر بالضغط ٣ ثوانٍ"
+    "sos_hold": "استمر بالضغط ٣ ثوانٍ",
+    "tab": "السلامة",
+    "ppe_helmet": "خوذة",
+    "ppe_vest": "سترة عاكسة",
+    "ppe_gloves": "قفازات",
+    "ppe_boots": "حذاء سلامة",
+    "hazard_fuel_leak": "تسرب وقود",
+    "hazard_fire_smoke": "حريق / دخان",
+    "hazard_slippery_floor": "أرضية زلقة",
+    "hazard_electrical": "كهرباء",
+    "report_sent": "أُرسل البلاغ بنجاح",
+    "take_photo": "التقط صورة",
+    "hazard_note_hint": "أضف ملاحظة (اختياري)",
+    "sos_sent": "أُرسلت الاستغاثة — تم إخطار المشرفين"
   },
   "profile": {
     "my_language": "لغتي",
-    "change_language": "تغيير اللغة"
+    "change_language": "تغيير اللغة",
+    "tab": "حسابي"
   }
 }

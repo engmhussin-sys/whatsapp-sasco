@@ -38,7 +38,8 @@
     "others_see": "সহকর্মীরা যা দেখবে",
     "voice_message": "ভয়েস বার্তা",
     "hold_to_record": "রেকর্ড করতে চেপে ধরুন",
-    "translation_failed": "অনুবাদ পাওয়া যায়নি — মূল লেখা"
+    "translation_failed": "অনুবাদ পাওয়া যায়নি — মূল লেখা",
+    "retranslate": "পুনরায় অনুবাদ"
   },
   "tasks": {
     "today": "আজকের কাজ",
@@ -53,10 +54,24 @@
     "daily_alert": "আজকের নিরাপত্তা বার্তা",
     "report_hazard": "বিপদ জানান",
     "sos": "জরুরি সাহায্য",
-    "sos_hold": "৩ সেকেন্ড চেপে ধরুন"
+    "sos_hold": "৩ সেকেন্ড চেপে ধরুন",
+    "tab": "নিরাপত্তা",
+    "ppe_helmet": "হেলমেট",
+    "ppe_vest": "সেফটি ভেস্ট",
+    "ppe_gloves": "গ্লাভস",
+    "ppe_boots": "সেফটি বুট",
+    "hazard_fuel_leak": "জ্বালানি ফুটো",
+    "hazard_fire_smoke": "আগুন / ধোঁয়া",
+    "hazard_slippery_floor": "পিচ্ছিল মেঝে",
+    "hazard_electrical": "বৈদ্যুতিক",
+    "report_sent": "রিপোর্ট সফলভাবে পাঠানো হয়েছে",
+    "take_photo": "ছবি তুলুন",
+    "hazard_note_hint": "নোট যোগ করুন (ঐচ্ছিক)",
+    "sos_sent": "এসওএস পাঠানো হয়েছে — সুপারভাইজারদের জানানো হয়েছে"
   },
   "profile": {
     "my_language": "আমার ভাষা",
-    "change_language": "ভাষা পরিবর্তন"
+    "change_language": "ভাষা পরিবর্তন",
+    "tab": "অ্যাকাউন্ট"
   }
 }

@@ -27,6 +27,10 @@ class RouteNames {
   static const profile = '/profile';
   static const languageSettings = '/profile/language';
 
+  static const safety = '/safety';
+  static const safetyHazardReport = '/safety/hazard-report';
+  static const safetySos = '/safety/sos';
+
   static String chatPath(String conversationId) => '/conversations/$conversationId';
   static String taskDetailsPath(String taskId) => '/tasks/$taskId';
   static String approvalDetailsPath(String approvalId) => '/approvals/$approvalId';

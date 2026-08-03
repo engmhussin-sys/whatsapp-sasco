@@ -38,7 +38,8 @@
     "others_see": "What your teammates see",
     "voice_message": "Voice message",
     "hold_to_record": "Hold to record",
-    "translation_failed": "Translation unavailable — showing the original"
+    "translation_failed": "Translation unavailable — showing the original",
+    "retranslate": "Retranslate"
   },
   "tasks": {
     "today": "Today’s tasks",
@@ -53,10 +54,24 @@
     "daily_alert": "Today’s safety alert",
     "report_hazard": "Report a hazard",
     "sos": "Emergency SOS",
-    "sos_hold": "Press and hold 3 seconds"
+    "sos_hold": "Press and hold 3 seconds",
+    "tab": "Safety",
+    "ppe_helmet": "Helmet",
+    "ppe_vest": "Reflective Vest",
+    "ppe_gloves": "Gloves",
+    "ppe_boots": "Safety Boots",
+    "hazard_fuel_leak": "Fuel Leak",
+    "hazard_fire_smoke": "Fire / Smoke",
+    "hazard_slippery_floor": "Slippery Floor",
+    "hazard_electrical": "Electrical",
+    "report_sent": "Report sent successfully",
+    "take_photo": "Take a photo",
+    "hazard_note_hint": "Add a note (optional)",
+    "sos_sent": "SOS sent — supervisors have been notified"
   },
   "profile": {
     "my_language": "My language",
-    "change_language": "Change language"
+    "change_language": "Change language",
+    "tab": "Account"
   }
 }

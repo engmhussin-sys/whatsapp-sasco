@@ -33,6 +33,13 @@ class ApiConstants {
       '${messages(companyId, conversationId)}/voice';
   static String markRead(String companyId, String conversationId) =>
       '${messages(companyId, conversationId)}/read';
+  static String retranslateConversation(String companyId, String conversationId) =>
+      '${messages(companyId, conversationId)}/retranslate';
+
+  static String updateUser(String companyId, String userId) => '/companies/$companyId/users/$userId';
+
+  static String hazards(String companyId) => '/companies/$companyId/hazards';
+  static String sos(String companyId) => '/companies/$companyId/sos';
 
   static String tasks(String companyId) => '/companies/$companyId/tasks';
   static String taskById(String companyId, String taskId) => '/companies/$companyId/tasks/$taskId';

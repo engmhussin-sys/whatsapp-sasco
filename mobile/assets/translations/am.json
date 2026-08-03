@@ -38,7 +38,8 @@
     "others_see": "ባልደረቦች የሚያዩት",
     "voice_message": "የድምጽ መልእክት",
     "hold_to_record": "ለመቅረጽ ተጭነው ይያዙ",
-    "translation_failed": "ትርጉም አልተገኘም — መጀመሪያው ጽሑፍ"
+    "translation_failed": "ትርጉም አልተገኘም — መጀመሪያው ጽሑፍ",
+    "retranslate": "እንደገና ተርጉም"
   },
   "tasks": {
     "today": "የዛሬ ተግባራት",
@@ -53,10 +54,24 @@
     "daily_alert": "የዛሬ የደህንነት ማሳሰቢያ",
     "report_hazard": "አደጋ ያሳውቁ",
     "sos": "የአደጋ ጊዜ ጥሪ",
-    "sos_hold": "ለ3 ሰከንድ ተጭነው ይያዙ"
+    "sos_hold": "ለ3 ሰከንድ ተጭነው ይያዙ",
+    "tab": "ደህንነት",
+    "ppe_helmet": "ኮፍያ",
+    "ppe_vest": "የደህንነት ጃኬት",
+    "ppe_gloves": "ጓንት",
+    "ppe_boots": "የደህንነት ጫማ",
+    "hazard_fuel_leak": "የነዳጅ ፍሳሽ",
+    "hazard_fire_smoke": "እሳት / ጭስ",
+    "hazard_slippery_floor": "ተንሸራታች ወለል",
+    "hazard_electrical": "ኤሌክትሪክ",
+    "report_sent": "ሪፖርቱ በተሳካ ሁኔታ ተልኳል",
+    "take_photo": "ፎቶ ያንሱ",
+    "hazard_note_hint": "ማስታወሻ ያክሉ (አማራጭ)",
+    "sos_sent": "SOS ተልኳል — ተቆጣጣሪዎች ተነግሯቸዋል"
   },
   "profile": {
     "my_language": "ቋንቋዬ",
-    "change_language": "ቋንቋ ቀይር"
+    "change_language": "ቋንቋ ቀይር",
+    "tab": "መለያ"
   }
 }

@@ -104,6 +104,8 @@ model Company {
   supportedLanguages CompanyLanguage[]
   auditLogs         AuditLog[]
   supportTickets    SupportTicket[]
+  hazardReports     HazardReport[]
+  sosAlerts         SosAlert[]
 
   // Sprint 2: Task Engine / Approval Engine / domain modules
   taskTemplates TaskTemplate[]
@@ -176,6 +178,8 @@ model User {
   notifications     Notification[]
   supportTickets    SupportTicket[] @relation("TicketCreator")
   ticketMessages    TicketMessage[] @relation("TicketMessageAuthor")
+  hazardReports     HazardReport[] @relation("HazardReporter")
+  sosAlerts         SosAlert[] @relation("SosRaiser")
 
   // Multi-tenant data isolation: composite uniqueness scoped by company
   @@unique([companyId, email])
@@ -872,6 +876,8 @@ model Station {
   fuelRequests FuelRequest[]
   conversations Conversation[]
   primaryUsers  User[]
+  hazardReports HazardReport[]
+  sosAlerts     SosAlert[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1675,4 +1681,58 @@ model TicketMessage {
 
   @@index([ticketId])
   @@map("ticket_messages")
+}
+
+// ==========================================================================
+// SAFETY LAYER (T8)
+// ==========================================================================
+
+enum HazardKind {
+  FUEL_LEAK
+  FIRE_SMOKE
+  SLIPPERY_FLOOR
+  ELECTRICAL
+  OTHER
+}
+
+enum HazardStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+model HazardReport {
+  id           String       @id @default(uuid())
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stationId    String?
+  station      Station?     @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  reportedById String
+  reportedBy   User         @relation("HazardReporter", fields: [reportedById], references: [id])
+  kind         HazardKind
+  note         String?
+  photoUrl     String?
+  status       HazardStatus @default(OPEN)
+  createdAt    DateTime     @default(now())
+
+  @@index([companyId])
+  @@index([status])
+  @@map("hazard_reports")
+}
+
+model SosAlert {
+  id         String    @id @default(uuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  raisedById String
+  raisedBy   User      @relation("SosRaiser", fields: [raisedById], references: [id])
+  stationId  String?
+  station    Station?  @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  latitude   Float?
+  longitude  Float?
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([companyId])
+  @@map("sos_alerts")
 }
