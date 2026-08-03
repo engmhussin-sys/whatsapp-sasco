@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../../../../core/constants/supported_locales.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/message_entity.dart';
 import 'voice_message_player.dart';
@@ -79,7 +80,7 @@ class MessageBubble extends StatelessWidget {
                   child: _DashedDivider(color: isMine ? Colors.white38 : AppColors.divider),
                 ),
                 Text(
-                  'chat.original'.tr(),
+                  '${'chat.original'.tr()} (${_languageNativeName(message.originalLang)})',
                   style: TextStyle(
                     fontSize: 10,
                     letterSpacing: 0.4,
@@ -196,4 +197,14 @@ class _DashedDivider extends StatelessWidget {
       },
     );
   }
+}
+
+/// Looks up a language code's native display name from the same
+/// SupportedLocales catalog that drives the app's own language picker —
+/// single source of truth, no separate hardcoded name list to drift
+/// out of sync.
+String _languageNativeName(String code) {
+  final match = SupportedLocales.active.where((l) => l.locale.languageCode == code);
+  if (match.isNotEmpty) return match.first.nativeName;
+  return code.toUpperCase();
 }
