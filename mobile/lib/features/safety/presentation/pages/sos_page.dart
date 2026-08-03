@@ -137,7 +137,7 @@ class _SosPageState extends State<SosPage> with SingleTickerProviderStateMixin {
                                 child: Container(
                                   width: 170,
                                   height: 170,
-                                  decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.danger.withOpacity(0.15)),
+                                  decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.danger.withValues(alpha: 0.15)),
                                 ),
                               ),
                             // Hold-progress ring
@@ -159,7 +159,7 @@ class _SosPageState extends State<SosPage> with SingleTickerProviderStateMixin {
                                 color: sent ? AppColors.textSecondary : AppColors.danger,
                                 boxShadow: sent
                                     ? []
-                                    : [BoxShadow(color: AppColors.danger.withOpacity(0.4), blurRadius: 24, spreadRadius: 4)],
+                                    : [BoxShadow(color: AppColors.danger.withValues(alpha: 0.4), blurRadius: 24, spreadRadius: 4)],
                               ),
                               child: Center(
                                 child: Column(
@@ -167,7 +167,7 @@ class _SosPageState extends State<SosPage> with SingleTickerProviderStateMixin {
                                   children: [
                                     Icon(sent ? Icons.check_rounded : Icons.sos_rounded, color: Colors.white, size: 48),
                                     const SizedBox(height: 4),
-                                    Text('SOS', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                                    const Text('SOS', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
                                   ],
                                 ),
                               ),

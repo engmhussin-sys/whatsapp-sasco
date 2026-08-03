@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../di/injection_container.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
