@@ -4,6 +4,21 @@ import 'message_attachment_entity.dart';
 enum MessageType { text, voice, system }
 enum MessageDeliveryStatus { sent, delivered, read }
 
+/// Group 2 (WhatsApp parity) — lightweight quoted-preview of the message
+/// being replied to. Deliberately NOT the full MessageEntity (avoids
+/// unbounded reply-chain nesting problems) — just enough to render the
+/// quote block: who said it, and what.
+class ReplyPreview extends Equatable {
+  final String messageId;
+  final String senderName;
+  final String? text;
+
+  const ReplyPreview({required this.messageId, required this.senderName, this.text});
+
+  @override
+  List<Object?> get props => [messageId, senderName, text];
+}
+
 class MessageEntity extends Equatable {
   final String id;
   final String conversationId;
@@ -16,6 +31,12 @@ class MessageEntity extends Equatable {
   final int? audioDurationMs;
   final DateTime createdAt;
   final List<MessageAttachmentEntity> attachments;
+  final ReplyPreview? replyTo;
+
+  /// Group 2 — "Delete for everyone" tombstone flag. When true, `text`/
+  /// `audioUrl` are already blanked server-side; the bubble renders a
+  /// "🚫 هذه الرسالة حُذفت" placeholder instead of any content.
+  final bool isDeletedForEveryone;
 
   /// Language the sender actually wrote in — 'ar' | 'ur' | 'hi' | 'bn' | 'en' | 'tl' | 'am' | ...
   final String originalLang;
@@ -40,6 +61,8 @@ class MessageEntity extends Equatable {
     this.originalLang = 'ar',
     this.translations = const {},
     this.attachments = const [],
+    this.replyTo,
+    this.isDeletedForEveryone = false,
   });
 
   /// The text the CURRENT user should see: their language's translation if
@@ -74,9 +97,24 @@ class MessageEntity extends Equatable {
         originalLang: originalLang,
         translations: translations,
         attachments: attachments,
+        replyTo: replyTo,
+        isDeletedForEveryone: isDeletedForEveryone,
       );
 
   @override
-  List<Object?> get props =>
-      [id, conversationId, senderId, type, status, text, audioUrl, createdAt, originalLang, translations, attachments];
+  List<Object?> get props => [
+        id,
+        conversationId,
+        senderId,
+        type,
+        status,
+        text,
+        audioUrl,
+        createdAt,
+        originalLang,
+        translations,
+        attachments,
+        replyTo,
+        isDeletedForEveryone,
+      ];
 }

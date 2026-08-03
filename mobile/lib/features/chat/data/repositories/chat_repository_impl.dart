@@ -53,7 +53,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text) async {
+  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId}) async {
     // REFERENCE IMPLEMENTATION for the offline-queue pattern (see
     // core/storage/offline_queue.dart doc comment): if there's no
     // connectivity, the write is queued instead of failing outright.
@@ -64,13 +64,13 @@ class ChatRepositoryImpl implements ChatRepository {
       await _offlineQueue.enqueue(
         method: 'POST',
         path: ApiConstants.sendTextMessage(companyId, conversationId),
-        body: {'text': text},
+        body: {'text': text, if (replyToId != null) 'replyToId': replyToId},
       );
       return const Left(NetworkFailure('لا يوجد اتصال — تم حفظ الرسالة وستُرسَل تلقائيًا عند عودة الاتصال'));
     }
 
     try {
-      final result = await _remote.sendTextMessage(companyId, conversationId, text);
+      final result = await _remote.sendTextMessage(companyId, conversationId, text, replyToId: replyToId);
       return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
@@ -165,6 +165,18 @@ class ChatRepositoryImpl implements ChatRepository {
   Future<Either<Failure, void>> retranslateConversation(String companyId, String conversationId, String targetLanguage) async {
     try {
       await _remote.retranslateConversation(companyId, conversationId, targetLanguage);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteMessage(String companyId, String conversationId, String messageId) async {
+    try {
+      await _remote.deleteMessage(companyId, conversationId, messageId);
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));

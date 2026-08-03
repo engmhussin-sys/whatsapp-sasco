@@ -8,6 +8,15 @@ export class SendTextMessageDto {
   @IsOptional()
   @IsString()
   originalLang?: string; // if omitted, resolved from sender.preferredLanguage
+
+  @IsOptional()
+  @IsString()
+  replyToId?: string; // Group 2 (WhatsApp parity): quote/reply-to
+}
+
+export class DeleteMessageDto {
+  @IsOptional()
+  forEveryone?: boolean; // false/omitted = "delete for me" (handled client-side only, no server call needed)
 }
 
 export class MarkReadDto {

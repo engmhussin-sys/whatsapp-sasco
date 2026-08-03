@@ -35,6 +35,8 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (message.isDeletedForEveryone) return _buildTombstone(context);
+
     final showOriginal = message.isTranslatedFor(myLang) && showOriginalSetting;
     final missingTranslation = message.translationMissingFor(myLang);
 
@@ -60,6 +62,9 @@ class MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ---- Group 2 (WhatsApp parity): quoted reply preview ----
+            if (message.replyTo != null) _ReplyQuoteBlock(reply: message.replyTo!, isMine: isMine),
+
             // ---- Group 1 (WhatsApp parity): image/document attachments ----
             for (final attachment in message.attachments) ...[
               _AttachmentView(attachment: attachment, isMine: isMine),
@@ -177,6 +182,66 @@ class MessageBubble extends StatelessWidget {
       case MessageDeliveryStatus.sent:
         return Icons.done;
     }
+  }
+
+  /// Group 2 (WhatsApp parity) — "🚫 هذه الرسالة حُذفت" tombstone. The
+  /// server already blanked originalText/audioUrl, so there is nothing
+  /// to accidentally leak even if this rendering were bypassed somehow.
+  Widget _buildTombstone(BuildContext context) {
+    return Align(
+      alignment: isMine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          border: Border.all(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.block_rounded, size: 15, color: AppColors.textSecondary),
+            SizedBox(width: 6),
+            Text('هذه الرسالة حُذفت', style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic, color: AppColors.textSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Group 2 (WhatsApp parity) — the quoted block shown at the top of a
+/// reply bubble (sender name + a one-line preview of what's being replied to).
+class _ReplyQuoteBlock extends StatelessWidget {
+  final ReplyPreview reply;
+  final bool isMine;
+  const _ReplyQuoteBlock({required this.reply, required this.isMine});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: isMine ? Colors.white.withValues(alpha: 0.15) : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(8),
+        border: BorderDirectional(start: BorderSide(color: isMine ? Colors.white : AppColors.brand, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(reply.senderName, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: isMine ? Colors.white : AppColors.brand)),
+          Text(
+            reply.text ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: isMine ? Colors.white70 : AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
   }
 }
 

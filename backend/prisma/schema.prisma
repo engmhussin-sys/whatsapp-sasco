@@ -379,9 +379,16 @@ model Message {
   audioUrl       String?
   audioDurationMs Int?
 
+  // Group 2 (WhatsApp parity): reply-to / quote. Nullable self-relation —
+  // a message with no replyToId is a normal top-level message.
+  replyToId      String?
+  replyTo        Message?      @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]     @relation("MessageReply")
+
   createdAt      DateTime      @default(now())
   editedAt       DateTime?
   deletedAt      DateTime?
+  deletedForEveryone Boolean   @default(false)
 
   translations   MessageTranslation[]
   receipts       MessageReceipt[]
@@ -389,6 +396,7 @@ model Message {
 
   @@index([conversationId])
   @@index([senderId])
+  @@index([replyToId])
   @@map("messages")
 }
 

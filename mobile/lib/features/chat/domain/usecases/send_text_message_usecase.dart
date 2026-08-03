@@ -9,9 +9,10 @@ class SendTextMessageParams extends Equatable {
   final String companyId;
   final String conversationId;
   final String text;
-  const SendTextMessageParams({required this.companyId, required this.conversationId, required this.text});
+  final String? replyToId;
+  const SendTextMessageParams({required this.companyId, required this.conversationId, required this.text, this.replyToId});
   @override
-  List<Object?> get props => [companyId, conversationId, text];
+  List<Object?> get props => [companyId, conversationId, text, replyToId];
 }
 
 class SendTextMessageUseCase implements UseCase<MessageEntity, SendTextMessageParams> {
@@ -20,5 +21,5 @@ class SendTextMessageUseCase implements UseCase<MessageEntity, SendTextMessagePa
 
   @override
   Future<Either<Failure, MessageEntity>> call(SendTextMessageParams params) =>
-      repository.sendTextMessage(params.companyId, params.conversationId, params.text);
+      repository.sendTextMessage(params.companyId, params.conversationId, params.text, replyToId: params.replyToId);
 }

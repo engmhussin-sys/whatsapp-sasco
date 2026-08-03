@@ -238,3 +238,154 @@ describe('MessagesService — Translation Engine activation', () => {
     expect(prisma.messageTranslation.upsert).toHaveBeenCalled();
   });
 });
+
+describe('MessagesService.retranslateConversation() — T5 backfill', () => {
+  let service: MessagesService;
+  let prisma: any;
+  let conversations: any;
+  let translationEngine: any;
+
+  const companyId = 'company-A';
+  const conversationId = 'conv-1';
+  const userId = 'user-1';
+
+  beforeEach(async () => {
+    prisma = {
+      message: { findMany: jest.fn() },
+      messageTranslation: { upsert: jest.fn() },
+    };
+    conversations = { assertMembership: jest.fn() };
+    translationEngine = { translate: jest.fn() };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: ConversationsService, useValue: conversations },
+        { provide: STORAGE_PROVIDER, useValue: {} },
+        { provide: TranslationEngineService, useValue: translationEngine },
+        { provide: TokenWalletService, useValue: { debit: jest.fn() } },
+        { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MessagesService);
+  });
+
+  it('checks membership before doing anything (a non-member cannot trigger translation spend for a conversation they cannot see)', async () => {
+    conversations.assertMembership.mockRejectedValue(new Error('not a member'));
+    await expect(service.retranslateConversation(companyId, conversationId, userId, 'bn')).rejects.toThrow('not a member');
+    expect(prisma.message.findMany).not.toHaveBeenCalled();
+  });
+
+  it('only translates messages that have NO existing translation row for the target language yet', async () => {
+    prisma.message.findMany.mockResolvedValue([
+      { id: 'm1', originalText: 'مرحبا', originalLang: 'ar', translations: [] }, // needs translation
+      { id: 'm2', originalText: 'كيف حالك', originalLang: 'ar', translations: [{ langCode: 'bn' }] }, // already has one
+    ]);
+    translationEngine.translate.mockResolvedValue({ translatedText: 'হ্যালো', resolutionSource: 'PROVIDER', providerType: 'OPENAI' });
+
+    const result = await service.retranslateConversation(companyId, conversationId, userId, 'bn');
+
+    expect(translationEngine.translate).toHaveBeenCalledTimes(1);
+    expect(translationEngine.translate).toHaveBeenCalledWith(companyId, 'مرحبا', 'ar', 'bn', userId);
+    expect(result).toEqual({ conversationId, targetLanguage: 'bn', messagesConsidered: 1, messagesTranslated: 1 });
+  });
+
+  it('excludes messages whose originalLang already matches the target language (Prisma filter, no API call needed)', async () => {
+    prisma.message.findMany.mockResolvedValue([]); // the `where: { originalLang: { not: targetLanguage } }` already excludes these at the DB level
+
+    await service.retranslateConversation(companyId, conversationId, userId, 'ar');
+
+    expect(prisma.message.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ originalLang: { not: 'ar' } }) }),
+    );
+    expect(translationEngine.translate).not.toHaveBeenCalled();
+  });
+
+  it('a per-message translation failure is caught and does not stop the rest of the backfill', async () => {
+    prisma.message.findMany.mockResolvedValue([
+      { id: 'm1', originalText: 'واحد', originalLang: 'ar', translations: [] },
+      { id: 'm2', originalText: 'اثنان', originalLang: 'ar', translations: [] },
+    ]);
+    translationEngine.translate
+      .mockRejectedValueOnce(new Error('provider timeout'))
+      .mockResolvedValueOnce({ translatedText: 'two', resolutionSource: 'PROVIDER', providerType: 'OPENAI' });
+
+    const result = await service.retranslateConversation(companyId, conversationId, userId, 'en');
+
+    expect(result.messagesConsidered).toBe(2);
+    expect(result.messagesTranslated).toBe(1); // only the one that succeeded
+  });
+
+  it('skips messages with no originalText (e.g. voice messages) without crashing', async () => {
+    prisma.message.findMany.mockResolvedValue([{ id: 'm1', originalText: null, originalLang: 'ar', translations: [] }]);
+
+    const result = await service.retranslateConversation(companyId, conversationId, userId, 'bn');
+
+    expect(translationEngine.translate).not.toHaveBeenCalled();
+    expect(result.messagesTranslated).toBe(0);
+  });
+});
+
+describe('MessagesService.deleteMessage() — Group 2 "Delete for everyone"', () => {
+  let service: MessagesService;
+  let prisma: any;
+
+  const companyId = 'company-A';
+  const conversationId = 'conv-1';
+
+  beforeEach(async () => {
+    prisma = {
+      message: { findFirst: jest.fn(), update: jest.fn() },
+      conversation: { findFirst: jest.fn() },
+    };
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: ConversationsService, useValue: {} },
+        { provide: STORAGE_PROVIDER, useValue: {} },
+        { provide: TranslationEngineService, useValue: {} },
+        { provide: TokenWalletService, useValue: {} },
+        { provide: UsageEngineService, useValue: {} },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MessagesService);
+  });
+
+  it('throws NotFoundException for a message outside this conversation', async () => {
+    prisma.message.findFirst.mockResolvedValue(null);
+    await expect(service.deleteMessage(companyId, conversationId, 'ghost', 'user-1')).rejects.toThrow('Message not found');
+  });
+
+  it('throws NotFoundException when the conversation does not belong to this company (tenant isolation)', async () => {
+    prisma.message.findFirst.mockResolvedValue({ id: 'm1', senderId: 'user-1' });
+    prisma.conversation.findFirst.mockResolvedValue(null);
+    await expect(service.deleteMessage(companyId, conversationId, 'm1', 'user-1')).rejects.toThrow('Conversation not found');
+  });
+
+  it('REJECTS deletion by anyone other than the original sender', async () => {
+    prisma.message.findFirst.mockResolvedValue({ id: 'm1', senderId: 'user-1' });
+    prisma.conversation.findFirst.mockResolvedValue({ id: conversationId });
+    await expect(service.deleteMessage(companyId, conversationId, 'm1', 'someone-else')).rejects.toThrow(
+      'Only the sender can delete this message for everyone',
+    );
+    expect(prisma.message.update).not.toHaveBeenCalled();
+  });
+
+  it('soft-deletes and BLANKS originalText/audioUrl (tombstone must never leak content)', async () => {
+    prisma.message.findFirst.mockResolvedValue({ id: 'm1', senderId: 'user-1' });
+    prisma.conversation.findFirst.mockResolvedValue({ id: conversationId });
+    prisma.message.update.mockResolvedValue({ id: 'm1' });
+
+    await service.deleteMessage(companyId, conversationId, 'm1', 'user-1');
+
+    expect(prisma.message.update).toHaveBeenCalledWith({
+      where: { id: 'm1' },
+      data: expect.objectContaining({ deletedForEveryone: true, originalText: null, audioUrl: null, deletedAt: expect.any(Date) }),
+    });
+  });
+});

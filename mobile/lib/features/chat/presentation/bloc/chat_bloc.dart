@@ -48,6 +48,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
     on<ChatRetranslateRequested>(_onRetranslateRequested);
     on<ChatSendAttachmentRequested>(_onSendAttachmentRequested);
+    on<ChatDeleteMessageRequested>(_onDeleteMessageRequested);
+    on<ChatLocalDeleteRequested>(_onLocalDeleteRequested);
+    on<ChatReplyTargetChanged>(_onReplyTargetChanged);
   }
 
   Future<void> _onStarted(ChatStarted event, Emitter<ChatState> emit) async {
@@ -89,7 +92,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (event.text.trim().isEmpty) return;
     emit(state.copyWith(isSending: true));
     final result = await _sendTextMessage(
-      SendTextMessageParams(companyId: companyId, conversationId: conversationId, text: event.text.trim()),
+      SendTextMessageParams(companyId: companyId, conversationId: conversationId, text: event.text.trim(), replyToId: event.replyToId),
     );
     result.fold(
       (failure) => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
@@ -97,7 +100,49 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         // The server also echoes this back over the socket to everyone in
         // the room (including us) — de-dupe by id in _onMessageReceived so
         // it isn't appended twice.
-        emit(state.copyWith(isSending: false, messages: [...state.messages, message]));
+        emit(state.copyWith(isSending: false, messages: [...state.messages, message], clearReplyTarget: true));
+      },
+    );
+  }
+
+  void _onReplyTargetChanged(ChatReplyTargetChanged event, Emitter<ChatState> emit) {
+    if (event.target == null) {
+      emit(state.copyWith(clearReplyTarget: true));
+    } else {
+      emit(state.copyWith(replyTarget: event.target));
+    }
+  }
+
+  /// "Delete for me" — filters the message out of THIS device's list only.
+  /// No server call: reopening the conversation (or another device) will
+  /// still show it, matching the honest scope documented in
+  /// ChatRepository.deleteMessage's doc comment.
+  void _onLocalDeleteRequested(ChatLocalDeleteRequested event, Emitter<ChatState> emit) {
+    emit(state.copyWith(messages: state.messages.where((m) => m.id != event.messageId).toList()));
+  }
+
+  Future<void> _onDeleteMessageRequested(ChatDeleteMessageRequested event, Emitter<ChatState> emit) async {
+    final result = await _repository.deleteMessage(companyId, conversationId, event.messageId);
+    result.fold(
+      (failure) => emit(state.copyWith(errorMessage: failure.message)),
+      (_) {
+        // Reflect the tombstone locally immediately rather than waiting
+        // for the next full reload — same id, content blanked, flagged.
+        final updated = state.messages.map((m) {
+          if (m.id != event.messageId) return m;
+          return MessageEntity(
+            id: m.id,
+            conversationId: m.conversationId,
+            senderId: m.senderId,
+            senderName: m.senderName,
+            type: m.type,
+            status: m.status,
+            createdAt: m.createdAt,
+            originalLang: m.originalLang,
+            isDeletedForEveryone: true,
+          );
+        }).toList();
+        emit(state.copyWith(messages: updated));
       },
     );
   }

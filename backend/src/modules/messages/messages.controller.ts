@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -94,5 +95,27 @@ export class MessagesController {
     @Body() dto: MarkReadDto,
   ) {
     return this.messagesService.markRead(companyId, conversationId, user.sub, dto.upToMessageId);
+  }
+
+  /** T5: backfills translations for OLDER messages after a user changes their language. */
+  @Post('retranslate')
+  retranslate(
+    @TenantId() companyId: string,
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('targetLanguage') targetLanguage: string,
+  ) {
+    return this.messagesService.retranslateConversation(companyId, conversationId, user.sub, targetLanguage);
+  }
+
+  /** Group 2 (WhatsApp parity): "Delete for everyone" — sender only. */
+  @Delete(':messageId')
+  deleteMessage(
+    @TenantId() companyId: string,
+    @Param('conversationId') conversationId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.messagesService.deleteMessage(companyId, conversationId, messageId, user.sub);
   }
 }

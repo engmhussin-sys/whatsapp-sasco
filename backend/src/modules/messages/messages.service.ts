@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MessageStatus, MessageType, AttachmentKind } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -111,6 +111,7 @@ export class MessagesService {
           status: MessageStatus.SENT,
           originalText: dto.text,
           originalLang: dto.originalLang ?? sender?.preferredLanguage ?? 'en',
+          replyToId: dto.replyToId,
         },
       });
 
@@ -222,7 +223,12 @@ export class MessagesService {
     await this.conversationsService.assertMembership(companyId, conversationId, userId);
 
     return this.prisma.message.findMany({
-      where: { conversationId, deletedAt: null },
+      // No longer filters deletedAt: null — a "deleted for everyone"
+      // message stays in the list and renders as a tombstone
+      // ("🚫 هذه الرسالة حُذفت") client-side, exactly like WhatsApp,
+      // rather than vanishing (which would confuse anyone re-reading
+      // the conversation about a reply that references it).
+      where: { conversationId },
       take,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       orderBy: { createdAt: 'desc' },
@@ -231,6 +237,7 @@ export class MessagesService {
         attachments: true,
         receipts: true,
         translations: true,
+        replyTo: { select: { id: true, originalText: true, senderId: true, sender: { select: { firstName: true, lastName: true } } } },
       },
     });
   }
@@ -244,6 +251,7 @@ export class MessagesService {
         receipts: true,
         translations: true,
         conversation: { select: { id: true, companyId: true } },
+        replyTo: { select: { id: true, originalText: true, senderId: true, sender: { select: { firstName: true, lastName: true } } } },
       },
     });
     if (!message || message.conversation.companyId !== companyId) {
@@ -294,6 +302,78 @@ export class MessagesService {
     await this.prisma.conversationMember.update({
       where: { conversationId_userId: { conversationId, userId } },
       data: { lastReadAt: new Date() },
+    });
+  }
+
+  /**
+   * T5 "إعادة ترجمة" — when a user switches language, their OLD messages
+   * in this conversation have no MessageTranslation row for the new
+   * language (translations are only ever generated at send-time, per
+   * fanOutTranslations above). This backfills them: for every message in
+   * the conversation whose originalLang differs from targetLanguage and
+   * has no existing translation row for it yet, translate and persist.
+   * Deliberately reuses the SAME translate()+upsert pattern as
+   * fanOutTranslations rather than translationEngine.retranslate()
+   * (which only writes to the generic TranslationCacheEntry, not
+   * MessageTranslation — retranslate() alone would leave the chat UI
+   * showing nothing for these older messages).
+   */
+  async retranslateConversation(companyId: string, conversationId: string, userId: string, targetLanguage: string) {
+    await this.conversationsService.assertMembership(companyId, conversationId, userId);
+
+    const messages = await this.prisma.message.findMany({
+      where: { conversationId, type: MessageType.TEXT, originalLang: { not: targetLanguage } },
+      include: { translations: { where: { langCode: targetLanguage } } },
+    });
+
+    const toTranslate = messages.filter((m: { translations: unknown[] }) => m.translations.length === 0);
+
+    let translatedCount = 0;
+    await Promise.all(
+      toTranslate.map(async (m: { id: string; originalText: string | null; originalLang: string }) => {
+        if (!m.originalText) return;
+        try {
+          const result = await this.translationEngine.translate(companyId, m.originalText, m.originalLang, targetLanguage, userId);
+          if (result.resolutionSource === 'SAME_LANGUAGE') return;
+          await this.prisma.messageTranslation.upsert({
+            where: { messageId_langCode: { messageId: m.id, langCode: targetLanguage } },
+            create: { messageId: m.id, langCode: targetLanguage, translatedText: result.translatedText, engine: result.providerType ?? result.resolutionSource, version: 1 },
+            update: { translatedText: result.translatedText, engine: result.providerType ?? result.resolutionSource },
+          });
+          translatedCount++;
+        } catch (err) {
+          this.logger.warn(`Retranslation to "${targetLanguage}" failed for message ${m.id}: ${(err as Error).message}`);
+        }
+      }),
+    );
+
+    return { conversationId, targetLanguage, messagesConsidered: toTranslate.length, messagesTranslated: translatedCount };
+  }
+
+  /**
+   * Group 2 (WhatsApp parity) — "Delete for everyone". Soft-delete only
+   * (deletedAt + deletedForEveryone), never a hard delete: the row (and
+   * its translations/attachments/receipts) stays for audit/moderation
+   * purposes, but originalText is blanked so the tombstone can never
+   * leak content through, say, a stale client cache or a debugging tool.
+   * Only the ORIGINAL SENDER may delete for everyone — matches WhatsApp's
+   * own rule (not even a Company Admin can silently erase someone
+   * else's words from a conversation).
+   */
+  async deleteMessage(companyId: string, conversationId: string, messageId: string, userId: string) {
+    const message = await this.prisma.message.findFirst({ where: { id: messageId, conversationId } });
+    if (!message) throw new NotFoundException('Message not found');
+
+    const conversation = await this.prisma.conversation.findFirst({ where: { id: conversationId, companyId } });
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('Only the sender can delete this message for everyone');
+    }
+
+    return this.prisma.message.update({
+      where: { id: messageId },
+      data: { deletedAt: new Date(), deletedForEveryone: true, originalText: null, audioUrl: null },
     });
   }
 }
