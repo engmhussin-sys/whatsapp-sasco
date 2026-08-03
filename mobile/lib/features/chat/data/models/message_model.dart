@@ -1,4 +1,5 @@
 import '../../domain/entities/message_entity.dart';
+import 'message_attachment_model.dart';
 
 class MessageModel extends MessageEntity {
   const MessageModel({
@@ -14,6 +15,7 @@ class MessageModel extends MessageEntity {
     required super.createdAt,
     super.originalLang,
     super.translations,
+    super.attachments,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,9 @@ class MessageModel extends MessageEntity {
         for (final t in (json['translations'] as List<dynamic>? ?? const []))
           (t as Map<String, dynamic>)['langCode'] as String: (t['translatedText'] as String?) ?? '',
       },
+      attachments: (json['attachments'] as List<dynamic>? ?? const [])
+          .map((a) => MessageAttachmentModel.fromJson(a as Map<String, dynamic>))
+          .toList(),
     );
   }
 

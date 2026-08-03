@@ -5,10 +5,12 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/network/network_info.dart';
 import '../../../../core/storage/offline_queue.dart';
 import '../../domain/entities/conversation_entity.dart';
+import '../../domain/entities/message_attachment_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../datasources/chat_remote_data_source.dart';
 import '../datasources/chat_socket_data_source.dart';
+import '../models/message_model.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   final ChatRemoteDataSource _remote;
@@ -96,6 +98,56 @@ class ChatRepositoryImpl implements ChatRepository {
       return const Left(NetworkFailure());
     }
   }
+
+  @override
+  Future<Either<Failure, MessageEntity>> sendAttachment(
+    String companyId,
+    String conversationId, {
+    required String filePath,
+    required MessageAttachmentKind kind,
+    String? caption,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return const Left(NetworkFailure('لا يوجد اتصال — أعد المحاولة عند عودة الشبكة'));
+    }
+    try {
+      // Step 1: create the message that will carry the attachment. The
+      // backend has no "media with no text" shape, so an empty caption
+      // becomes a short default label rather than an empty string (a
+      // blank bubble reads as broken, not intentional).
+      final captionText = (caption == null || caption.trim().isEmpty) ? _defaultCaptionFor(kind) : caption.trim();
+      final message = await _remote.sendTextMessage(companyId, conversationId, captionText);
+
+      // Step 2: attach the file to that message.
+      final attachment = await _remote.uploadAttachment(companyId, conversationId, message.id, filePath, kind);
+
+      return Right(MessageModel(
+        id: message.id,
+        conversationId: message.conversationId,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        type: message.type,
+        status: message.status,
+        text: message.text,
+        createdAt: message.createdAt,
+        originalLang: message.originalLang,
+        translations: message.translations,
+        attachments: [attachment],
+      ));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    }
+  }
+
+  String _defaultCaptionFor(MessageAttachmentKind kind) => switch (kind) {
+        MessageAttachmentKind.image => '📷 صورة',
+        MessageAttachmentKind.video => '🎥 فيديو',
+        MessageAttachmentKind.document => '📄 مستند',
+        MessageAttachmentKind.audio => '🎵 صوت',
+        MessageAttachmentKind.signature => '✍️ توقيع',
+      };
 
   @override
   Future<Either<Failure, void>> markRead(String companyId, String conversationId, {String? upToMessageId}) async {

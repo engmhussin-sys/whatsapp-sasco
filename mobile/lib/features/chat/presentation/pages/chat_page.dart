@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/tts/tts_service.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../../../../shared/widgets/loading_view.dart';
 import '../../../authentication/domain/entities/user_entity.dart';
 import '../../../profile/presentation/bloc/settings_cubit.dart';
+import '../../domain/entities/message_attachment_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../bloc/chat_bloc.dart';
 import '../widgets/message_bubble.dart';
@@ -83,7 +87,7 @@ class _ChatViewState extends State<_ChatView> {
             children: [
               const Text('محادثة', style: TextStyle(fontSize: 16)),
               if (state.isPeerTyping)
-                const Text('يكتب الآن...', style: TextStyle(fontSize: 12, color: Colors.green))
+                const Text('يكتب الآن...', style: TextStyle(fontSize: 12, color: AppColors.success))
               else
                 Text(
                   state.isSocketConnected ? 'متصل' : 'غير متصل',
@@ -152,12 +156,19 @@ class _ChatViewState extends State<_ChatView> {
                       itemCount: state.messages.length,
                       itemBuilder: (context, index) {
                         final MessageEntity message = state.messages[index];
-                        return MessageBubble(
-                          message: message,
-                          isMine: message.senderId == widget.currentUserId,
-                          myLang: widget.myLang,
-                          showOriginalSetting: settingsState.showOriginalEnabled,
-                          onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
+                        final showDateSeparator = index == 0 || !_isSameDay(state.messages[index - 1].createdAt, message.createdAt);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (showDateSeparator) _DateSeparator(date: message.createdAt),
+                            MessageBubble(
+                              message: message,
+                              isMine: message.senderId == widget.currentUserId,
+                              myLang: widget.myLang,
+                              showOriginalSetting: settingsState.showOriginalEnabled,
+                              onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
+                            ),
+                          ],
                         );
                       },
                     );
@@ -172,6 +183,10 @@ class _ChatViewState extends State<_ChatView> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.attach_file_rounded, color: AppColors.textSecondary),
+                    onPressed: _pickAttachment,
+                  ),
                   VoiceRecorderButton(
                     onRecorded: (path, durationMs) =>
                         context.read<ChatBloc>().add(ChatVoiceMessageSent(audioFilePath: path, durationMs: durationMs)),
@@ -190,7 +205,7 @@ class _ChatViewState extends State<_ChatView> {
                     builder: (context, state) => IconButton(
                       icon: state.isSending
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.send, color: Color(0xFF2563EB)),
+                          : const Icon(Icons.send, color: AppColors.brand),
                       onPressed: state.isSending ? null : _sendText,
                     ),
                   ),
@@ -201,5 +216,99 @@ class _ChatViewState extends State<_ChatView> {
         ],
       ),
     );
+  }
+
+  // ---- Group 1 (WhatsApp parity): image/document attachment picker ----------
+  void _pickAttachment() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: AppColors.brand),
+              title: const Text('التقاط صورة'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_outlined, color: AppColors.brand),
+              title: const Text('اختيار من المعرض'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file_outlined, color: AppColors.brand),
+              title: const Text('مستند'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickDocument();
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source, imageQuality: 75);
+    if (picked == null || !mounted) return;
+    context.read<ChatBloc>().add(ChatSendAttachmentRequested(filePath: picked.path, kind: MessageAttachmentKind.image));
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
+  Future<void> _pickDocument() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.any, withData: false);
+    final path = result?.files.single.path;
+    if (path == null || !mounted) return;
+    context.read<ChatBloc>().add(ChatSendAttachmentRequested(
+          filePath: path,
+          kind: MessageAttachmentKind.document,
+          caption: result!.files.single.name,
+        ));
+  }
+}
+
+/// Group 1 (WhatsApp parity): "اليوم" / "أمس" / full date pill between
+/// message groups from different days.
+class _DateSeparator extends StatelessWidget {
+  final DateTime date;
+  const _DateSeparator({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(color: AppColors.brandLight, borderRadius: BorderRadius.circular(20)),
+          child: Text(_label(), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.brandDark)),
+        ),
+      ),
+    );
+  }
+
+  String _label() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(target).inDays;
+    if (diff == 0) return 'اليوم';
+    if (diff == 1) return 'أمس';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/constants/supported_locales.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../domain/entities/message_attachment_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import 'voice_message_player.dart';
 
@@ -59,6 +60,12 @@ class MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ---- Group 1 (WhatsApp parity): image/document attachments ----
+            for (final attachment in message.attachments) ...[
+              _AttachmentView(attachment: attachment, isMine: isMine),
+              const SizedBox(height: 6),
+            ],
+
             if (message.type == MessageType.voice && message.audioUrl != null)
               VoiceMessagePlayer(audioUrl: message.audioUrl!, isMine: isMine)
             else ...[
@@ -207,4 +214,85 @@ String _languageNativeName(String code) {
   final match = SupportedLocales.active.where((l) => l.locale.languageCode == code);
   if (match.isNotEmpty) return match.first.nativeName;
   return code.toUpperCase();
+}
+
+/// Group 1 (WhatsApp parity) — renders an image inline (tap to view
+/// full-screen) or a document as a compact file card (icon + name +
+/// size). No image assets were provided anywhere in this project's
+/// design handoff, so the `errorBuilder` fallback (a plain broken-image
+/// icon) is the honest behavior for a URL that fails to load — nothing
+/// fancier is invented here.
+class _AttachmentView extends StatelessWidget {
+  final MessageAttachmentEntity attachment;
+  final bool isMine;
+  const _AttachmentView({required this.attachment, required this.isMine});
+
+  @override
+  Widget build(BuildContext context) {
+    if (attachment.kind == MessageAttachmentKind.image) {
+      return GestureDetector(
+        onTap: () => _openFullScreen(context),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(
+            attachment.url,
+            width: 220,
+            height: 220,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) => progress == null
+                ? child
+                : const SizedBox(width: 220, height: 220, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: 220,
+              height: 220,
+              color: AppColors.divider,
+              child: const Icon(Icons.broken_image_outlined, color: AppColors.textSecondary, size: 32),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Document / other file kinds — a compact file card.
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isMine ? Colors.white.withValues(alpha: 0.15) : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.insert_drive_file_outlined, color: isMine ? Colors.white : AppColors.brand, size: 28),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  attachment.fileName ?? 'ملف',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isMine ? Colors.white : AppColors.textPrimary),
+                ),
+                if (attachment.sizeLabel.isNotEmpty)
+                  Text(attachment.sizeLabel, style: TextStyle(fontSize: 11, color: isMine ? Colors.white70 : AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openFullScreen(BuildContext context) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white)),
+        body: Center(child: InteractiveViewer(child: Image.network(attachment.url))),
+      ),
+    ));
+  }
 }

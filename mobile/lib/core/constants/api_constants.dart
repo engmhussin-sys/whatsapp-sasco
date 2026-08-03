@@ -35,6 +35,8 @@ class ApiConstants {
       '${messages(companyId, conversationId)}/read';
   static String retranslateConversation(String companyId, String conversationId) =>
       '${messages(companyId, conversationId)}/retranslate';
+  static String messageAttachments(String companyId, String conversationId, String messageId) =>
+      '${messages(companyId, conversationId)}/$messageId/attachments';
 
   static String updateUser(String companyId, String userId) => '/companies/$companyId/users/$userId';
 

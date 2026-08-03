@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'message_attachment_entity.dart';
 
 enum MessageType { text, voice, system }
 enum MessageDeliveryStatus { sent, delivered, read }
@@ -14,6 +15,7 @@ class MessageEntity extends Equatable {
   final String? audioUrl;
   final int? audioDurationMs;
   final DateTime createdAt;
+  final List<MessageAttachmentEntity> attachments;
 
   /// Language the sender actually wrote in — 'ar' | 'ur' | 'hi' | 'bn' | 'en' | 'tl' | 'am' | ...
   final String originalLang;
@@ -37,6 +39,7 @@ class MessageEntity extends Equatable {
     required this.createdAt,
     this.originalLang = 'ar',
     this.translations = const {},
+    this.attachments = const [],
   });
 
   /// The text the CURRENT user should see: their language's translation if
@@ -70,9 +73,10 @@ class MessageEntity extends Equatable {
         createdAt: createdAt,
         originalLang: originalLang,
         translations: translations,
+        attachments: attachments,
       );
 
   @override
   List<Object?> get props =>
-      [id, conversationId, senderId, type, status, text, audioUrl, createdAt, originalLang, translations];
+      [id, conversationId, senderId, type, status, text, audioUrl, createdAt, originalLang, translations, attachments];
 }
