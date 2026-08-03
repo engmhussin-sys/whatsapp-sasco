@@ -61,3 +61,16 @@ export class TokenWalletTxDto {
   @IsNumber() amount: number;
   @IsString() reason: string;
 }
+
+export class CreateAddOnDto {
+  @IsString() @MinLength(2) code: string;
+  @IsString() @MinLength(2) name: string;
+  @IsOptional() @IsString() description?: string;
+  @IsNumber() price: number;
+  @IsOptional() @IsString() featureCode?: string;
+  @IsOptional() @IsNumber() extraLimitAmount?: number;
+}
+
+export class ActivateAddOnDto {
+  @IsString() addOnCode: string;
+}

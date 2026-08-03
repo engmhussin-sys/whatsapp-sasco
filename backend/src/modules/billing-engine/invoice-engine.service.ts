@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus, WebhookEventType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CouponService } from './coupon.service';
+import { WebhookDispatcherService } from './webhook-dispatcher.service';
 
 export interface GenerateInvoiceOptions {
   taxRatePercent?: number; // e.g. 15 for Saudi VAT — passed in, never hardcoded (varies by company/jurisdiction)
@@ -28,6 +29,7 @@ export class InvoiceEngineService {
   constructor(
     private prisma: PrismaService,
     private coupons: CouponService,
+    private webhooks: WebhookDispatcherService,
   ) {}
 
   async generateInvoice(companyId: string, options: GenerateInvoiceOptions = {}) {
@@ -143,10 +145,25 @@ export class InvoiceEngineService {
   }
 
   async markPaid(invoiceId: string) {
-    return this.prisma.invoice.update({
+    const updated = await this.prisma.invoice.update({
       where: { id: invoiceId },
       data: { status: InvoiceStatus.PAID, paidAt: new Date() },
     });
+
+    // WEBHOOK INTEGRATION: fire INVOICE_PAID for any endpoint the
+    // company registered for it. Never let a webhook delivery failure
+    // affect the invoice update itself — WebhookDispatcherService
+    // already swallows delivery errors internally (records them, never
+    // throws), so no extra try/catch is needed here.
+    await this.webhooks.dispatch(updated.companyId, WebhookEventType.INVOICE_PAID, {
+      invoiceId: updated.id,
+      invoiceNumber: updated.invoiceNumber,
+      total: Number(updated.total),
+      currency: updated.currency,
+      paidAt: updated.paidAt,
+    });
+
+    return updated;
   }
 
   getInvoice(invoiceId: string) {

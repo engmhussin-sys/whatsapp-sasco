@@ -3,7 +3,8 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SystemRole } from '@prisma/client';
 import { PlansService } from './plans.service';
 import { CouponService } from './coupon.service';
-import { CreatePlanDto, CreateFeatureDto, SetPlanFeatureLimitDto, CreateCouponDto } from './dto/billing-engine.dto';
+import { AddOnsService } from './add-ons.service';
+import { CreatePlanDto, CreateFeatureDto, SetPlanFeatureLimitDto, CreateCouponDto, CreateAddOnDto } from './dto/billing-engine.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 
 /**
@@ -20,6 +21,7 @@ export class PlansController {
   constructor(
     private plans: PlansService,
     private coupons: CouponService,
+    private addOns: AddOnsService,
   ) {}
 
   @Get()
@@ -65,5 +67,16 @@ export class PlansController {
   @Roles(SystemRole.SUPER_ADMIN)
   createCoupon(@Body() dto: CreateCouponDto) {
     return this.coupons.create(dto);
+  }
+
+  @Get('add-ons/all')
+  listAddOns() {
+    return this.addOns.listCatalog();
+  }
+
+  @Post('add-ons')
+  @Roles(SystemRole.SUPER_ADMIN)
+  createAddOn(@Body() dto: CreateAddOnDto) {
+    return this.addOns.create(dto);
   }
 }

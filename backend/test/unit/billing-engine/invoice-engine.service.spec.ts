@@ -3,11 +3,13 @@ import { Test } from '@nestjs/testing';
 import { InvoiceEngineService } from '../../../src/modules/billing-engine/invoice-engine.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { CouponService } from '../../../src/modules/billing-engine/coupon.service';
+import { WebhookDispatcherService } from '../../../src/modules/billing-engine/webhook-dispatcher.service';
 
 describe('InvoiceEngineService', () => {
   let service: InvoiceEngineService;
   let prisma: any;
   let coupons: any;
+  let webhooks: any;
 
   const baseSubscription = {
     id: 'sub-1',
@@ -31,12 +33,14 @@ describe('InvoiceEngineService', () => {
       invoice: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn(), findMany: jest.fn() },
     };
     coupons = { validate: jest.fn(), redeem: jest.fn() };
+    webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         InvoiceEngineService,
         { provide: PrismaService, useValue: prisma },
         { provide: CouponService, useValue: coupons },
+        { provide: WebhookDispatcherService, useValue: webhooks },
       ],
     }).compile();
 
@@ -127,5 +131,27 @@ describe('InvoiceEngineService', () => {
     const invoice = await service.generateInvoice('company-A');
 
     expect(invoice.subtotal).toBe(530); // 500 base + 30 add-on
+  });
+
+  it('markPaid() dispatches an INVOICE_PAID webhook with the invoice details', async () => {
+    prisma.invoice.update.mockResolvedValue({
+      id: 'inv-7',
+      companyId: 'company-A',
+      invoiceNumber: 'INV-TEST-1',
+      total: 500,
+      currency: 'SAR',
+      paidAt: new Date('2026-01-15'),
+    });
+
+    await service.markPaid('inv-7');
+
+    expect(prisma.invoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'inv-7' }, data: expect.objectContaining({ status: 'PAID' }) }),
+    );
+    expect(webhooks.dispatch).toHaveBeenCalledWith(
+      'company-A',
+      'INVOICE_PAID',
+      expect.objectContaining({ invoiceId: 'inv-7', total: 500 }),
+    );
   });
 });

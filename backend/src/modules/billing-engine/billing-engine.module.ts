@@ -5,6 +5,7 @@ import { TokenWalletService } from './token-wallet.service';
 import { SubscriptionManagerService } from './subscription-manager.service';
 import { InvoiceEngineService } from './invoice-engine.service';
 import { CouponService } from './coupon.service';
+import { AddOnsService } from './add-ons.service';
 import { PlansService } from './plans.service';
 import { WebhookDispatcherService } from './webhook-dispatcher.service';
 import { PaymentProviderRegistry } from './payment-provider.registry';
@@ -41,6 +42,7 @@ import { BillingEngineController } from './billing-engine.controller';
     SubscriptionManagerService,
     InvoiceEngineService,
     CouponService,
+    AddOnsService,
     PlansService,
     WebhookDispatcherService,
     StripePaymentProvider,

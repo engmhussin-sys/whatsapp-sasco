@@ -8,6 +8,7 @@ import { FeatureEngineService } from './feature-engine.service';
 import { TokenWalletService } from './token-wallet.service';
 import { InvoiceEngineService } from './invoice-engine.service';
 import { CouponService } from './coupon.service';
+import { AddOnsService } from './add-ons.service';
 import {
   SubscribeDto,
   RecordUsageDto,
@@ -15,6 +16,7 @@ import {
   ValidateCouponDto,
   CreateWebhookEndpointDto,
   TokenWalletTxDto,
+  ActivateAddOnDto,
 } from './dto/billing-engine.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
@@ -31,6 +33,7 @@ export class BillingEngineController {
     private tokenWallet: TokenWalletService,
     private invoiceEngine: InvoiceEngineService,
     private coupons: CouponService,
+    private addOns: AddOnsService,
     private prisma: PrismaService,
   ) {}
 
@@ -114,6 +117,24 @@ export class BillingEngineController {
   @Post('coupons/validate')
   validateCoupon(@Body() dto: ValidateCouponDto) {
     return this.coupons.validate(dto.code, dto.subtotal);
+  }
+
+  // ---- Add-ons --------------------------------------------------------------
+  @Get('add-ons')
+  listAddOns(@TenantId() companyId: string) {
+    return this.addOns.listForCompany(companyId);
+  }
+
+  @Post('add-ons')
+  @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
+  activateAddOn(@TenantId() companyId: string, @Body() dto: ActivateAddOnDto) {
+    return this.addOns.activateForCompany(companyId, dto.addOnCode);
+  }
+
+  @Post('add-ons/:id/deactivate')
+  @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
+  deactivateAddOn(@TenantId() companyId: string, @Param('id') id: string) {
+    return this.addOns.deactivateForCompany(companyId, id);
   }
 
   // ---- Webhooks --------------------------------------------------------------

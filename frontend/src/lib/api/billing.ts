@@ -21,6 +21,24 @@ export interface Coupon {
   isActive: boolean;
 }
 
+export interface AddOn {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  extraLimitAmount: number | null;
+  feature?: { code: string; name: string } | null;
+}
+
+export interface CompanyAddOn {
+  id: string;
+  addOnId: string;
+  addOn: AddOn;
+  activatedAt: string;
+  isActive: boolean;
+}
+
 export const billingApi = {
   getSubscription: (companyId: string) => api.get<CompanySubscriptionInfo>(`/companies/${companyId}/billing/subscription`),
   subscribe: (companyId: string, planCode: string, periodMonths = 1) =>
@@ -67,4 +85,13 @@ export const billingApi = {
       code,
       subtotal,
     }),
+
+  listAddOnCatalog: () => api.get<AddOn[]>('/billing/plans/add-ons/all'),
+  createAddOn: (data: { code: string; name: string; description?: string; price: number; featureCode?: string; extraLimitAmount?: number }) =>
+    api.post<AddOn>('/billing/plans/add-ons', data),
+
+  listCompanyAddOns: (companyId: string) => api.get<CompanyAddOn[]>(`/companies/${companyId}/billing/add-ons`),
+  activateAddOn: (companyId: string, addOnCode: string) => api.post<CompanyAddOn>(`/companies/${companyId}/billing/add-ons`, { addOnCode }),
+  deactivateAddOn: (companyId: string, companyAddOnId: string) =>
+    api.post<CompanyAddOn>(`/companies/${companyId}/billing/add-ons/${companyAddOnId}/deactivate`, {}),
 };

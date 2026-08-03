@@ -5,6 +5,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { STORAGE_PROVIDER, StorageProvider } from '../../common/storage/storage.interface';
 import { SendTextMessageDto } from './dto/messages.dto';
 import { TranslationEngineService } from '../translation-engine/translation-engine.service';
+import { TokenWalletService } from '../billing-engine/token-wallet.service';
 
 @Injectable()
 export class MessagesService {
@@ -15,6 +16,7 @@ export class MessagesService {
     private conversationsService: ConversationsService,
     @Inject(STORAGE_PROVIDER) private storage: StorageProvider,
     private translationEngine: TranslationEngineService,
+    private tokenWallet: TokenWalletService,
   ) {}
 
   /**
@@ -52,6 +54,25 @@ export class MessagesService {
             create: { messageId, langCode: targetLanguage, translatedText: result.translatedText, engine: result.providerType ?? result.resolutionSource, version: 1 },
             update: { translatedText: result.translatedText, engine: result.providerType ?? result.resolutionSource },
           });
+
+          // TOKEN WALLET INTEGRATION: only PROVIDER-sourced translations
+          // that report a token count actually consume the wallet — cache/
+          // dictionary/memory hits are free (that's the entire point of
+          // the Smart Translation Policy). Wired here at the application
+          // layer, not inside either engine, so both Translation Engine
+          // and Billing Engine remain independent, reusable modules with
+          // zero dependency on each other.
+          if (result.resolutionSource === 'PROVIDER' && result.tokensUsed) {
+            try {
+              await this.tokenWallet.debit(companyId, result.tokensUsed, 'translation_usage', 'Message', messageId);
+            } catch (walletErr) {
+              // Insufficient balance or no wallet yet — the translation
+              // was already delivered; only the accounting failed. Log
+              // and move on rather than retroactively undoing a
+              // translation the recipient has already received.
+              this.logger.warn(`Token wallet debit failed for message ${messageId}: ${(walletErr as Error).message}`);
+            }
+          }
         } catch (err) {
           this.logger.warn(`Translation to "${targetLanguage}" failed for message ${messageId}: ${(err as Error).message}`);
         }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { billingApi, type BillingFeature } from '@/lib/api/billing';
+import { billingApi, type BillingFeature, type AddOn } from '@/lib/api/billing';
 import { ApiError } from '@/lib/api-client';
 import type { BillingPlan } from '@/lib/types';
 import { ErrorBanner } from '@/components/ErrorBanner';
@@ -25,6 +25,7 @@ const FEATURE_UNITS = [
 export default function PlansPage() {
   const [plans, setPlans] = useState<BillingPlan[]>([]);
   const [features, setFeatures] = useState<BillingFeature[]>([]);
+  const [addOns, setAddOns] = useState<AddOn[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -47,12 +48,20 @@ export default function PlansPage() {
   const [limitUnlimited, setLimitUnlimited] = useState(false);
   const [overagePrice, setOveragePrice] = useState('');
 
+  // New add-on form
+  const [addOnCode, setAddOnCode] = useState('');
+  const [addOnName, setAddOnName] = useState('');
+  const [addOnPrice, setAddOnPrice] = useState('');
+  const [addOnFeatureCode, setAddOnFeatureCode] = useState('');
+  const [addOnExtraLimit, setAddOnExtraLimit] = useState('');
+
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([billingApi.listPlans(), billingApi.listFeatures()])
-      .then(([p, f]) => {
+    Promise.all([billingApi.listPlans(), billingApi.listFeatures(), billingApi.listAddOnCatalog()])
+      .then(([p, f, a]) => {
         setPlans(p);
         setFeatures(f);
+        setAddOns(a);
         setError(null);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'تعذّر جلب الخطط'))
@@ -108,6 +117,30 @@ export default function PlansPage() {
       load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'تعذّر تحديد حد الميزة');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCreateAddOn() {
+    if (!addOnCode.trim() || !addOnName.trim() || !addOnPrice) return;
+    setBusy(true);
+    try {
+      await billingApi.createAddOn({
+        code: addOnCode.trim(),
+        name: addOnName.trim(),
+        price: parseFloat(addOnPrice),
+        featureCode: addOnFeatureCode || undefined,
+        extraLimitAmount: addOnExtraLimit ? parseFloat(addOnExtraLimit) : undefined,
+      });
+      setAddOnCode('');
+      setAddOnName('');
+      setAddOnPrice('');
+      setAddOnFeatureCode('');
+      setAddOnExtraLimit('');
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'تعذّر إنشاء الإضافة');
     } finally {
       setBusy(false);
     }
@@ -253,6 +286,69 @@ export default function PlansPage() {
         >
           حفظ الحد
         </button>
+      </div>
+
+      {/* ---- Add-ons catalog ---- */}
+      <div className="card mt-6 overflow-x-auto p-0">
+        <p className="px-4 pt-4 text-sm font-semibold text-slate-700">كتالوج الإضافات (Add-ons)</p>
+        <table className="w-full text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50 text-right">
+            <tr>
+              <th className="px-4 py-2">الرمز</th>
+              <th className="px-4 py-2">الاسم</th>
+              <th className="px-4 py-2">السعر</th>
+              <th className="px-4 py-2">الميزة المرتبطة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {addOns.map((a) => (
+              <tr key={a.id} className="border-b border-slate-100">
+                <td className="px-4 py-2 font-mono text-xs">{a.code}</td>
+                <td className="px-4 py-2 font-medium">{a.name}</td>
+                <td className="px-4 py-2">{a.price.toLocaleString('ar')} ر.س</td>
+                <td className="px-4 py-2 text-slate-500">
+                  {a.feature ? `${a.feature.name} (+${a.extraLimitAmount?.toLocaleString('ar')})` : '—'}
+                </td>
+              </tr>
+            ))}
+            {addOns.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-6 text-center text-sm text-slate-400">
+                  لا توجد إضافات بعد
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card mt-4 max-w-lg">
+        <p className="mb-3 text-sm font-semibold text-slate-700">إنشاء إضافة جديدة</p>
+        <div className="space-y-2">
+          <input className="input" placeholder="الرمز (مثال: extra_storage_10gb)" value={addOnCode} onChange={(e) => setAddOnCode(e.target.value)} />
+          <input className="input" placeholder="الاسم" value={addOnName} onChange={(e) => setAddOnName(e.target.value)} />
+          <input className="input" type="number" placeholder="السعر (ر.س)" value={addOnPrice} onChange={(e) => setAddOnPrice(e.target.value)} />
+          <select className="input" value={addOnFeatureCode} onChange={(e) => setAddOnFeatureCode(e.target.value)}>
+            <option value="">بلا ربط بميزة (اختياري)</option>
+            {features.map((f) => (
+              <option key={f.code} value={f.code}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+          {addOnFeatureCode && (
+            <input
+              className="input"
+              type="number"
+              placeholder="مقدار الزيادة في الحد"
+              value={addOnExtraLimit}
+              onChange={(e) => setAddOnExtraLimit(e.target.value)}
+            />
+          )}
+          <button onClick={handleCreateAddOn} disabled={busy} className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm text-white disabled:opacity-50">
+            إنشاء الإضافة
+          </button>
+        </div>
       </div>
     </div>
   );

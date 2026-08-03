@@ -4,12 +4,14 @@ import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { ConversationsService } from '../../../src/modules/conversations/conversations.service';
 import { STORAGE_PROVIDER } from '../../../src/common/storage/storage.interface';
 import { TranslationEngineService } from '../../../src/modules/translation-engine/translation-engine.service';
+import { TokenWalletService } from '../../../src/modules/billing-engine/token-wallet.service';
 
 describe('MessagesService — Translation Engine activation', () => {
   let service: MessagesService;
   let prisma: any;
   let conversations: any;
   let translationEngine: any;
+  let tokenWallet: any;
 
   const senderId = 'sender-1';
   const conversationId = 'conv-1';
@@ -27,6 +29,7 @@ describe('MessagesService — Translation Engine activation', () => {
     };
     conversations = { assertMembership: jest.fn(), assertCanPost: jest.fn() };
     translationEngine = { translate: jest.fn() };
+    tokenWallet = { debit: jest.fn().mockResolvedValue({}) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -35,6 +38,7 @@ describe('MessagesService — Translation Engine activation', () => {
         { provide: ConversationsService, useValue: conversations },
         { provide: STORAGE_PROVIDER, useValue: {} },
         { provide: TranslationEngineService, useValue: translationEngine },
+        { provide: TokenWalletService, useValue: tokenWallet },
       ],
     }).compile();
 
@@ -124,5 +128,57 @@ describe('MessagesService — Translation Engine activation', () => {
 
     await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
     expect(prisma.messageTranslation.upsert).not.toHaveBeenCalled();
+  });
+
+  it('TOKEN WALLET: debits the wallet after a PROVIDER-sourced translation that reports token usage', async () => {
+    let call = 0;
+    prisma.conversationMember.findMany.mockImplementation(() => {
+      call++;
+      if (call === 1) return Promise.resolve([]);
+      return Promise.resolve([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'fr' } }]);
+    });
+    translationEngine.translate.mockResolvedValue({
+      translatedText: 'Bonjour',
+      resolutionSource: 'PROVIDER',
+      providerType: 'OPENAI',
+      tokensUsed: 25,
+    });
+
+    await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+
+    expect(tokenWallet.debit).toHaveBeenCalledWith(companyId, 25, 'translation_usage', 'Message', 'msg-1');
+  });
+
+  it('TOKEN WALLET: does NOT debit for cache/dictionary/memory hits (no tokens were actually consumed)', async () => {
+    let call = 0;
+    prisma.conversationMember.findMany.mockImplementation(() => {
+      call++;
+      if (call === 1) return Promise.resolve([]);
+      return Promise.resolve([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'fr' } }]);
+    });
+    translationEngine.translate.mockResolvedValue({ translatedText: 'Bonjour', resolutionSource: 'CACHE', providerType: null });
+
+    await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+
+    expect(tokenWallet.debit).not.toHaveBeenCalled();
+  });
+
+  it('TOKEN WALLET: an insufficient-balance debit failure is caught — the translation stays delivered', async () => {
+    let call = 0;
+    prisma.conversationMember.findMany.mockImplementation(() => {
+      call++;
+      if (call === 1) return Promise.resolve([]);
+      return Promise.resolve([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'fr' } }]);
+    });
+    translationEngine.translate.mockResolvedValue({
+      translatedText: 'Bonjour',
+      resolutionSource: 'PROVIDER',
+      providerType: 'OPENAI',
+      tokensUsed: 999999,
+    });
+    tokenWallet.debit.mockRejectedValue(new Error('Insufficient token balance'));
+
+    await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
+    expect(prisma.messageTranslation.upsert).toHaveBeenCalled(); // translation itself was still persisted
   });
 });

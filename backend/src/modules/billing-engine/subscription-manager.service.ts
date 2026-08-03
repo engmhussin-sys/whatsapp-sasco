@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { WebhookEventType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { TokenWalletService } from './token-wallet.service';
+import { WebhookDispatcherService } from './webhook-dispatcher.service';
 
 function addPeriod(date: Date, months = 1): Date {
   const result = new Date(date);
@@ -20,6 +22,7 @@ export class SubscriptionManagerService {
   constructor(
     private prisma: PrismaService,
     private tokenWallet: TokenWalletService,
+    private webhooks: WebhookDispatcherService,
   ) {}
 
   async subscribe(companyId: string, planCode: string, periodMonths = 1) {
@@ -58,7 +61,7 @@ export class SubscriptionManagerService {
     const subscription = await this.prisma.companySubscription.findUnique({ where: { companyId } });
     if (!subscription) throw new NotFoundException('Company has no subscription to renew');
 
-    return this.prisma.companySubscription.update({
+    const updated = await this.prisma.companySubscription.update({
       where: { companyId },
       data: {
         currentPeriodStart: subscription.currentPeriodEnd,
@@ -66,6 +69,14 @@ export class SubscriptionManagerService {
         isActive: true,
       },
     });
+
+    await this.webhooks.dispatch(companyId, WebhookEventType.SUBSCRIPTION_RENEWED, {
+      subscriptionId: updated.id,
+      newPeriodStart: updated.currentPeriodStart,
+      newPeriodEnd: updated.currentPeriodEnd,
+    });
+
+    return updated;
   }
 
   async cancel(companyId: string) {

@@ -118,7 +118,7 @@ export class ReportsService {
       byProvider: Object.fromEntries(
         byProvider
           .filter((row: { providerType: string | null }) => row.providerType !== null)
-          .map((row: { providerType: string; _count: { _all: number } }) => [row.providerType, row._count._all]),
+          .map((row: { providerType: string | null; _count: { _all: number } }) => [row.providerType as string, row._count._all]),
       ),
       totalTokensUsed: costAndTokens._sum.tokensUsed ?? 0,
       totalCostEstimate: Number(costAndTokens._sum.costEstimate ?? 0),

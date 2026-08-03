@@ -3,11 +3,13 @@ import { Test } from '@nestjs/testing';
 import { SubscriptionManagerService } from '../../../src/modules/billing-engine/subscription-manager.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { TokenWalletService } from '../../../src/modules/billing-engine/token-wallet.service';
+import { WebhookDispatcherService } from '../../../src/modules/billing-engine/webhook-dispatcher.service';
 
 describe('SubscriptionManagerService', () => {
   let service: SubscriptionManagerService;
   let prisma: any;
   let tokenWallet: any;
+  let webhooks: any;
 
   beforeEach(async () => {
     prisma = {
@@ -15,11 +17,13 @@ describe('SubscriptionManagerService', () => {
       companySubscription: { upsert: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     };
     tokenWallet = { getOrCreateWallet: jest.fn() };
+    webhooks = { dispatch: jest.fn().mockResolvedValue(undefined) };
     const moduleRef = await Test.createTestingModule({
       providers: [
         SubscriptionManagerService,
         { provide: PrismaService, useValue: prisma },
         { provide: TokenWalletService, useValue: tokenWallet },
+        { provide: WebhookDispatcherService, useValue: webhooks },
       ],
     }).compile();
     service = moduleRef.get(SubscriptionManagerService);
@@ -48,12 +52,12 @@ describe('SubscriptionManagerService', () => {
     await expect(service.renew('company-A')).rejects.toThrow(NotFoundException);
   });
 
-  it('renew() advances currentPeriodStart to the OLD currentPeriodEnd (no gap or overlap)', async () => {
+  it('renew() advances currentPeriodStart to the OLD currentPeriodEnd (no gap or overlap) and dispatches SUBSCRIPTION_RENEWED', async () => {
     prisma.companySubscription.findUnique.mockResolvedValue({
       currentPeriodStart: new Date('2026-01-01'),
       currentPeriodEnd: new Date('2026-02-01'),
     });
-    prisma.companySubscription.update.mockResolvedValue({});
+    prisma.companySubscription.update.mockResolvedValue({ id: 'sub-1', currentPeriodStart: new Date('2026-02-01'), currentPeriodEnd: new Date('2026-03-01') });
 
     await service.renew('company-A', 1);
 
@@ -62,6 +66,7 @@ describe('SubscriptionManagerService', () => {
         data: expect.objectContaining({ currentPeriodStart: new Date('2026-02-01') }),
       }),
     );
+    expect(webhooks.dispatch).toHaveBeenCalledWith('company-A', 'SUBSCRIPTION_RENEWED', expect.objectContaining({ subscriptionId: 'sub-1' }));
   });
 
   it('cancel() marks the subscription inactive with a cancelledAt timestamp', async () => {

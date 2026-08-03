@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { billingApi } from '@/lib/api/billing';
+import { billingApi, type AddOn, type CompanyAddOn } from '@/lib/api/billing';
 import { ApiError } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import type { CompanySubscriptionInfo, Invoice, TokenWallet } from '@/lib/types';
@@ -37,6 +37,9 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<CompanySubscriptionInfo | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [wallet, setWallet] = useState<TokenWallet | null>(null);
+  const [companyAddOns, setCompanyAddOns] = useState<CompanyAddOn[]>([]);
+  const [catalog, setCatalog] = useState<AddOn[]>([]);
+  const [selectedAddOn, setSelectedAddOn] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState(false);
