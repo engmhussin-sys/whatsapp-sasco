@@ -30,6 +30,7 @@ import { CompanyDictionaryModule } from './modules/company-dictionary/company-di
 import { TranslationEngineModule } from './modules/translation-engine/translation-engine.module';
 import { BillingEngineModule } from './modules/billing-engine/billing-engine.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { BroadcastModule } from './modules/broadcast/broadcast.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -67,6 +68,7 @@ import { HealthController } from './health.controller';
     TranslationEngineModule,
     BillingEngineModule,
     ReportsModule,
+    BroadcastModule,
   ],
   controllers: [HealthController],
   providers: [
