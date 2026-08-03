@@ -5,6 +5,8 @@ import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../common/types/authenticated-user.interface';
 
 /**
  * NOTE: the `:companyId` path segment exists for readable/RESTful URLs
@@ -47,8 +49,13 @@ export class UsersController {
   }
 
   @Patch(':id')
-  update(@TenantId() companyId: string, @Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(companyId, id, dto);
+  update(
+    @TenantId() companyId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.usersService.update(companyId, id, dto, user);
   }
 
   @Delete(':id')
