@@ -1,8 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { SystemRole, UserStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
+import { AuthenticatedUser } from '../../common/types/authenticated-user.interface';
 import { CreateUserDto, UpdateUserDto } from './dto/users.dto';
 
 /**
@@ -65,6 +66,7 @@ export class UsersService {
               { firstName: { contains: params.search, mode: 'insensitive' as const } },
               { lastName: { contains: params.search, mode: 'insensitive' as const } },
               { email: { contains: params.search, mode: 'insensitive' as const } },
+              { phone: { contains: params.search, mode: 'insensitive' as const } },
             ],
           }
         : {}),
@@ -93,7 +95,31 @@ export class UsersService {
     return user;
   }
 
-  async update(companyId: string, id: string, dto: UpdateUserDto) {
+  /**
+   * SECURITY FIX: this endpoint previously had NO caller check at all —
+   * any authenticated user could PATCH any OTHER user's row, including
+   * `isActive` (disable/enable someone else's account). Two legitimate
+   * callers exist: (1) a COMPANY_ADMIN/SUPER_ADMIN managing any user's
+   * full profile, (2) a user updating their OWN preferredLanguage
+   * (self-service, added in T5) — everything else must be rejected.
+   */
+  async update(companyId: string, id: string, dto: UpdateUserDto, requestingUser: AuthenticatedUser) {
+    const isAdmin = requestingUser.systemRole === SystemRole.COMPANY_ADMIN || requestingUser.systemRole === SystemRole.SUPER_ADMIN;
+    const isSelf = requestingUser.sub === id;
+
+    if (!isAdmin && !isSelf) {
+      throw new ForbiddenException('You can only update your own profile');
+    }
+
+    if (!isAdmin && isSelf) {
+      const allowedSelfFields = new Set(['preferredLanguage']);
+      const attemptedFields = Object.keys(dto);
+      const disallowed = attemptedFields.filter((f) => !allowedSelfFields.has(f));
+      if (disallowed.length > 0) {
+        throw new ForbiddenException(`You are not allowed to change: ${disallowed.join(', ')}`);
+      }
+    }
+
     await this.findOne(companyId, id); // ensures tenant ownership
     return this.prisma.user.update({
       where: { id },
@@ -125,5 +151,6 @@ export class UsersService {
     preferredLanguage: true,
     createdAt: true,
     lastLoginAt: true,
+    companyId: true,
   };
 }
