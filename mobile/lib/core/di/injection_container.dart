@@ -10,6 +10,7 @@ import '../tts/tts_service.dart';
 import '../network/dio_client.dart';
 import '../network/interceptors/auth_interceptor.dart';
 import '../network/network_info.dart';
+import '../network/token_refresh_service.dart';
 import '../network/websocket_client.dart';
 import '../notifications/local_notification_service.dart';
 import '../notifications/push_notification_service.dart';
@@ -108,12 +109,14 @@ Future<void> initDependencyInjection() async {
 
   // ---- Core: network ----------------------------------------------------------
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(sl()));
+  sl.registerLazySingleton(() => TokenRefreshService(sl()));
   sl.registerLazySingleton(() => AuthInterceptor(
         secureStorage: sl(),
+        tokenRefresh: sl(),
         onSessionExpired: () => sl<AuthBloc>().add(const AuthSessionExpired()),
       ));
   sl.registerLazySingleton(() => DioClient(authInterceptor: sl()));
-  sl.registerLazySingleton(() => WebSocketClient(sl()));
+  sl.registerLazySingleton(() => WebSocketClient(sl(), sl()));
   sl.registerLazySingleton(() => SyncService(sl(), sl(), sl()));
 
   // ---- Core: notifications + AI readiness interfaces -----------------------

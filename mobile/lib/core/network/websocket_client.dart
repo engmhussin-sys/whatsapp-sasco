@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
+import 'token_refresh_service.dart';
 
 /// Real-time client for backend's ChatGateway (see
 /// backend/src/modules/websocket/chat.gateway.ts). Connects to the
@@ -16,6 +17,7 @@ import '../storage/secure_storage_service.dart';
 class WebSocketClient {
   io.Socket? _socket;
   final SecureStorageService _secureStorage;
+  final TokenRefreshService _tokenRefresh;
 
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
@@ -23,7 +25,9 @@ class WebSocketClient {
   final _readController = StreamController<Map<String, dynamic>>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
 
-  WebSocketClient(this._secureStorage);
+  bool _didRetryWithFreshToken = false;
+
+  WebSocketClient(this._secureStorage, this._tokenRefresh);
 
   Stream<Map<String, dynamic>> get onNewMessage => _messageController.stream;
   Stream<Map<String, dynamic>> get onNotification => _notificationController.stream;
@@ -49,8 +53,25 @@ class WebSocketClient {
     );
 
     _socket!
-      ..onConnect((_) => _connectionController.add(true))
+      ..onConnect((_) {
+        _didRetryWithFreshToken = false; // a successful connect resets the retry guard
+        _connectionController.add(true);
+      })
       ..onDisconnect((_) => _connectionController.add(false))
+      // BUG FIX (confirmed via a real production log: "Rejected socket
+      // connection: invalid signature"): if the app is reopened after
+      // the access token has expired, the very FIRST connect attempt
+      // used to just fail silently forever — HTTP requests self-heal
+      // via AuthInterceptor's 401-retry, but the socket had no
+      // equivalent. On a connect error, refresh once and reconnect;
+      // `_didRetryWithFreshToken` stops this from looping if the
+      // refresh token itself is also invalid (e.g. truly logged out).
+      ..onConnectError((error) async {
+        if (_didRetryWithFreshToken) return;
+        _didRetryWithFreshToken = true;
+        final refreshed = await _tokenRefresh.refresh();
+        if (refreshed) await connect();
+      })
       ..on('message:new', (data) => _messageController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:notification', (data) => _notificationController.add(Map<String, dynamic>.from(data as Map)))
       ..on('typing', (data) => _typingController.add(Map<String, dynamic>.from(data as Map)))
