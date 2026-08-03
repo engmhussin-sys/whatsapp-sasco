@@ -1,0 +1,62 @@
+{
+  "app_name": "SASCO — Workforce Operations",
+  "common": {
+    "loading": "Naglo-load...",
+    "retry": "Subukan muli",
+    "cancel": "Kanselahin",
+    "save": "I-save",
+    "send": "Ipadala",
+    "back": "Bumalik",
+    "done": "Tapos",
+    "continue": "Magpatuloy"
+  },
+  "auth": {
+    "login": "Mag-log in",
+    "phone": "Numero ng mobile",
+    "code": "Verification code",
+    "logout": "Mag-log out",
+    "email": "Email",
+    "password": "Password",
+    "forgot_password": "Nakalimutan ang password?"
+  },
+  "nav": {
+    "home": "Home",
+    "messaging": "Mga Chat",
+    "tasks": "Gawain",
+    "approvals": "Mga Pag-apruba",
+    "shift": "Mga Shift",
+    "fuel_requests": "Mga request ng gasolina",
+    "stations": "Mga Istasyon",
+    "profile": "Profile",
+    "safety": "Kaligtasan"
+  },
+  "chat": {
+    "type_message": "Mag-type dito…",
+    "original": "Orihinal",
+    "auto_translated": "Awtomatikong isinasalin sa iyong wika",
+    "listen": "Pakinggan",
+    "others_see": "Nakikita ng kasama",
+    "voice_message": "Voice message",
+    "hold_to_record": "Pindutin nang matagal",
+    "translation_failed": "Walang salin — orihinal ang nakikita"
+  },
+  "tasks": {
+    "today": "Gawain ngayon",
+    "proof_photo": "Larawang patunay",
+    "proof_qr": "I-scan ang QR",
+    "proof_signature": "Aprubahan ng superbisor",
+    "submit": "Tapos na",
+    "waiting_approval": "Naghihintay ng pag-apruba"
+  },
+  "safety": {
+    "ppe": "Kailangang PPE",
+    "daily_alert": "Safety alert ngayon",
+    "report_hazard": "Mag-ulat ng panganib",
+    "sos": "Emergency SOS",
+    "sos_hold": "Pindutin ng 3 segundo"
+  },
+  "profile": {
+    "my_language": "Wika ko",
+    "change_language": "Palitan ang wika"
+  }
+}

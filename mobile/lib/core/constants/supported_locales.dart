@@ -15,21 +15,24 @@ class AppLocale {
 class SupportedLocales {
   SupportedLocales._();
 
-  // ACTIVE in Phase 1 (translation JSON files exist for these — see
-  // assets/translations/ar.json, en.json):
+  // ACTIVE — translation JSON files exist for all 7 under
+  // assets/translations/. isRtl: true only for ar and ur, matching the
+  // design handoff spec exactly.
   static const List<AppLocale> active = [
     AppLocale(Locale('ar'), 'العربية', isRtl: true),
     AppLocale(Locale('en'), 'English'),
-  ];
-
-  // READY TO ACTIVATE (architecture supports them today — the ONLY step
-  // to enable one is adding its translations JSON file and moving its
-  // entry into `active` above):
-  static const List<AppLocale> planned = [
     AppLocale(Locale('ur'), 'اردو', isRtl: true),
     AppLocale(Locale('hi'), 'हिन्दी'),
     AppLocale(Locale('bn'), 'বাংলা'),
     AppLocale(Locale('tl'), 'Tagalog'),
+    AppLocale(Locale('am'), 'አማርኛ'),
+  ];
+
+  // READY TO ACTIVATE (architecture supports it today, but it is NOT
+  // part of this round's 7-language target set and has no translations
+  // JSON file yet — activating it later is exactly: add
+  // assets/translations/ne.json, move this entry up to `active`):
+  static const List<AppLocale> planned = [
     AppLocale(Locale('ne'), 'नेपाली'),
   ];
 

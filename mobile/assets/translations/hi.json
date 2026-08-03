@@ -1,0 +1,62 @@
+{
+  "app_name": "सास्को — वर्कफोर्स ऑपरेशंस",
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "retry": "पुनः प्रयास",
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "send": "भेजें",
+    "back": "वापस",
+    "done": "पूरा",
+    "continue": "आगे बढ़ें"
+  },
+  "auth": {
+    "login": "लॉग इन",
+    "phone": "मोबाइल नंबर",
+    "code": "सत्यापन कोड",
+    "logout": "लॉग आउट",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "forgot_password": "पासवर्ड भूल गए?"
+  },
+  "nav": {
+    "home": "होम",
+    "messaging": "संदेश",
+    "tasks": "काम",
+    "approvals": "अनुमोदन",
+    "shift": "शिफ्ट",
+    "fuel_requests": "ईंधन अनुरोध",
+    "stations": "स्टेशन",
+    "profile": "प्रोफ़ाइल",
+    "safety": "सुरक्षा"
+  },
+  "chat": {
+    "type_message": "यहाँ लिखें…",
+    "original": "मूल पाठ",
+    "auto_translated": "हर संदेश अपने आप आपकी भाषा में",
+    "listen": "सुनें",
+    "others_see": "साथी क्या देखेंगे",
+    "voice_message": "आवाज़ संदेश",
+    "hold_to_record": "रिकॉर्ड के लिए दबाए रखें",
+    "translation_failed": "अनुवाद उपलब्ध नहीं — मूल पाठ"
+  },
+  "tasks": {
+    "today": "आज के काम",
+    "proof_photo": "प्रमाण फोटो",
+    "proof_qr": "साइट QR स्कैन करें",
+    "proof_signature": "सुपरवाइज़र पुष्टि",
+    "submit": "काम पूरा हुआ",
+    "waiting_approval": "सुपरवाइज़र की मंज़ूरी बाकी"
+  },
+  "safety": {
+    "ppe": "ज़रूरी सुरक्षा उपकरण",
+    "daily_alert": "आज की सुरक्षा सूचना",
+    "report_hazard": "खतरे की सूचना दें",
+    "sos": "आपातकालीन मदद",
+    "sos_hold": "३ सेकंड दबाए रखें"
+  },
+  "profile": {
+    "my_language": "मेरी भाषा",
+    "change_language": "भाषा बदलें"
+  }
+}

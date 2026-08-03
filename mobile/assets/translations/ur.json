@@ -1,0 +1,62 @@
+{
+  "app_name": "ساسکو — ورک فورس آپریشنز",
+  "common": {
+    "loading": "لوڈ ہو رہا ہے...",
+    "retry": "دوبارہ کوشش",
+    "cancel": "منسوخ",
+    "save": "محفوظ کریں",
+    "send": "بھیجیں",
+    "back": "واپس",
+    "done": "مکمل",
+    "continue": "آگے بڑھیں"
+  },
+  "auth": {
+    "login": "لاگ ان",
+    "phone": "موبائل نمبر",
+    "code": "تصدیقی کوڈ",
+    "logout": "لاگ آؤٹ",
+    "email": "ای میل",
+    "password": "پاس ورڈ",
+    "forgot_password": "پاس ورڈ بھول گئے؟"
+  },
+  "nav": {
+    "home": "ہوم",
+    "messaging": "پیغامات",
+    "tasks": "کام",
+    "approvals": "منظوریاں",
+    "shift": "شفٹ",
+    "fuel_requests": "ایندھن کی درخواستیں",
+    "stations": "اسٹیشنز",
+    "profile": "پروفائل",
+    "safety": "حفاظت"
+  },
+  "chat": {
+    "type_message": "یہاں لکھیں…",
+    "original": "اصل متن",
+    "auto_translated": "ہر پیغام خودکار آپ کی زبان میں",
+    "listen": "سنیں",
+    "others_see": "ساتھی کیا دیکھیں گے",
+    "voice_message": "صوتی پیغام",
+    "hold_to_record": "ریکارڈ کے لیے دبائے رکھیں",
+    "translation_failed": "ترجمہ دستیاب نہیں — اصل متن"
+  },
+  "tasks": {
+    "today": "آج کے کام",
+    "proof_photo": "ثبوت کی تصویر",
+    "proof_qr": "سائٹ QR اسکین کریں",
+    "proof_signature": "سپروائزر کی تصدیق",
+    "submit": "کام مکمل ہوا",
+    "waiting_approval": "سپروائزر کی منظوری کا انتظار"
+  },
+  "safety": {
+    "ppe": "ضروری حفاظتی سامان",
+    "daily_alert": "آج کی حفاظتی ہدایت",
+    "report_hazard": "خطرے کی اطلاع دیں",
+    "sos": "ایمرجنسی مدد",
+    "sos_hold": "٣ سیکنڈ دبائے رکھیں"
+  },
+  "profile": {
+    "my_language": "میری زبان",
+    "change_language": "زبان تبدیل کریں"
+  }
+}

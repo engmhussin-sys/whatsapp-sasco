@@ -1,32 +1,62 @@
 {
-  "app_name": "SASCO — Workforce Platform",
+  "app_name": "SASCO — Workforce Operations",
   "common": {
     "loading": "Loading...",
     "retry": "Retry",
     "cancel": "Cancel",
     "save": "Save",
-    "send": "Send"
+    "send": "Send",
+    "back": "Back",
+    "done": "Done",
+    "continue": "Continue"
   },
   "auth": {
-    "login": "Login",
+    "login": "Log in",
+    "phone": "Mobile number",
+    "code": "Verification code",
+    "logout": "Log out",
     "email": "Email",
     "password": "Password",
-    "forgot_password": "Forgot password?",
-    "logout": "Logout"
+    "forgot_password": "Forgot password?"
   },
   "nav": {
     "home": "Home",
-    "messaging": "Messaging",
+    "messaging": "Chats",
     "tasks": "Tasks",
     "approvals": "Approvals",
-    "shift": "Shift",
-    "fuel_requests": "Fuel Requests",
+    "shift": "Shifts",
+    "fuel_requests": "Fuel requests",
     "stations": "Stations",
-    "profile": "Profile"
+    "profile": "Profile",
+    "safety": "Safety"
   },
   "chat": {
-    "original": "Original text",
+    "type_message": "Type here…",
+    "original": "Original",
+    "auto_translated": "Every message is auto-translated to your language",
     "listen": "Listen",
-    "translation_failed": "Translation unavailable"
+    "others_see": "What your teammates see",
+    "voice_message": "Voice message",
+    "hold_to_record": "Hold to record",
+    "translation_failed": "Translation unavailable — showing the original"
+  },
+  "tasks": {
+    "today": "Today’s tasks",
+    "proof_photo": "Proof photo",
+    "proof_qr": "Scan site QR",
+    "proof_signature": "Supervisor sign-off",
+    "submit": "Mark as done",
+    "waiting_approval": "Waiting for supervisor approval"
+  },
+  "safety": {
+    "ppe": "Required protective gear",
+    "daily_alert": "Today’s safety alert",
+    "report_hazard": "Report a hazard",
+    "sos": "Emergency SOS",
+    "sos_hold": "Press and hold 3 seconds"
+  },
+  "profile": {
+    "my_language": "My language",
+    "change_language": "Change language"
   }
 }

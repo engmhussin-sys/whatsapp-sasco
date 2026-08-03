@@ -1,0 +1,62 @@
+{
+  "app_name": "ሳስኮ — የሰራተኞች ሥራ አስተዳደር",
+  "common": {
+    "loading": "በመጫን ላይ...",
+    "retry": "እንደገና ሞክር",
+    "cancel": "ሰርዝ",
+    "save": "አስቀምጥ",
+    "send": "ላክ",
+    "back": "ተመለስ",
+    "done": "ተጠናቋል",
+    "continue": "ቀጥል"
+  },
+  "auth": {
+    "login": "ግባ",
+    "phone": "የሞባይል ቁጥር",
+    "code": "የማረጋገጫ ኮድ",
+    "logout": "ውጣ",
+    "email": "ኢሜይል",
+    "password": "የይለፍ ቃል",
+    "forgot_password": "የይለፍ ቃል ረሱ?"
+  },
+  "nav": {
+    "home": "መነሻ",
+    "messaging": "መልእክቶች",
+    "tasks": "ተግባራት",
+    "approvals": "ማጽደቆች",
+    "shift": "ፈረቃዎች",
+    "fuel_requests": "የነዳጅ ጥያቄዎች",
+    "stations": "ጣቢያዎች",
+    "profile": "መገለጫ",
+    "safety": "ደህንነት"
+  },
+  "chat": {
+    "type_message": "እዚህ ይጻፉ…",
+    "original": "መጀመሪያው ጽሑፍ",
+    "auto_translated": "እያንዳንዱ መልእክት ወደ ቋንቋዎ ይተረጎማል",
+    "listen": "ያዳምጡ",
+    "others_see": "ባልደረቦች የሚያዩት",
+    "voice_message": "የድምጽ መልእክት",
+    "hold_to_record": "ለመቅረጽ ተጭነው ይያዙ",
+    "translation_failed": "ትርጉም አልተገኘም — መጀመሪያው ጽሑፍ"
+  },
+  "tasks": {
+    "today": "የዛሬ ተግባራት",
+    "proof_photo": "የማረጋገጫ ፎቶ",
+    "proof_qr": "የጣቢያ QR ይቃኙ",
+    "proof_signature": "የተቆጣጣሪ ማረጋገጫ",
+    "submit": "ተግባሩን ጨርሻለሁ",
+    "waiting_approval": "የተቆጣጣሪ ማጽደቅ በመጠባበቅ ላይ"
+  },
+  "safety": {
+    "ppe": "አስፈላጊ የደህንነት መሣሪያ",
+    "daily_alert": "የዛሬ የደህንነት ማሳሰቢያ",
+    "report_hazard": "አደጋ ያሳውቁ",
+    "sos": "የአደጋ ጊዜ ጥሪ",
+    "sos_hold": "ለ3 ሰከንድ ተጭነው ይያዙ"
+  },
+  "profile": {
+    "my_language": "ቋንቋዬ",
+    "change_language": "ቋንቋ ቀይር"
+  }
+}

@@ -5,14 +5,19 @@
     "retry": "إعادة المحاولة",
     "cancel": "إلغاء",
     "save": "حفظ",
-    "send": "إرسال"
+    "send": "إرسال",
+    "back": "رجوع",
+    "done": "تم",
+    "continue": "متابعة"
   },
   "auth": {
     "login": "تسجيل الدخول",
+    "phone": "رقم الجوال",
+    "code": "رمز التحقق",
+    "logout": "تسجيل الخروج",
     "email": "البريد الإلكتروني",
     "password": "كلمة المرور",
-    "forgot_password": "نسيت كلمة المرور؟",
-    "logout": "تسجيل الخروج"
+    "forgot_password": "نسيت كلمة المرور؟"
   },
   "nav": {
     "home": "الرئيسية",
@@ -22,11 +27,36 @@
     "shift": "الورديات",
     "fuel_requests": "طلبات الوقود",
     "stations": "المحطات",
-    "profile": "الملف الشخصي"
+    "profile": "الملف الشخصي",
+    "safety": "السلامة"
   },
   "chat": {
+    "type_message": "اكتب هنا…",
     "original": "النص الأصلي",
+    "auto_translated": "كل رسالة تُترجم تلقائياً إلى لغتك",
     "listen": "استمع",
-    "translation_failed": "تعذّرت الترجمة"
+    "others_see": "ما يراه زملاؤك",
+    "voice_message": "رسالة صوتية",
+    "hold_to_record": "استمر بالضغط للتسجيل",
+    "translation_failed": "تعذّرت الترجمة — هذا هو النص الأصلي"
+  },
+  "tasks": {
+    "today": "مهام اليوم",
+    "proof_photo": "صورة إثبات",
+    "proof_qr": "امسح رمز الموقع",
+    "proof_signature": "تأكيد المشرف",
+    "submit": "أنهيت المهمة",
+    "waiting_approval": "بانتظار اعتماد المشرف"
+  },
+  "safety": {
+    "ppe": "معدات الوقاية المطلوبة",
+    "daily_alert": "تنبيه السلامة اليوم",
+    "report_hazard": "بلّغ عن خطر",
+    "sos": "استغاثة طوارئ",
+    "sos_hold": "استمر بالضغط ٣ ثوانٍ"
+  },
+  "profile": {
+    "my_language": "لغتي",
+    "change_language": "تغيير اللغة"
   }
 }

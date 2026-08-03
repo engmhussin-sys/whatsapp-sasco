@@ -9,14 +9,68 @@ import 'app_colors.dart';
 /// a reasonable tradeoff given no bundled .ttf asset is available in
 /// this delivery. Swap to a bundled font family later for a fully
 /// offline-guaranteed first launch if needed.
+///
+/// FONT-PER-LOCALE: Cairo does not cover Devanagari (hi), Bengali (bn),
+/// or Ethiopic (am) scripts — rendering those languages with Cairo would
+/// show empty "tofu" boxes instead of real glyphs. `_fontFamilyFor()`
+/// below is the single place that decides which Google Font covers a
+/// given language, matching exactly what the design handoff specifies.
 class AppTheme {
   AppTheme._();
 
-  static TextTheme _textTheme(Color bodyColor, Color displayColor) {
-    return GoogleFonts.cairoTextTheme().apply(bodyColor: bodyColor, displayColor: displayColor);
+  /// `TextStyle Function({...})` from google_fonts, chosen per
+  /// language — every text-theme/AppBar/button/dialog style below is
+  /// built through this so switching locale never leaves any surface on
+  /// the old (wrong-script) font.
+  static TextStyle Function({
+    TextStyle? textStyle,
+    Color? color,
+    Color? backgroundColor,
+    double? fontSize,
+    FontWeight? fontWeight,
+    FontStyle? fontStyle,
+    double? letterSpacing,
+    double? wordSpacing,
+    TextBaseline? textBaseline,
+    double? height,
+    Locale? locale,
+    Paint? foreground,
+    Paint? background,
+    List<Shadow>? shadows,
+    List<FontFeature>? fontFeatures,
+    TextDecoration? decoration,
+    Color? decorationColor,
+    TextDecorationStyle? decorationStyle,
+    double? decorationThickness,
+  }) _fontFamilyFor(String languageCode) {
+    switch (languageCode) {
+      case 'hi':
+        return GoogleFonts.notoSansDevanagari;
+      case 'bn':
+        return GoogleFonts.notoSansBengali;
+      case 'am':
+        return GoogleFonts.notoSansEthiopic;
+      default:
+        // ar, ur, en, tl all render correctly in Cairo.
+        return GoogleFonts.cairo;
+    }
   }
 
-  static ThemeData get light {
+  static TextTheme _textThemeFor(String languageCode, Color bodyColor, Color displayColor) {
+    switch (languageCode) {
+      case 'hi':
+        return GoogleFonts.notoSansDevanagariTextTheme().apply(bodyColor: bodyColor, displayColor: displayColor);
+      case 'bn':
+        return GoogleFonts.notoSansBengaliTextTheme().apply(bodyColor: bodyColor, displayColor: displayColor);
+      case 'am':
+        return GoogleFonts.notoSansEthiopicTextTheme().apply(bodyColor: bodyColor, displayColor: displayColor);
+      default:
+        return GoogleFonts.cairoTextTheme().apply(bodyColor: bodyColor, displayColor: displayColor);
+    }
+  }
+
+  static ThemeData light([Locale locale = const Locale('ar')]) {
+    final font = _fontFamilyFor(locale.languageCode);
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.brand,
       brightness: Brightness.light,
@@ -29,14 +83,14 @@ class AppTheme {
       brightness: Brightness.light,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.surfaceLight,
-      textTheme: _textTheme(AppColors.textPrimary, AppColors.textPrimary),
+      textTheme: _textThemeFor(locale.languageCode, AppColors.textPrimary, AppColors.textPrimary),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        titleTextStyle: font(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
@@ -53,7 +107,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           disabledBackgroundColor: AppColors.brand.withOpacity(0.4),
           padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-          textStyle: GoogleFonts.cairo(fontSize: 15, fontWeight: FontWeight.w600),
+          textStyle: font(fontSize: 15, fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: 0,
         ),
@@ -77,11 +131,11 @@ class AppTheme {
         filled: true,
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        labelStyle: GoogleFonts.cairo(color: AppColors.textSecondary, fontSize: 14),
+        labelStyle: font(color: AppColors.textSecondary, fontSize: 14),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.brandLight,
-        labelStyle: GoogleFonts.cairo(color: AppColors.brandDark, fontSize: 12, fontWeight: FontWeight.w600),
+        labelStyle: font(color: AppColors.brandDark, fontSize: 12, fontWeight: FontWeight.w600),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         side: BorderSide.none,
@@ -105,15 +159,15 @@ class AppTheme {
       ),
       dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        titleTextStyle: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-        contentTextStyle: GoogleFonts.cairo(fontSize: 14, color: AppColors.textSecondary),
+        titleTextStyle: font(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+        contentTextStyle: font(fontSize: 14, color: AppColors.textSecondary),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.brand),
       dividerColor: AppColors.divider,
     );
   }
 
-  static ThemeData get dark {
+  static ThemeData dark([Locale locale = const Locale('ar')]) {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.brand,
       brightness: Brightness.dark,
@@ -126,7 +180,7 @@ class AppTheme {
       brightness: Brightness.dark,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.surfaceDark,
-      textTheme: _textTheme(Colors.white70, Colors.white),
+      textTheme: _textThemeFor(locale.languageCode, Colors.white70, Colors.white),
       appBarTheme: const AppBarTheme(elevation: 0, centerTitle: false, surfaceTintColor: Colors.transparent),
       cardTheme: CardThemeData(
         elevation: 0,
