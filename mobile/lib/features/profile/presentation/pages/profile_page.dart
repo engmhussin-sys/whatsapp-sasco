@@ -118,6 +118,22 @@ class ProfilePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
 
+                // "مقدَّم من" — Atheel Tech branding, per the person's
+                // request to surface the logo somewhere inside the app.
+                Center(
+                  child: Column(
+                    children: [
+                      Image.asset('assets/images/atheel_tech_logo.png', height: 48),
+                      const SizedBox(height: 8),
+                      Text(
+                        'مقدَّم من Atheel Tech',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 _Card(
                   child: _Row(
                     icon: Icons.logout_rounded,
