@@ -65,9 +65,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        <div className="mb-6 text-center">
-          <h1 className="text-xl font-bold text-brand-700">WorkForce Connect AI</h1>
-          <p className="mt-1 text-sm text-slate-500">تسجيل الدخول إلى حسابك</p>
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-500 text-2xl shadow-card">⛽</div>
+          <h1 className="text-xl font-extrabold text-ink-900">ساسكو</h1>
+          <p className="mt-1 text-sm text-ink-500">منصة تواصل وتشغيل فرق العمل</p>
         </div>
 
         {/* ---- Quick test login — only visible when backend enables it ---- */}
