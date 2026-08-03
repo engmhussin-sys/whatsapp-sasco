@@ -31,6 +31,20 @@ class App extends StatelessWidget {
                 localizationsDelegates: context.localizationDelegates,
                 supportedLocales: context.supportedLocales,
                 locale: context.locale,
+                // "نص كبير" (profile toggle) — real, app-wide effect: every
+                // Text widget in the app scales up together, not just one
+                // screen. 1.25x is a deliberate, noticeable-but-not-broken
+                // increase for the target audience (workers reading in
+                // bright sunlight / with gloves on).
+                builder: (context, child) {
+                  final scaler = settingsState.largeTextEnabled
+                      ? const TextScaler.linear(1.25)
+                      : MediaQuery.of(context).textScaler;
+                  return MediaQuery(
+                    data: MediaQuery.of(context).copyWith(textScaler: scaler),
+                    child: child!,
+                  );
+                },
               );
             },
           );

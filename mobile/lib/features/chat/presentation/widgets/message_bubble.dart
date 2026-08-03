@@ -16,17 +16,24 @@ class MessageBubble extends StatelessWidget {
   final String myLang;
   final VoidCallback? onListen;
 
+  /// The user's "إظهار النص الأصلي" profile preference (defaults to
+  /// true) — independent from isTranslatedFor(): even when a real
+  /// translation exists, the original row only renders if BOTH this is
+  /// true AND a translation actually exists.
+  final bool showOriginalSetting;
+
   const MessageBubble({
     super.key,
     required this.message,
     required this.isMine,
     required this.myLang,
     this.onListen,
+    this.showOriginalSetting = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final showOriginal = message.isTranslatedFor(myLang);
+    final showOriginal = message.isTranslatedFor(myLang) && showOriginalSetting;
     final missingTranslation = message.translationMissingFor(myLang);
 
     return Align(
