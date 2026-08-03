@@ -10,17 +10,17 @@ class ServerException implements Exception {
 
 class NetworkException implements Exception {
   final String message;
-  NetworkException([this.message = 'No internet connection']);
+  NetworkException([this.message = 'لا يوجد اتصال بالإنترنت']);
 }
 
 class CacheException implements Exception {
   final String message;
-  CacheException([this.message = 'Local cache error']);
+  CacheException([this.message = 'خطأ في التخزين المحلي']);
 }
 
 class UnauthorizedException implements Exception {
   final String message;
-  UnauthorizedException([this.message = 'Session expired']);
+  UnauthorizedException([this.message = 'انتهت صلاحية الجلسة، الرجاء تسجيل الدخول مجددًا']);
 }
 
 class ValidationException implements Exception {
