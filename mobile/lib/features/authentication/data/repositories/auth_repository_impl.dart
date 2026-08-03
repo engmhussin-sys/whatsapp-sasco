@@ -40,6 +40,18 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on UnauthorizedException catch (e) {
       return Left(UnauthorizedFailure(e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } on ValidationException catch (e) {
+      return Left(ValidationFailure(e.message));
+    } catch (e) {
+      // Safety net: ANY other exception type (parsing errors, unexpected
+      // Dio internals, etc.) must still resolve to a Failure — letting
+      // an exception escape this method uncaught left AuthBloc's
+      // isSubmitting stuck at true forever (the handler's Future never
+      // reaches its `emit(isSubmitting: false)` call), which is exactly
+      // the confirmed symptom this fix addresses.
+      return Left(ServerFailure('حدث خطأ غير متوقَّع أثناء تسجيل الدخول: $e'));
     }
   }
 
@@ -65,6 +77,10 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(ServerFailure('حدث خطأ غير متوقَّع: $e'));
     }
   }
 
@@ -78,6 +94,10 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on UnauthorizedException catch (e) {
       return Left(UnauthorizedFailure(e.message));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    } catch (e) {
+      return Left(ServerFailure('حدث خطأ غير متوقَّع: $e'));
     }
   }
 
