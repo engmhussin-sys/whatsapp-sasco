@@ -5,12 +5,14 @@ import { BroadcastService } from '../../../src/modules/broadcast/broadcast.servi
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { ConversationsService } from '../../../src/modules/conversations/conversations.service';
 import { MessagesService } from '../../../src/modules/messages/messages.service';
+import { NotificationsService } from '../../../src/modules/notifications/notifications.service';
 
 describe('BroadcastService', () => {
   let service: BroadcastService;
   let prisma: any;
   let conversations: any;
   let messages: any;
+  let notifications: any;
 
   beforeEach(async () => {
     prisma = {
@@ -22,6 +24,7 @@ describe('BroadcastService', () => {
     };
     conversations = { create: jest.fn() };
     messages = { sendText: jest.fn() };
+    notifications = { create: jest.fn().mockResolvedValue({}) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -29,6 +32,7 @@ describe('BroadcastService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: ConversationsService, useValue: conversations },
         { provide: MessagesService, useValue: messages },
+        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();
 
@@ -36,6 +40,12 @@ describe('BroadcastService', () => {
     prisma.user.findFirst.mockResolvedValue({ id: 'admin-1', systemRole: SystemRole.COMPANY_ADMIN });
     messages.sendText.mockResolvedValue({ id: 'msg-1' });
     prisma.conversationMember.count.mockResolvedValue(1);
+    // Safe default consumed only when a test hasn't queued its own
+    // mockResolvedValueOnce values — the new notifyRecipients() call
+    // (added for the Notification Center integration) queries
+    // conversationMember.findMany one more time per send(); returning []
+    // here keeps every pre-existing test's assertions unaffected.
+    prisma.conversationMember.findMany.mockResolvedValue([]);
   });
 
   it('REJECTS senders who are not Company Admin or Super Admin', async () => {
@@ -175,6 +185,40 @@ describe('BroadcastService', () => {
       await service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'USER', userId: 'worker-1' });
 
       expect(conversations.create).toHaveBeenCalledWith('company-A', 'admin-1', { type: ConversationType.DIRECT, memberIds: ['worker-1'] });
+    });
+  });
+
+  describe('notification fan-out', () => {
+    it('creates a BROADCAST_RECEIVED notification for every OTHER recipient (not the sender)', async () => {
+      prisma.conversation.findFirst.mockResolvedValue(null);
+      conversations.create.mockResolvedValue({ id: 'conv-new' });
+      prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'worker-1' }, { userId: 'worker-2' }]);
+
+      await service.send('company-A', 'admin-1', 'إجازة رسمية غدًا', 'ar', { type: 'ALL' });
+
+      expect(notifications.create).toHaveBeenCalledTimes(2);
+      expect(notifications.create).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'worker-1', type: 'BROADCAST_RECEIVED', link: '/messaging/conv-new' }),
+      );
+    });
+
+    it('uses the SYSTEM type with an urgent title for emergency broadcasts', async () => {
+      prisma.conversation.findFirst.mockResolvedValue(null);
+      conversations.create.mockResolvedValue({ id: 'conv-e' });
+      prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'worker-1' }]);
+
+      await service.send('company-A', 'admin-1', 'إخلاء فوري', 'ar', { type: 'ALL' }, true);
+
+      expect(notifications.create).toHaveBeenCalledWith(expect.objectContaining({ type: 'SYSTEM', title: '🚨 إشعار طارئ' }));
+    });
+
+    it('a notification-creation failure never breaks the broadcast send itself', async () => {
+      prisma.conversation.findFirst.mockResolvedValue(null);
+      conversations.create.mockResolvedValue({ id: 'conv-new' });
+      prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'worker-1' }]);
+      notifications.create.mockRejectedValue(new Error('notification service down'));
+
+      await expect(service.send('company-A', 'admin-1', 'hi', 'ar', { type: 'ALL' })).resolves.toBeDefined();
     });
   });
 });

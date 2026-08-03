@@ -172,6 +172,7 @@ model User {
   conversations     ConversationMember[]
   preferences       UserPreference?
   auditLogs         AuditLog[]
+  notifications     Notification[]
 
   // Multi-tenant data isolation: composite uniqueness scoped by company
   @@unique([companyId, email])
@@ -1317,6 +1318,7 @@ model CompanySubscription {
   currentPeriodEnd   DateTime
   cancelledAt   DateTime?
   isActive      Boolean      @default(true)
+  isTrial       Boolean      @default(false)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -1587,4 +1589,36 @@ model WebhookDelivery {
 
   @@index([endpointId])
   @@map("webhook_deliveries")
+}
+
+// ==========================================================================
+// NOTIFICATION CENTER
+// ==========================================================================
+
+enum NotificationType {
+  TASK_ASSIGNED
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
+  FUEL_REQUEST_UPDATED
+  BROADCAST_RECEIVED
+  SUBSCRIPTION_EXPIRING
+  SYSTEM
+}
+
+model Notification {
+  id         String            @id @default(uuid())
+  companyId  String?
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  title      String
+  body       String?
+  link       String?           // frontend route to navigate to on click, e.g. "/tasks/123"
+  isRead     Boolean           @default(false)
+  readAt     DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }

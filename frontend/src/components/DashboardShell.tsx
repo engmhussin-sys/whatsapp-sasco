@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { NotificationBell } from './NotificationBell';
 
 interface NavItem {
   href: string;
@@ -72,8 +73,11 @@ export function DashboardShell({ children, navItems }: { children: React.ReactNo
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="mx-auto max-w-6xl">{children}</div>
+      <main className="flex-1 overflow-y-auto">
+        <div className="flex justify-end border-b border-ink-100 bg-white px-6 py-2.5 md:px-8">
+          <NotificationBell />
+        </div>
+        <div className="mx-auto max-w-6xl p-6 md:p-8">{children}</div>
       </main>
     </div>
   );

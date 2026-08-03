@@ -1,8 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConversationType, SystemRole } from '@prisma/client';
+import { ConversationType, NotificationType, SystemRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../messages/messages.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export type BroadcastTarget =
   | { type: 'ALL' }
@@ -37,6 +38,7 @@ export class BroadcastService {
     private prisma: PrismaService,
     private conversations: ConversationsService,
     private messages: MessagesService,
+    private notifications: NotificationsService,
   ) {}
 
   async send(companyId: string, senderId: string, text: string, sourceLanguage: string, target: BroadcastTarget = { type: 'ALL' }, urgent = false) {
@@ -48,7 +50,30 @@ export class BroadcastService {
     const conversationId = await this.resolveConversation(companyId, senderId, target, urgent);
     const message = await this.messages.sendText(companyId, conversationId, senderId, { text, originalLang: sourceLanguage });
 
+    await this.notifyRecipients(companyId, conversationId, senderId, text, urgent);
+
     return { conversationId, message, recipientCount: await this.recipientCount(conversationId) };
+  }
+
+  /** Best-effort in-app notification fan-out — a broadcast delivery failure here never undoes the message, which has already been sent. */
+  private async notifyRecipients(companyId: string, conversationId: string, senderId: string, text: string, urgent: boolean) {
+    const members = await this.prisma.conversationMember.findMany({ where: { conversationId, userId: { not: senderId } }, select: { userId: true } });
+    const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+
+    await Promise.all(
+      members.map((m: { userId: string }) =>
+        this.notifications
+          .create({
+            userId: m.userId,
+            companyId,
+            type: urgent ? NotificationType.SYSTEM : NotificationType.BROADCAST_RECEIVED,
+            title: urgent ? '🚨 إشعار طارئ' : 'رسالة جديدة',
+            body: preview,
+            link: `/messaging/${conversationId}`,
+          })
+          .catch(() => {}), // notification failures must never surface as broadcast-send errors
+      ),
+    );
   }
 
   private async resolveConversation(companyId: string, senderId: string, target: BroadcastTarget, urgent: boolean): Promise<string> {

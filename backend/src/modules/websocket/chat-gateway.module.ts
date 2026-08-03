@@ -7,5 +7,6 @@ import { ConversationsModule } from '../conversations/conversations.module';
 @Module({
   imports: [JwtModule.register({}), MessagesModule, ConversationsModule],
   providers: [ChatGateway],
+  exports: [ChatGateway],
 })
 export class ChatGatewayModule {}
