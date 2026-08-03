@@ -23,5 +23,10 @@
     "fuel_requests": "طلبات الوقود",
     "stations": "المحطات",
     "profile": "الملف الشخصي"
+  },
+  "chat": {
+    "original": "النص الأصلي",
+    "listen": "استمع",
+    "translation_failed": "تعذّرت الترجمة"
   }
 }

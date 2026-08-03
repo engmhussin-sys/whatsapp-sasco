@@ -15,6 +15,15 @@ class MessageEntity extends Equatable {
   final int? audioDurationMs;
   final DateTime createdAt;
 
+  /// Language the sender actually wrote in — 'ar' | 'ur' | 'hi' | 'bn' | 'en' | 'tl' | 'am' | ...
+  final String originalLang;
+
+  /// Server-produced translations, keyed by language code -> translated text.
+  /// Populated entirely by the backend's Translation Engine (see
+  /// MessagesService.fanOutTranslations) — never written to or computed
+  /// on-device; this field is pass-through storage only.
+  final Map<String, String> translations;
+
   const MessageEntity({
     required this.id,
     required this.conversationId,
@@ -26,7 +35,27 @@ class MessageEntity extends Equatable {
     this.audioUrl,
     this.audioDurationMs,
     required this.createdAt,
+    this.originalLang = 'ar',
+    this.translations = const {},
   });
+
+  /// The text the CURRENT user should see: their language's translation if
+  /// one exists, otherwise the original as-written text. This is the ONLY
+  /// place this decision is made — widgets must call this, not
+  /// re-implement the fallback logic themselves.
+  String displayText(String myLang) => myLang == originalLang ? (text ?? '') : (translations[myLang] ?? text ?? '');
+
+  /// True when what displayText() returns is an actual translation (not a
+  /// same-language passthrough or a same-original fallback) — determines
+  /// whether the UI shows the "original text" row underneath.
+  bool isTranslatedFor(String myLang) => myLang != originalLang && translations.containsKey(myLang);
+
+  /// True when the user's language differs from the original AND no
+  /// translation has arrived for it yet (e.g. still processing, or the
+  /// Translation Engine had no provider configured) — the UI shows a
+  /// gentle "translation unavailable" notice rather than silently
+  /// falling back with no explanation.
+  bool translationMissingFor(String myLang) => myLang != originalLang && !translations.containsKey(myLang);
 
   MessageEntity copyWith({MessageDeliveryStatus? status}) => MessageEntity(
         id: id,
@@ -39,8 +68,11 @@ class MessageEntity extends Equatable {
         audioUrl: audioUrl,
         audioDurationMs: audioDurationMs,
         createdAt: createdAt,
+        originalLang: originalLang,
+        translations: translations,
       );
 
   @override
-  List<Object?> get props => [id, conversationId, senderId, type, status, text, audioUrl, createdAt];
+  List<Object?> get props =>
+      [id, conversationId, senderId, type, status, text, audioUrl, createdAt, originalLang, translations];
 }

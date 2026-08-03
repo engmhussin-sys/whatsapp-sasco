@@ -23,5 +23,10 @@
     "fuel_requests": "Fuel Requests",
     "stations": "Stations",
     "profile": "Profile"
+  },
+  "chat": {
+    "original": "Original text",
+    "listen": "Listen",
+    "translation_failed": "Translation unavailable"
   }
 }

@@ -19,14 +19,15 @@ class ChatPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<ChatBloc>(param1: currentUser.companyId, param2: conversationId)..add(const ChatStarted()),
-      child: _ChatView(currentUserId: currentUser.id),
+      child: _ChatView(currentUserId: currentUser.id, myLang: currentUser.preferredLanguage),
     );
   }
 }
 
 class _ChatView extends StatefulWidget {
   final String currentUserId;
-  const _ChatView({required this.currentUserId});
+  final String myLang;
+  const _ChatView({required this.currentUserId, required this.myLang});
 
   @override
   State<_ChatView> createState() => _ChatViewState();
@@ -112,7 +113,7 @@ class _ChatViewState extends State<_ChatView> {
                   itemCount: state.messages.length,
                   itemBuilder: (context, index) {
                     final MessageEntity message = state.messages[index];
-                    return MessageBubble(message: message, isMine: message.senderId == widget.currentUserId);
+                    return MessageBubble(message: message, isMine: message.senderId == widget.currentUserId, myLang: widget.myLang);
                   },
                 );
               },

@@ -12,6 +12,8 @@ class MessageModel extends MessageEntity {
     super.audioUrl,
     super.audioDurationMs,
     required super.createdAt,
+    super.originalLang,
+    super.translations,
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,11 @@ class MessageModel extends MessageEntity {
       audioUrl: json['audioUrl'] as String?,
       audioDurationMs: json['audioDurationMs'] as int?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      originalLang: json['originalLang'] as String? ?? 'ar',
+      translations: {
+        for (final t in (json['translations'] as List<dynamic>? ?? const []))
+          (t as Map<String, dynamic>)['langCode'] as String: (t['translatedText'] as String?) ?? '',
+      },
     );
   }
 
