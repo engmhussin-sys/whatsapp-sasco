@@ -177,7 +177,7 @@ export class CompaniesService {
       }),
       this.prisma.companySubscription.findMany({
         where: { isTrial: true, currentPeriodEnd: { lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), gte: now } },
-        select: { companyId: true, currentPeriodEnd: true, company: { select: { name: true } } },
+        select: { companyId: true, currentPeriodEnd: true },
         take: 10,
       }),
       this.prisma.companySubscription.findMany({
@@ -186,24 +186,38 @@ export class CompaniesService {
           isActive: true,
           currentPeriodEnd: { lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), gte: now },
         },
-        select: { companyId: true, currentPeriodEnd: true, company: { select: { name: true } } },
+        select: { companyId: true, currentPeriodEnd: true },
         take: 10,
       }),
     ]);
 
+    // BUG FIX (confirmed via real Railway build error): CompanySubscription
+    // has a plain `companyId` COLUMN, not a `@relation` to Company — so it
+    // can't be `select`-ed through directly. Company names for the
+    // "needs your decision" list are fetched via one separate, cheap
+    // lookup instead.
+    const attentionCompanyIds = [...trialsEndingSoon, ...renewingSoon].map(
+      (s: { companyId: string }) => s.companyId,
+    );
+    const attentionCompanies = await this.prisma.company.findMany({
+      where: { id: { in: attentionCompanyIds } },
+      select: { id: true, name: true },
+    });
+    const companyNameById = new Map(attentionCompanies.map((c: { id: string; name: string }) => [c.id, c.name]));
+
     // "Needs your decision" — every item here is a real, honest fact
     // about real data (a real date within 7 days), not a prediction.
     const needsAttention = [
-      ...trialsEndingSoon.map((t: { companyId: string; currentPeriodEnd: Date; company: { name: string } }) => ({
+      ...trialsEndingSoon.map((t: { companyId: string; currentPeriodEnd: Date }) => ({
         type: 'trial_ending' as const,
         companyId: t.companyId,
-        companyName: t.company.name,
+        companyName: companyNameById.get(t.companyId) ?? '—',
         date: t.currentPeriodEnd,
       })),
-      ...renewingSoon.map((r: { companyId: string; currentPeriodEnd: Date; company: { name: string } }) => ({
+      ...renewingSoon.map((r: { companyId: string; currentPeriodEnd: Date }) => ({
         type: 'renewing_soon' as const,
         companyId: r.companyId,
-        companyName: r.company.name,
+        companyName: companyNameById.get(r.companyId) ?? '—',
         date: r.currentPeriodEnd,
       })),
     ].sort((a, b) => a.date.getTime() - b.date.getTime());
