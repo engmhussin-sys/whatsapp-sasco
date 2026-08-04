@@ -9,6 +9,7 @@ import { LanguageDetectorService } from '../translation-engine/language-detector
 import { TokenWalletService } from '../billing-engine/token-wallet.service';
 import { UsageEngineService } from '../billing-engine/usage-engine.service';
 import { ChatGateway } from '../websocket/chat.gateway';
+import { VoiceProcessingService } from '../voice-processing/voice-processing.service';
 
 @Injectable()
 export class MessagesService {
@@ -38,6 +39,7 @@ export class MessagesService {
     // any test or future context where the gateway isn't wired up;
     // real-time delivery is an enhancement layered on top of a
     // REST API that must work on its own regardless.
+    private voiceProcessing: VoiceProcessingService,
     @Optional() @Inject(forwardRef(() => ChatGateway)) private chatGateway?: ChatGateway,
   ) {}
 
@@ -114,6 +116,24 @@ export class MessagesService {
         }
       }),
     );
+
+    // BUG FIX (confirmed real regression introduced by the realtime
+    // broadcast fix above): message:new now delivers messages to the
+    // client near-instantly, almost always BEFORE this background
+    // translation work finishes — so the message would render in its
+    // original, untranslated language and simply stay that way forever,
+    // since nothing ever told the client a translation later became
+    // available for it. Only emitted when there's actually something
+    // new to show (targetLanguages empty means everyone already shares
+    // the sender's language — nothing to broadcast).
+    if (targetLanguages.length > 0 && this.chatGateway?.server) {
+      try {
+        const fullMessage = await this.findOne(companyId, senderId, messageId);
+        this.chatGateway.server.to(`conversation:${conversationId}`).emit('message:translated', fullMessage);
+      } catch (err) {
+        this.logger.warn(`message:translated broadcast failed for message ${messageId}: ${(err as Error).message}`);
+      }
+    }
   }
 
   async sendText(companyId: string, conversationId: string, senderId: string, dto: SendTextMessageDto) {
@@ -247,9 +267,11 @@ export class MessagesService {
           audioUrl: stored.url,
           audioDurationMs: durationMs,
           originalLang: sender?.preferredLanguage ?? 'en',
-          // originalText intentionally null here — Phase 2's Speech-to-Text
-          // service (see modules/voice-processing) will populate a
-          // transcription asynchronously once implemented.
+          // originalText starts null — populated by the fire-and-forget
+          // transcription below once Whisper returns; the client shows
+          // just the audio player until then, exactly like a text
+          // message shows its original language before translations
+          // land.
         },
       });
 
@@ -265,6 +287,21 @@ export class MessagesService {
 
       return created;
     });
+
+    // BUG FIX: voice messages had NO broadcast at all — the same root
+    // cause already found and fixed for text messages (see sendText's
+    // own doc comment) turned out to apply here too, just never
+    // verified for this specific method until now.
+    this.broadcastNewMessage(companyId, conversationId, senderId, message.id, '🎤 رسالة صوتية').catch((err) =>
+      this.logger.warn(`Realtime broadcast failed for voice message ${message.id}: ${(err as Error).message}`),
+    );
+
+    // Transcription + translation, fully in the background — never
+    // blocks the upload response, matching the exact same reasoning as
+    // text messages' fire-and-forget translation.
+    this.voiceProcessing.processVoiceMessage(message.id).catch((err) =>
+      this.logger.warn(`Voice transcription failed for message ${message.id}: ${(err as Error).message}`),
+    );
 
     return this.findOne(companyId, senderId, message.id);
   }

@@ -8,6 +8,7 @@ import { LanguageDetectorService } from '../../../src/modules/translation-engine
 import { TokenWalletService } from '../../../src/modules/billing-engine/token-wallet.service';
 import { UsageEngineService } from '../../../src/modules/billing-engine/usage-engine.service';
 import { ChatGateway } from '../../../src/modules/websocket/chat.gateway';
+import { VoiceProcessingService } from '../../../src/modules/voice-processing/voice-processing.service';
 
 /**
  * ROOT CAUSE (full audit, not speculation — grepped the entire mobile
@@ -80,6 +81,7 @@ describe('MessagesService — Realtime broadcast on send (root-cause fix)', () =
         { provide: TokenWalletService, useValue: { debit: jest.fn().mockResolvedValue({}) } },
         { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
         { provide: ChatGateway, useValue: chatGateway },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -144,6 +146,7 @@ describe('MessagesService — Realtime broadcast on send (root-cause fix)', () =
         { provide: TokenWalletService, useValue: { debit: jest.fn().mockResolvedValue({}) } },
         { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
         // ChatGateway deliberately NOT provided at all here.
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
     const serviceWithoutGateway = moduleRef.get(MessagesService);
@@ -161,5 +164,56 @@ describe('MessagesService — Realtime broadcast on send (root-cause fix)', () =
 
     await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
     await flushBackgroundWork();
+  });
+
+  describe('message:translated completion broadcast', () => {
+    it('broadcasts message:translated to the conversation room once a translation is actually persisted', async () => {
+      // First call (inside the send transaction, for receipts) needs
+      // plain {userId} rows; the SECOND call, inside fanOutTranslations,
+      // needs the joined {userId, user:{preferredLanguage}} shape.
+      let translateCall = 0;
+      prisma.conversationMember.findMany.mockImplementation(() => {
+        translateCall++;
+        if (translateCall === 1) return Promise.resolve([{ userId: 'user-2' }]);
+        return Promise.resolve([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'en' } }]);
+      });
+      prisma.messageTranslation = { upsert: jest.fn() };
+      const translationEngine = { translate: jest.fn().mockResolvedValue({ translatedText: 'Hello', resolutionSource: 'PROVIDER', providerType: 'OPENAI' }) };
+
+      const moduleRef = await Test.createTestingModule({
+        providers: [
+          MessagesService,
+          { provide: PrismaService, useValue: prisma },
+          { provide: ConversationsService, useValue: { assertMembership: jest.fn(), assertCanPost: jest.fn() } },
+          { provide: STORAGE_PROVIDER, useValue: {} },
+          { provide: TranslationEngineService, useValue: translationEngine },
+          { provide: LanguageDetectorService, useValue: { detect: () => ({ languageCode: 'ar' }) } },
+          { provide: TokenWalletService, useValue: { debit: jest.fn().mockResolvedValue({}) } },
+          { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
+          { provide: ChatGateway, useValue: chatGateway },
+          { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
+        ],
+      }).compile();
+      const svc = moduleRef.get(MessagesService);
+
+      await svc.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+      await flushBackgroundWork();
+      await flushBackgroundWork(); // translation fan-out has its own nested awaits beyond the send itself
+
+      const translatedCall = socketServer.emit.mock.calls.find((c: any[]) => c[0] === 'message:translated');
+      expect(translatedCall).toBeDefined();
+      expect(socketServer.to).toHaveBeenCalledWith(`conversation:${conversationId}`);
+    });
+
+    it('does NOT broadcast message:translated when every member already shares the sender\'s language (nothing to update)', async () => {
+      prisma.conversationMember.findMany.mockResolvedValue([{ userId: 'user-2', user: { id: 'user-2', preferredLanguage: 'ar' } }]);
+
+      await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+      await flushBackgroundWork();
+      await flushBackgroundWork();
+
+      const translatedCall = socketServer.emit.mock.calls.find((c: any[]) => c[0] === 'message:translated');
+      expect(translatedCall).toBeUndefined();
+    });
   });
 });

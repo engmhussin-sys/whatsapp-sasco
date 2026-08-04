@@ -31,7 +31,7 @@ export class NoopSpeechToTextProvider implements SpeechToTextProvider {
 export class NoopTranslationProvider implements TranslationProvider {
   private readonly logger = new Logger('Translation[stub]');
 
-  async translate(input: { text: string; sourceLanguage: string; targetLanguage: string }): Promise<TranslationResult> {
+  async translate(input: { companyId: string; text: string; sourceLanguage: string; targetLanguage: string }): Promise<TranslationResult> {
     this.logger.debug(`translate() ${input.sourceLanguage}->${input.targetLanguage} — Phase 2 not yet implemented`);
     return {
       translatedText: input.text, // pass-through, NOT a real translation
@@ -42,13 +42,14 @@ export class NoopTranslationProvider implements TranslationProvider {
   }
 
   async translateBatch(input: {
+    companyId: string;
     text: string;
     sourceLanguage: string;
     targetLanguages: string[];
   }): Promise<TranslationResult[]> {
     return Promise.all(
       input.targetLanguages.map((targetLanguage) =>
-        this.translate({ text: input.text, sourceLanguage: input.sourceLanguage, targetLanguage }),
+        this.translate({ companyId: input.companyId, text: input.text, sourceLanguage: input.sourceLanguage, targetLanguage }),
       ),
     );
   }

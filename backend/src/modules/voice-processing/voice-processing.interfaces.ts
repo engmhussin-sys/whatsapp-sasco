@@ -31,9 +31,10 @@ export interface TranslationResult {
 
 export interface TranslationProvider {
   /** Translates text from one language to another. */
-  translate(input: { text: string; sourceLanguage: string; targetLanguage: string }): Promise<TranslationResult>;
+  translate(input: { companyId: string; text: string; sourceLanguage: string; targetLanguage: string }): Promise<TranslationResult>;
   /** Translates one source text into several target languages in a single call, where the provider supports batching. */
   translateBatch(input: {
+    companyId: string;
     text: string;
     sourceLanguage: string;
     targetLanguages: string[];

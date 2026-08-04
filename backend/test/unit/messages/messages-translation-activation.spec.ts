@@ -20,6 +20,7 @@ import { TranslationEngineService } from '../../../src/modules/translation-engin
 import { LanguageDetectorService } from '../../../src/modules/translation-engine/language-detector.service';
 import { TokenWalletService } from '../../../src/modules/billing-engine/token-wallet.service';
 import { UsageEngineService } from '../../../src/modules/billing-engine/usage-engine.service';
+import { VoiceProcessingService } from '../../../src/modules/voice-processing/voice-processing.service';
 
 describe('MessagesService — Translation Engine activation', () => {
   let service: MessagesService;
@@ -58,6 +59,7 @@ describe('MessagesService — Translation Engine activation', () => {
         { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: tokenWallet },
         { provide: UsageEngineService, useValue: usageEngine },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -292,6 +294,7 @@ describe('MessagesService.retranslateConversation() — T5 backfill', () => {
         { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: { debit: jest.fn() } },
         { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -377,6 +380,7 @@ describe('MessagesService.deleteMessage() — Group 2 "Delete for everyone"', ()
         { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -442,6 +446,7 @@ describe('MessagesService.reactToMessage() — Group 3', () => {
         { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -518,6 +523,7 @@ describe('MessagesService.editMessage() — Group 3', () => {
         { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -587,6 +593,7 @@ describe('MessagesService.searchMessages() — Group 4', () => {
         { provide: LanguageDetectorService, useValue: { detect: jest.fn().mockReturnValue({ languageCode: 'ar', confidence: 0.9 }) } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
@@ -646,6 +653,7 @@ describe('MessagesService — delivery status aggregation (sender-visible ticks)
         { provide: LanguageDetectorService, useValue: { detect: jest.fn() } },
         { provide: TokenWalletService, useValue: {} },
         { provide: UsageEngineService, useValue: {} },
+        { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

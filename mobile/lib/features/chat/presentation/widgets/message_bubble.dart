@@ -71,8 +71,69 @@ class MessageBubble extends StatelessWidget {
               const SizedBox(height: 6),
             ],
 
-            if (message.type == MessageType.voice && message.audioUrl != null)
-              VoiceMessagePlayer(audioUrl: message.audioUrl!, isMine: isMine)
+            if (message.type == MessageType.voice && message.audioUrl != null) ...[
+              VoiceMessagePlayer(audioUrl: message.audioUrl!, isMine: isMine),
+              // ---- Voice transcript + translation — reuses the exact
+              // same displayText()/isTranslatedFor()/translationMissingFor()
+              // logic already proven for text messages, since the backend
+              // deliberately stores a voice transcript in the SAME
+              // originalText/originalLang/translations fields (see
+              // VoiceProcessingService.processVoiceMessage). Shows a
+              // "transcribing…" placeholder until message:translated
+              // delivers the live update. ----
+              if (message.text == null || message.text!.isEmpty) ...[
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 11,
+                      height: 11,
+                      child: CircularProgressIndicator(strokeWidth: 1.5, color: isMine ? Colors.white70 : AppColors.textSecondary),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'chat.transcribing'.tr(),
+                      style: TextStyle(fontSize: 11, color: isMine ? Colors.white70 : AppColors.textSecondary, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    message.displayText(myLang),
+                    style: TextStyle(fontSize: 13, height: 1.4, color: isMine ? Colors.white : AppColors.textPrimary),
+                  ),
+                ),
+                if (message.isTranslatedFor(myLang) && showOriginalSetting) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: _DashedDivider(color: isMine ? Colors.white38 : AppColors.divider),
+                  ),
+                  Text(
+                    '${'chat.original'.tr()} (${_languageNativeName(message.originalLang)})',
+                    style: TextStyle(fontSize: 9.5, letterSpacing: 0.4, color: isMine ? Colors.white70 : AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    message.text ?? '',
+                    style: TextStyle(fontSize: 11.5, height: 1.4, color: isMine ? Colors.white70 : AppColors.textSecondary),
+                  ),
+                ],
+                if (message.translationMissingFor(myLang)) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
+                    child: Text(
+                      'chat.translation_failed'.tr(),
+                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.accent),
+                    ),
+                  ),
+                ],
+              ],
+            ]
             else ...[
               // ---- 1. Translation (or original if same language) — the primary, large text ----
               Text(

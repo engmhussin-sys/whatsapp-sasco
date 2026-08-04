@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MessageType } from '@prisma/client';
 import {
   SPEECH_TO_TEXT_PROVIDER,
@@ -10,6 +10,7 @@ import {
 } from './voice-processing.interfaces';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CompanyDictionaryService } from '../company-dictionary/company-dictionary.service';
+import { ChatGateway } from '../websocket/chat.gateway';
 
 /**
  * SYSTEM message templates — canonical, pre-translated strings for
@@ -39,6 +40,10 @@ export class VoiceProcessingService {
     @Inject(TEXT_TO_SPEECH_PROVIDER) private tts: TextToSpeechProvider,
     private prisma: PrismaService,
     private companyDictionary: CompanyDictionaryService,
+    // @Global() on ChatGatewayModule (see chat-gateway.module.ts) makes
+    // this resolvable without VoiceProcessingModule needing to import
+    // it directly — same pattern already proven for MessagesService.
+    @Optional() private chatGateway?: ChatGateway,
   ) {}
 
   /**
@@ -63,6 +68,26 @@ export class VoiceProcessingService {
     });
 
     await this.fanOutTranslations(messageId, transcription.text, transcription.languageCode);
+
+    // Live update — without this, the voice message bubble would show
+    // "transcribing…" (or nothing) forever until the conversation is
+    // manually reloaded, exactly the same class of bug already fixed
+    // for text messages via message:translated.
+    if (this.chatGateway?.server) {
+      const full = await this.prisma.message.findUnique({
+        where: { id: messageId },
+        include: {
+          sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+          attachments: true,
+          receipts: true,
+          translations: true,
+          conversation: { select: { id: true, companyId: true } },
+          replyTo: { select: { id: true, originalText: true, senderId: true, sender: { select: { firstName: true, lastName: true } } } },
+          reactions: { select: { userId: true, emoji: true } },
+        },
+      });
+      this.chatGateway.server.to(`conversation:${message.conversationId}`).emit('message:translated', full);
+    }
   }
 
   /**
@@ -137,6 +162,7 @@ export class VoiceProcessingService {
     const providerLanguages = resolved.filter((r) => r.engine === '').map((r) => r.targetLanguage);
     if (providerLanguages.length > 0) {
       const providerResults = await this.translation.translateBatch({
+        companyId,
         text,
         sourceLanguage,
         targetLanguages: providerLanguages,

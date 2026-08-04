@@ -38,6 +38,7 @@
     "others_see": "ما يراه زملاؤك",
     "voice_message": "رسالة صوتية",
     "hold_to_record": "استمر بالضغط للتسجيل",
+    "transcribing": "جارٍ تحويل الصوت إلى نص...",
     "translation_failed": "تعذّرت الترجمة — هذا هو النص الأصلي",
     "retranslate": "إعادة الترجمة"
   },

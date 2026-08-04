@@ -38,6 +38,7 @@
     "others_see": "What your teammates see",
     "voice_message": "Voice message",
     "hold_to_record": "Hold to record",
+    "transcribing": "Transcribing…",
     "translation_failed": "Translation unavailable — showing the original",
     "retranslate": "Retranslate"
   },

@@ -128,6 +128,7 @@ describe('VoiceProcessingService — Smart Translation Policy', () => {
     await service.fanOutTranslations('msg-1', 'Hello', 'en');
 
     expect(translationProvider.translateBatch).toHaveBeenCalledWith({
+      companyId: 'company-A',
       text: 'Hello',
       sourceLanguage: 'en',
       targetLanguages: ['ar', 'hi'],
