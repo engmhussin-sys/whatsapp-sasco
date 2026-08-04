@@ -26,12 +26,24 @@ export default function ChatPage() {
   const [recording, setRecording] = useState(false);
   const [connected, setConnected] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+  // BUG FIX (confirmed real gap): there was no live "other party is
+  // online" signal anywhere — only a static lastSeenAt that updated on
+  // DISCONNECT alone, and the dashboard didn't even type/read it. Now
+  // seeded from the conversation fetch and kept live via
+  // ChatGateway's new presence:changed broadcast (see chat.gateway.ts).
+  const [otherOnline, setOtherOnline] = useState(false);
+  const [otherLastSeenAt, setOtherLastSeenAt] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordStartRef = useRef<number>(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Presence listener is registered once per [user, conversationId]
+  // effect run, BEFORE the conversation fetch resolves — a plain
+  // closure over `conversation` state would stay stale at whatever it
+  // was (null) at setup time. A ref sidesteps that entirely.
+  const otherMemberIdRef = useRef<string | null>(null);
 
   const loadHistory = useCallback(() => {
     if (!user?.companyId) return;
@@ -47,7 +59,12 @@ export default function ChatPage() {
 
     conversationsApi
       .get(user.companyId, conversationId)
-      .then(setConversation)
+      .then((conv) => {
+        setConversation(conv);
+        const other = conv.members.find((m) => m.userId !== user.id);
+        otherMemberIdRef.current = other?.userId ?? null;
+        setOtherLastSeenAt(other?.user.lastSeenAt ?? null);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'تعذّر جلب المحادثة'));
 
     loadHistory();
@@ -67,14 +84,32 @@ export default function ChatPage() {
         chatSocket.markRead(conversationId, message.id);
       }
     };
+    // BUG FIX (confirmed real cause of "messages sent don't translate"):
+    // the dashboard used to have no way to learn that a translation
+    // completed AFTER the message already rendered — which, given
+    // translation runs in the background and near-real-time delivery
+    // usually beats it there, meant every message effectively stayed
+    // permanently untranslated until a full page reload. Mirrors the
+    // same fix already shipped to the mobile app's ChatBloc.
+    const onMessageTranslated = (message: Message) => {
+      if (message.conversationId !== conversationId) return;
+      setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
+    };
     const onTyping = (data: { userId: string; isTyping: boolean }) => {
       if (data.userId !== user.id) setPeerTyping(data.isTyping);
+    };
+    const onPresenceChanged = (data: { userId: string; isOnline: boolean; lastSeenAt: string | null }) => {
+      if (data.userId !== otherMemberIdRef.current) return;
+      setOtherOnline(data.isOnline);
+      setOtherLastSeenAt(data.lastSeenAt);
     };
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('message:new', onNewMessage);
+    socket.on('message:translated', onMessageTranslated);
     socket.on('typing', onTyping);
+    socket.on('presence:changed', onPresenceChanged);
     if (socket.connected) onConnect();
 
     return () => {
@@ -82,7 +117,9 @@ export default function ChatPage() {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
       socket.off('message:new', onNewMessage);
+      socket.off('message:translated', onMessageTranslated);
       socket.off('typing', onTyping);
+      socket.off('presence:changed', onPresenceChanged);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, conversationId]);
@@ -168,6 +205,11 @@ export default function ChatPage() {
             {connected ? 'متصل' : 'غير متصل'}
           </span>
         </div>
+        {conversation && (
+          <p className={`mt-0.5 text-xs ${otherOnline ? 'font-medium text-green-600' : 'text-slate-400'}`}>
+            {otherOnline ? '● متصل الآن' : otherLastSeenAt ? formatLastSeen(otherLastSeenAt) : 'غير متصل'}
+          </p>
+        )}
         {peerTyping && <p className="mt-1 text-xs text-brand-600">يكتب الآن...</p>}
       </div>
 
@@ -247,4 +289,16 @@ function statusLabel(status: Message['status']) {
   if (status === 'READ') return 'قُرئت';
   if (status === 'DELIVERED') return 'وصلت';
   return 'أُرسلت';
+}
+
+function formatLastSeen(iso: string | null): string {
+  if (!iso) return '';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'آخر ظهور: الآن';
+  if (minutes < 60) return `آخر ظهور: منذ ${minutes} د`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `آخر ظهور: منذ ${hours} س`;
+  const days = Math.floor(hours / 24);
+  return `آخر ظهور: منذ ${days} يوم`;
 }

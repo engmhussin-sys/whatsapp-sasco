@@ -70,6 +70,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       };
       client.join(`user:${user.id}`);
       this.logger.log(`Socket connected: user=${user.id}`);
+
+      // Real-time presence — previously the only signal available was
+      // lastSeenAt, which only ever updates on DISCONNECT, so there was
+      // no way for anyone to know a person just came online, and no
+      // "currently online" state existed anywhere at all. Broadcast to
+      // every conversation this user is a member of so open chat
+      // screens can show a live "متصل الآن" indicator, not just a
+      // static last-seen timestamp.
+      await this.broadcastPresence(user.id, true);
     } catch (err) {
       this.logger.warn(`Rejected socket connection: ${(err as Error).message}`);
       client.disconnect(true);
@@ -79,12 +88,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleDisconnect(client: AuthedSocket) {
     if (!client.user) return;
     this.logger.log(`Socket disconnected: user=${client.user.sub}`);
+    let lastSeenAt = new Date();
     // Best-effort — "last seen" is a nice-to-have, never worth crashing
     // the disconnect handler over.
     try {
-      await this.prisma.user.update({ where: { id: client.user.sub }, data: { lastSeenAt: new Date() } });
+      const updated = await this.prisma.user.update({ where: { id: client.user.sub }, data: { lastSeenAt } });
+      lastSeenAt = updated.lastSeenAt ?? lastSeenAt;
     } catch (err) {
       this.logger.warn(`Failed to record lastSeenAt for user=${client.user.sub}: ${(err as Error).message}`);
+    }
+    await this.broadcastPresence(client.user.sub, false, lastSeenAt);
+  }
+
+  /** Notifies every conversation this user is part of that their online/last-seen state just changed. */
+  private async broadcastPresence(userId: string, isOnline: boolean, lastSeenAt?: Date) {
+    try {
+      const memberships = await this.prisma.conversationMember.findMany({
+        where: { userId },
+        select: { conversationId: true },
+      });
+      for (const m of memberships) {
+        this.server.to(`conversation:${m.conversationId}`).emit('presence:changed', {
+          userId,
+          isOnline,
+          lastSeenAt: lastSeenAt?.toISOString() ?? null,
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`Presence broadcast failed for user=${userId}: ${(err as Error).message}`);
     }
   }
 

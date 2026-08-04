@@ -86,7 +86,7 @@ export interface PermissionDef {
 
 export interface ConversationMember {
   userId: string;
-  user: { id: string; firstName: string; lastName: string; avatarUrl?: string | null };
+  user: { id: string; firstName: string; lastName: string; avatarUrl?: string | null; lastSeenAt?: string | null };
 }
 
 export interface Conversation {
