@@ -26,6 +26,7 @@ class WebSocketClient {
   final _connectionController = StreamController<bool>.broadcast();
 
   bool _didRetryWithFreshToken = false;
+  Timer? _watchdog;
 
   WebSocketClient(this._secureStorage, this._tokenRefresh);
 
@@ -78,9 +79,28 @@ class WebSocketClient {
       ..on('message:read', (data) => _readController.add(Map<String, dynamic>.from(data as Map)));
 
     _socket!.connect();
+
+    // BUG FIX (confirmed via real production logs): after a JWT-expiry
+    // rejection, the socket sometimes never reconnects at all — not
+    // even once — until the app is fully restarted, even though HTTP
+    // requests keep self-healing fine via AuthInterceptor the entire
+    // time. Whether onConnectError above isn't firing the way it does
+    // in the JS client, or the library's own internal auto-reconnect is
+    // giving up silently, this doesn't depend on pinpointing which: a
+    // periodic watchdog independently checks "am I actually connected?"
+    // and forces a fresh-token reconnect if not — a second, independent
+    // safety net on top of onConnectError, not a replacement for it.
+    _watchdog?.cancel();
+    _watchdog = Timer.periodic(const Duration(seconds: 20), (_) async {
+      if (_socket != null && !isConnected) {
+        await connect();
+      }
+    });
   }
 
   void disconnect() {
+    _watchdog?.cancel();
+    _watchdog = null;
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;

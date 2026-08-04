@@ -1,6 +1,19 @@
 import { Test } from '@nestjs/testing';
 import { MessagesService } from '../../../src/modules/messages/messages.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
+
+/**
+ * sendText() now fires translation fan-out WITHOUT awaiting it (see the
+ * "BUG FIX" comment on that call site — confirmed via real production
+ * logs that awaiting it blocked every message send for 1-2.5s). Tests
+ * that assert on side effects happening INSIDE that background chain
+ * (recordUsage, tokenWallet.debit, messageTranslation.upsert) need to
+ * let its internal awaits actually drain before asserting — setImmediate
+ * defers past the current microtask queue, which a bare extra
+ * `await Promise.resolve()` isn't reliably enough for a chain with
+ * multiple nested awaits.
+ */
+const flushBackgroundWork = () => new Promise((resolve) => setImmediate(resolve));
 import { ConversationsService } from '../../../src/modules/conversations/conversations.service';
 import { STORAGE_PROVIDER } from '../../../src/common/storage/storage.interface';
 import { TranslationEngineService } from '../../../src/modules/translation-engine/translation-engine.service';
@@ -84,6 +97,7 @@ describe('MessagesService — Translation Engine activation', () => {
     translationEngine.translate.mockResolvedValue({ translatedText: 'Hello', resolutionSource: 'PROVIDER', providerType: 'OPENAI' });
 
     await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
 
     expect(translationEngine.translate).toHaveBeenCalledTimes(1);
     expect(translationEngine.translate).toHaveBeenCalledWith(companyId, 'مرحبا', 'ar', 'en', senderId);
@@ -98,6 +112,7 @@ describe('MessagesService — Translation Engine activation', () => {
     });
 
     await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
 
     // Same language as sender ('ar') is filtered out BEFORE calling the engine at all.
     expect(translationEngine.translate).not.toHaveBeenCalled();
@@ -114,6 +129,7 @@ describe('MessagesService — Translation Engine activation', () => {
     translationEngine.translate.mockResolvedValue({ translatedText: 'خوش آمدید', resolutionSource: 'CACHE', providerType: null });
 
     await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
 
     expect(prisma.messageTranslation.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -133,6 +149,7 @@ describe('MessagesService — Translation Engine activation', () => {
     translationEngine.translate.mockRejectedValue(new Error('provider not configured'));
 
     await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
+    await flushBackgroundWork();
     expect(prisma.messageTranslation.upsert).not.toHaveBeenCalled();
   });
 
@@ -151,6 +168,7 @@ describe('MessagesService — Translation Engine activation', () => {
     });
 
     await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
 
     expect(tokenWallet.debit).toHaveBeenCalledWith(companyId, 25, 'translation_usage', 'Message', 'msg-1');
   });
@@ -165,6 +183,7 @@ describe('MessagesService — Translation Engine activation', () => {
     translationEngine.translate.mockResolvedValue({ translatedText: 'Bonjour', resolutionSource: 'CACHE', providerType: null });
 
     await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
 
     expect(tokenWallet.debit).not.toHaveBeenCalled();
   });
@@ -185,6 +204,7 @@ describe('MessagesService — Translation Engine activation', () => {
     tokenWallet.debit.mockRejectedValue(new Error('Insufficient token balance'));
 
     await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
+    await flushBackgroundWork();
     expect(prisma.messageTranslation.upsert).toHaveBeenCalled(); // translation itself was still persisted
   });
 
@@ -203,6 +223,7 @@ describe('MessagesService — Translation Engine activation', () => {
     });
 
     await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
 
     expect(usageEngine.recordUsage).toHaveBeenCalledWith(companyId, 'monthly_ai_tokens', 25);
   });
@@ -217,6 +238,7 @@ describe('MessagesService — Translation Engine activation', () => {
     translationEngine.translate.mockResolvedValue({ translatedText: 'Bonjour', resolutionSource: 'DICTIONARY', providerType: null });
 
     await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
 
     expect(usageEngine.recordUsage).not.toHaveBeenCalled();
   });
@@ -237,6 +259,7 @@ describe('MessagesService — Translation Engine activation', () => {
     usageEngine.recordUsage.mockRejectedValue(new Error('Company has no active subscription to meter usage against'));
 
     await expect(service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any)).resolves.toBeDefined();
+    await flushBackgroundWork();
     expect(prisma.messageTranslation.upsert).toHaveBeenCalled();
   });
 });
