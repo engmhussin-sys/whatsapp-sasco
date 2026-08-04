@@ -15,6 +15,7 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     items: [
       { id: 'tasks', href: '/company-admin-v2/tasks', label: 'المهام' },
       { id: 'approvals', href: '/company-admin-v2/approvals', label: 'الموافقات' },
+      { id: 'work-orders', href: '/company-admin-v2/work-orders', label: 'أوامر العمل' },
     ],
   },
   {

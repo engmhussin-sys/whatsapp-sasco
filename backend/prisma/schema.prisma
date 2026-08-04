@@ -122,6 +122,23 @@ model Company {
   // level keys.
   orgTaxonomy Json?
 
+  // Sprint 10 — generic Work Orders. The underlying mechanism ALREADY
+  // existed (TaskTemplate.approvalFlowId + TaskTemplate.domainTag —
+  // built in Sprint 7): a TaskTemplate with an attached ApprovalFlow
+  // IS a work order, for any industry. FuelRequest (below) stays
+  // exactly as-is for SASCO/fuel companies specifically — it is NOT
+  // renamed or migrated, since its stationId/tankId/currentLevel
+  // fields are genuinely fuel-specific and forcing them into a fake
+  // "generic" shape would be worse than just leaving fuel companies on
+  // their own purpose-built model. New non-fuel companies instead
+  // build their own work-order TaskTemplates (domainTag='work_order')
+  // via the Sprint 8 form builder. This label just controls what THAT
+  // concept is called in the UI.
+  workOrderLabelSingularAr String @default("طلب وقود")
+  workOrderLabelPluralAr   String @default("طلبات وقود")
+  workOrderLabelSingularEn String @default("Fuel Request")
+  workOrderLabelPluralEn   String @default("Fuel Requests")
+
   // Relations (all tenant-scoped data hangs off Company for isolation)
   users             User[]
   teams             Team[]
@@ -716,13 +733,37 @@ model TaskTemplate {
   approvalFlowId String?  // optional: submissions of this template route through this flow
   approvalFlow   ApprovalFlow? @relation(fields: [approvalFlowId], references: [id], onDelete: SetNull)
   isActive       Boolean  @default(true)
+  // Sprint 7 (Form Builder) — bumped on every fields/name/description
+  // change; the PREVIOUS state is snapshotted into TaskTemplateVersion
+  // before the bump, so "Versioning" in the design spec means an actual
+  // browsable history, not just a counter.
+  version        Int      @default(1)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tasks Task[]
+  tasks    Task[]
+  versions TaskTemplateVersion[]
 
   @@index([companyId])
   @@map("task_templates")
+}
+
+/// One row per PAST version of a TaskTemplate — a full snapshot, not a
+/// diff, since form definitions are small JSON blobs and a snapshot is
+/// simpler to render/restore-from than reconstructing from diffs.
+model TaskTemplateVersion {
+  id         String       @id @default(uuid())
+  templateId String
+  template   TaskTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  version    Int
+  name       String
+  description String?
+  fields     Json
+  createdAt  DateTime     @default(now())
+
+  @@unique([templateId, version])
+  @@index([templateId])
+  @@map("task_template_versions")
 }
 
 // A concrete unit of work. May be instantiated from a TaskTemplate

@@ -65,7 +65,8 @@ export interface TaskTemplateVersion {
 }
 
 export const taskTemplatesApi = {
-  list: (companyId: string) => api.get<TaskTemplate[]>(`/companies/${companyId}/task-templates`),
+  list: (companyId: string, domainTag?: string) =>
+    api.get<TaskTemplate[]>(`/companies/${companyId}/task-templates${domainTag ? `?domainTag=${domainTag}` : ''}`),
 
   get: (companyId: string, templateId: string) =>
     api.get<TaskTemplate>(`/companies/${companyId}/task-templates/${templateId}`),

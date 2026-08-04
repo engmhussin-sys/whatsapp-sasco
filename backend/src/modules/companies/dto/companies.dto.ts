@@ -106,4 +106,20 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   orgUnitLabelPluralAr?: string;
+
+  @IsOptional()
+  @IsString()
+  workOrderLabelSingularEn?: string;
+
+  @IsOptional()
+  @IsString()
+  workOrderLabelPluralEn?: string;
+
+  @IsOptional()
+  @IsString()
+  workOrderLabelSingularAr?: string;
+
+  @IsOptional()
+  @IsString()
+  workOrderLabelPluralAr?: string;
 }

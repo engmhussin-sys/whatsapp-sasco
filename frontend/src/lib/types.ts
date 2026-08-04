@@ -30,6 +30,11 @@ export interface Company {
   orgUnitLabelPluralEn: string;
   orgUnitLabelSingularAr: string;
   orgUnitLabelPluralAr: string;
+  // Sprint 10 (Work Orders generalization)
+  workOrderLabelSingularEn: string;
+  workOrderLabelPluralEn: string;
+  workOrderLabelSingularAr: string;
+  workOrderLabelPluralAr: string;
 }
 
 export interface Subscription {
