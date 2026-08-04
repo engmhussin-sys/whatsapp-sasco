@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateCompanyDto, UpdateCompanyDto } from './dto/companies.dto';
 import { ModulesCatalogService } from '../modules-catalog/modules-catalog.service';
+import { TAXONOMY_PRESETS, getPresetByCode } from './taxonomy-presets.data';
 
 @Injectable()
 export class CompaniesService {
@@ -232,5 +233,44 @@ export class CompaniesService {
       cancelledLast30Days,
       needsAttention,
     };
+  }
+
+  /** Sprint 6 (`taxonomy` screen) — this company's current org-level
+   * label chain, falling back to the platform-default 7-level chain
+   * (the `fuel` preset — matches the pre-Sprint-6 Station/محطة labels
+   * exactly) when the company has never customized it. */
+  async getTaxonomy(companyId: string) {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { orgTaxonomy: true } });
+    if (!company) throw new NotFoundException('Company not found');
+
+    if (company.orgTaxonomy) return company.orgTaxonomy;
+
+    const defaultPreset = getPresetByCode('fuel')!;
+    return { presetCode: defaultPreset.code, levels: defaultPreset.levels };
+  }
+
+  /** Applies a preset wholesale, or a fully custom label chain — either
+   * way this ONLY ever writes to the JSON display-layer column; no
+   * other table, query, or join is touched (see Company.orgTaxonomy's
+   * own doc comment in schema.prisma for why that matters). */
+  async updateTaxonomy(companyId: string, data: { presetCode?: string; levels?: any[] }) {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) throw new NotFoundException('Company not found');
+
+    let orgTaxonomy: { presetCode: string; levels: any[] };
+    if (data.presetCode) {
+      const preset = getPresetByCode(data.presetCode);
+      if (!preset) throw new NotFoundException('Unknown industry preset');
+      orgTaxonomy = { presetCode: preset.code, levels: data.levels ?? preset.levels };
+    } else {
+      orgTaxonomy = { presetCode: 'custom', levels: data.levels ?? [] };
+    }
+
+    await this.prisma.company.update({ where: { id: companyId }, data: { orgTaxonomy: orgTaxonomy as any } });
+    return orgTaxonomy;
+  }
+
+  getIndustryPresets() {
+    return TAXONOMY_PRESETS;
   }
 }

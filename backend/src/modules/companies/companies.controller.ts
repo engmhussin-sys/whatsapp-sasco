@@ -2,7 +2,7 @@ import { Body, Controller, Get, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { SystemRole } from '@prisma/client';
 import { CompaniesService } from './companies.service';
-import { CreateCompanyDto, UpdateCompanyDto } from './dto/companies.dto';
+import { CreateCompanyDto, UpdateCompanyDto, UpdateTaxonomyDto } from './dto/companies.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 
@@ -39,6 +39,14 @@ export class CompaniesController {
     return this.companiesService.getPlatformAnalytics();
   }
 
+  // Sprint 6 — must come before ':companyId' for the same reason
+  // platform-stats/platform-analytics do: otherwise Nest would try to
+  // match "industry-presets" itself as a :companyId value.
+  @Get('industry-presets')
+  industryPresets() {
+    return this.companiesService.getIndustryPresets();
+  }
+
   @Get(':companyId')
   @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
   findOne(@TenantId() companyId: string) {
@@ -49,6 +57,18 @@ export class CompaniesController {
   @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
   update(@TenantId() companyId: string, @Body() dto: UpdateCompanyDto) {
     return this.companiesService.update(companyId, dto);
+  }
+
+  @Get(':companyId/taxonomy')
+  @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
+  getTaxonomy(@TenantId() companyId: string) {
+    return this.companiesService.getTaxonomy(companyId);
+  }
+
+  @Patch(':companyId/taxonomy')
+  @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
+  updateTaxonomy(@TenantId() companyId: string, @Body() dto: UpdateTaxonomyDto) {
+    return this.companiesService.updateTaxonomy(companyId, dto);
   }
 
   @Get(':companyId/dashboard')

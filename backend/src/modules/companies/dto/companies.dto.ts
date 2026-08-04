@@ -51,6 +51,22 @@ export class CreateCompanyDto {
   moduleCodes?: ModuleCode[];
 }
 
+export class UpdateTaxonomyDto {
+  @IsOptional()
+  @IsString()
+  presetCode?: string;
+
+  @IsOptional()
+  @IsArray()
+  levels?: {
+    key: string;
+    labelSingularAr: string;
+    labelPluralAr: string;
+    labelSingularEn: string;
+    labelPluralEn: string;
+  }[];
+}
+
 export class UpdateCompanyDto {
   @IsOptional()
   @IsString()

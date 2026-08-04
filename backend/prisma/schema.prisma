@@ -96,6 +96,32 @@ model Company {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Enterprise Platform pivot, Sprint 2: configurable organizational-unit
+  // terminology. The underlying Station/Tank data model is UNCHANGED —
+  // this only controls what a company CALLS that unit in the UI
+  // ("Station" for a fuel company, "Hospital" for healthcare, "Site" for
+  // construction, "Store" for retail, etc). Defaults exactly match
+  // today's hardcoded "Station/Stations" / "محطة/محطات" strings, so an
+  // existing company (SASCO) sees zero change unless it explicitly
+  // customizes these.
+  orgUnitLabelSingularEn String @default("Station")
+  orgUnitLabelPluralEn   String @default("Stations")
+  orgUnitLabelSingularAr String @default("محطة")
+  orgUnitLabelPluralAr   String @default("محطات")
+
+  // Sprint 6 — full configurable org taxonomy (the `taxonomy` screen).
+  // Neutral core rule from the design spec: underlying tables stay
+  // (organization/branch/site/department/team/shift/person-shaped)
+  // regardless of what a company calls them — this JSON field is PURELY
+  // a display-layer label chain, never referenced by any query's WHERE
+  // clause or join. Null means "use the platform default chain" (same
+  // English/Arabic labels every company saw before this sprint).
+  // Shape: { presetCode: string, levels: [{ key, labelSingularAr,
+  // labelPluralAr, labelSingularEn, labelPluralEn }] } — see
+  // taxonomy-presets.data.ts for the 7 starter presets and their exact
+  // level keys.
+  orgTaxonomy Json?
+
   // Relations (all tenant-scoped data hangs off Company for isolation)
   users             User[]
   teams             Team[]
