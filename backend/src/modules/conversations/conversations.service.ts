@@ -261,13 +261,30 @@ export class ConversationsService {
 
   /**
    * For ANNOUNCEMENT/EMERGENCY channels (postingRestricted=true), only
-   * COMPANY_ADMIN/SUPER_ADMIN may post — everyone else has read-only
-   * access. Called by MessagesService before accepting a send.
+   * Company Admins/Super Admins may post; every other conversation type
+   * is always postable by its members regardless of the flag's value.
+   *
+   * BUG FIX (confirmed via a real user report + screenshot: a worker
+   * blocked from replying in what was very clearly a normal DIRECT
+   * conversation, with the exact "read-only for your role" message):
+   * this used to trust `conversation.postingRestricted` as the sole
+   * signal. Only createBroadcastChannel() ever sets that flag to true
+   * by DESIGN, and only for ANNOUNCEMENT/EMERGENCY — but the flag lives
+   * as an independently-stored column, not something derived live from
+   * `type` on every read, so it CAN drift from what the type implies
+   * (stale data, a migration, a future code path nobody re-audits
+   * against this one). Checking `type` directly here as well closes
+   * that gap regardless of how the flag ended up wrong — a DIRECT/
+   * GROUP/TEAM/TASK/STATION/SHIFT conversation is now structurally
+   * incapable of being posting-restricted no matter what the stored
+   * flag says.
    */
   async assertCanPost(companyId: string, conversationId: string, userId: string) {
     const conversation = await this.prisma.conversation.findFirst({ where: { id: conversationId, companyId } });
     if (!conversation) throw new NotFoundException('Conversation not found');
-    if (!conversation.postingRestricted) return;
+
+    const isBroadcastType = conversation.type === ConversationType.ANNOUNCEMENT || conversation.type === ConversationType.EMERGENCY;
+    if (!isBroadcastType || !conversation.postingRestricted) return;
 
     const user = await this.prisma.user.findFirst({ where: { id: userId, companyId } });
     if (!user || (user.systemRole !== SystemRole.COMPANY_ADMIN && user.systemRole !== SystemRole.SUPER_ADMIN)) {
