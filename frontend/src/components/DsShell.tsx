@@ -91,8 +91,21 @@ export function DsShell({
             Atheel Tech mark) sits poorly directly on a dark sidebar. */}
         <div className="flex items-center gap-2.5 px-5 py-5">
           <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[10px] bg-white p-1">
+            {/* Graceful fallback: no real SASCO logo file exists in the
+                project yet (confirmed during Sprint 2) — falling back to
+                the product's first letter on error avoids a broken-image
+                icon in the sidebar until a real asset is uploaded. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt={productName} className="h-full w-full object-contain" />
+            <img
+              src={logoUrl}
+              alt={productName}
+              className="h-full w-full object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <span className="hidden text-sm font-bold text-ds-primary">{productName[0]}</span>
           </div>
           <div>
             <p className="text-sm font-semibold leading-tight text-white">{productName}</p>

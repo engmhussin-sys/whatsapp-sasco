@@ -33,6 +33,12 @@ export class CompaniesController {
     return this.companiesService.getPlatformStats();
   }
 
+  @Get('platform-analytics')
+  @Roles(SystemRole.SUPER_ADMIN)
+  platformAnalytics() {
+    return this.companiesService.getPlatformAnalytics();
+  }
+
   @Get(':companyId')
   @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
   findOne(@TenantId() companyId: string) {

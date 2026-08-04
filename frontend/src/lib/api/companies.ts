@@ -6,6 +6,16 @@ export const companiesApi = {
 
   platformStats: () => api.get<PlatformStats>('/companies/platform-stats'),
 
+  platformAnalytics: () =>
+    api.get<{
+      mrrByMonth: { month: string; total: number }[];
+      currentMonthMrr: number;
+      mrrChangePercent: number | null;
+      activeSubscriptionCount: number;
+      cancelledLast30Days: number;
+      needsAttention: { type: 'trial_ending' | 'renewing_soon'; companyId: string; companyName: string; date: string }[];
+    }>('/companies/platform-analytics'),
+
   create: (data: {
     name: string;
     slug: string;
@@ -18,6 +28,16 @@ export const companiesApi = {
   }) => api.post<Company>('/companies', data),
 
   get: (companyId: string) => api.get<Company>(`/companies/${companyId}`),
+
+  update: (
+    companyId: string,
+    data: Partial<
+      Pick<
+        Company,
+        'name' | 'industry' | 'defaultLanguage' | 'isActive' | 'orgUnitLabelSingularEn' | 'orgUnitLabelPluralEn' | 'orgUnitLabelSingularAr' | 'orgUnitLabelPluralAr'
+      >
+    >,
+  ) => api.patch<Company>(`/companies/${companyId}`, data),
 
   dashboard: (companyId: string) => api.get<CompanyDashboardStats>(`/companies/${companyId}/dashboard`),
 };
