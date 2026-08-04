@@ -32,7 +32,7 @@ export class AuthService {
     id: string;
     companyId: string | null;
     systemRole: any;
-    email: string;
+    email: string | null;
   }, meta: { userAgent?: string; ipAddress?: string }) {
     const payload: AuthenticatedUser = {
       sub: user.id,

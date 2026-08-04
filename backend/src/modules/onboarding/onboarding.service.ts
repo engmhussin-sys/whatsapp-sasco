@@ -49,14 +49,19 @@ export class OnboardingService {
     private auditLogs: AuditLogsService,
   ) {}
 
-  private async findInvitedUser(email: string, companyId?: string) {
+  /** [identifier] is whatever the Company Admin registered the worker with — their email OR their phone, exactly like AuthService.login's own either-or lookup. */
+  private async findInvitedUser(identifier: string, companyId?: string) {
     return this.prisma.user.findFirst({
-      where: { email, status: UserStatus.INVITED, ...(companyId ? { companyId } : {}) },
+      where: {
+        OR: [{ email: identifier }, { phone: identifier }],
+        status: UserStatus.INVITED,
+        ...(companyId ? { companyId } : {}),
+      },
     });
   }
 
-  async requestOtp(email: string, channel: OtpChannel, companyId?: string) {
-    const user = await this.findInvitedUser(email, companyId);
+  async requestOtp(identifier: string, channel: OtpChannel, companyId?: string) {
+    const user = await this.findInvitedUser(identifier, companyId);
 
     // SECURITY: never reveal whether the email exists or is already
     // activated — identical response either way (mirrors AuthService's
@@ -67,10 +72,16 @@ export class OnboardingService {
     if (channel === OtpChannel.PHONE && !user.phone) {
       throw new BadRequestException('لا يوجد رقم هاتف مسجَّل لهذا الحساب — استخدم البريد الإلكتروني بدلاً من ذلك');
     }
+    // Symmetric guard — became reachable once email stopped being a
+    // mandatory field (phone-only accounts are now a normal case, not
+    // an edge case), so this can no longer be assumed impossible.
+    if (channel === OtpChannel.EMAIL && !user.email) {
+      throw new BadRequestException('لا يوجد بريد إلكتروني مسجَّل لهذا الحساب — استخدم رقم الهاتف بدلاً من ذلك');
+    }
 
     const code = crypto.randomInt(0, 10 ** OTP_LENGTH).toString().padStart(OTP_LENGTH, '0');
     const codeHash = crypto.createHash('sha256').update(code).digest('hex');
-    const destination = channel === OtpChannel.PHONE ? user.phone! : user.email;
+    const destination = channel === OtpChannel.PHONE ? user.phone! : user.email!;
 
     await this.prisma.otpToken.create({
       data: {
@@ -92,8 +103,8 @@ export class OnboardingService {
     return genericResponse;
   }
 
-  async verifyOtp(email: string, code: string, companyId?: string) {
-    const user = await this.findInvitedUser(email, companyId);
+  async verifyOtp(identifier: string, code: string, companyId?: string) {
+    const user = await this.findInvitedUser(identifier, companyId);
     if (!user) throw new UnauthorizedException('رمز التحقق غير صحيح');
 
     const codeHash = crypto.createHash('sha256').update(code).digest('hex');
@@ -117,28 +128,42 @@ export class OnboardingService {
 
     await this.prisma.otpToken.update({ where: { id: otp.id }, data: { verifiedAt: new Date() } });
 
+    // BUG FIX: this used to embed `email: user.email` and later compare
+    // it against the caller's passed-in email string — which breaks
+    // entirely for a phone-only user (email is null, so nothing could
+    // ever match). `sub` (the user's id) is the one identifier that's
+    // ALWAYS present regardless of which contact method the account
+    // has, so it's the only thing that needs to be embedded at all.
     const activationToken = this.jwt.sign(
-      { sub: user.id, email: user.email, purpose: ACTIVATION_TOKEN_PURPOSE },
+      { sub: user.id, purpose: ACTIVATION_TOKEN_PURPOSE },
       { secret: this.config.get('JWT_ACCESS_SECRET'), expiresIn: '10m' },
     );
 
     return { activationToken };
   }
 
-  async setCredentials(
-    email: string,
-    activationToken: string,
-    credentialType: CredentialType,
-    credential: string,
-  ) {
-    let payload: { sub: string; email: string; purpose: string };
+  async setCredentials(identifier: string, activationToken: string, credentialType: CredentialType, credential: string) {
+    let payload: { sub: string; purpose: string };
     try {
       payload = this.jwt.verify(activationToken, { secret: this.config.get('JWT_ACCESS_SECRET') });
     } catch {
       throw new UnauthorizedException('رمز التفعيل غير صالح أو منتهي الصلاحية — يجب التحقق من رمز OTP مجددًا');
     }
 
-    if (payload.purpose !== ACTIVATION_TOKEN_PURPOSE || payload.email !== email) {
+    if (payload.purpose !== ACTIVATION_TOKEN_PURPOSE) {
+      throw new UnauthorizedException('رمز التفعيل غير صالح لهذا الحساب');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || user.status !== UserStatus.INVITED) {
+      throw new BadRequestException('هذا الحساب مُفعَّل بالفعل أو غير موجود');
+    }
+    // Defense in depth: the signed token's `sub` is already trustworthy
+    // on its own, but also requiring the caller's supplied identifier to
+    // actually belong to that same user closes off a confused-deputy
+    // scenario where a valid token is replayed alongside someone else's
+    // email/phone in the request body.
+    if (identifier !== user.email && identifier !== user.phone) {
       throw new UnauthorizedException('رمز التفعيل غير صالح لهذا الحساب');
     }
 
@@ -147,11 +172,6 @@ export class OnboardingService {
     }
     if (credentialType === CredentialType.PIN && !/^\d{4,8}$/.test(credential)) {
       throw new BadRequestException('يجب أن يتكون الـ PIN من 4 إلى 8 أرقام فقط');
-    }
-
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user || user.status !== UserStatus.INVITED) {
-      throw new BadRequestException('هذا الحساب مُفعَّل بالفعل أو غير موجود');
     }
 
     const passwordHash = await this.authService.hashPassword(credential);
