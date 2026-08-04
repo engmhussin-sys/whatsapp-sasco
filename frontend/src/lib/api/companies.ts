@@ -25,6 +25,10 @@ export const companiesApi = {
     adminPassword: string;
     adminFirstName: string;
     adminLastName: string;
+    // Sprint 4 (co_new wizard, steps 3-4) — optional, backward compatible.
+    plan?: 'TRIAL' | 'BASIC' | 'PROFESSIONAL' | 'ENTERPRISE';
+    seats?: number;
+    moduleCodes?: string[];
   }) => api.post<Company>('/companies', data),
 
   get: (companyId: string) => api.get<Company>(`/companies/${companyId}`),

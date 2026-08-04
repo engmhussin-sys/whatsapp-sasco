@@ -32,6 +32,12 @@ export default function CompaniesV2Page() {
     <div className="flex flex-col gap-[14px]">
       <div className="flex items-center justify-between">
         <h1 className="text-[27px] font-semibold tracking-[-.03em] text-ds-text">الشركات</h1>
+        <button
+          onClick={() => router.push('/super-admin-v2/companies/new')}
+          className="rounded-dsField bg-gradient-to-br from-ds-primary to-ds-primaryDark px-4 py-2 text-sm font-medium text-white shadow-dsButton"
+        >
+          + إضافة شركة جديدة
+        </button>
       </div>
 
       <div className="flex items-center gap-2">
