@@ -44,4 +44,22 @@ export const companiesApi = {
   ) => api.patch<Company>(`/companies/${companyId}`, data),
 
   dashboard: (companyId: string) => api.get<CompanyDashboardStats>(`/companies/${companyId}/dashboard`),
+
+  // Sprint 6 (taxonomy screen)
+  getIndustryPresets: () =>
+    api.get<{ code: string; nameAr: string; levels: TaxonomyLevel[] }[]>('/companies/industry-presets'),
+
+  getTaxonomy: (companyId: string) =>
+    api.get<{ presetCode: string; levels: TaxonomyLevel[] }>(`/companies/${companyId}/taxonomy`),
+
+  updateTaxonomy: (companyId: string, data: { presetCode?: string; levels?: TaxonomyLevel[] }) =>
+    api.patch<{ presetCode: string; levels: TaxonomyLevel[] }>(`/companies/${companyId}/taxonomy`, data),
 };
+
+export interface TaxonomyLevel {
+  key: string;
+  labelSingularAr: string;
+  labelPluralAr: string;
+  labelSingularEn: string;
+  labelPluralEn: string;
+}
