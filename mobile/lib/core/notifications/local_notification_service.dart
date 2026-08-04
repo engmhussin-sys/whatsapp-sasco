@@ -15,6 +15,18 @@ class LocalNotificationService {
     await _plugin.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
     );
+
+    // BUG FIX (confirmed real cause: notifications silently never
+    // appeared, no sound, no error anywhere): Android 13+ (API 33)
+    // requires this permission at RUNTIME — declaring it in
+    // AndroidManifest.xml alone does nothing on its own; the OS shows
+    // the user a one-time "Allow notifications?" dialog only when the
+    // app explicitly asks, exactly like camera/microphone. Without this
+    // call, every plugin.show() below silently no-ops on Android 13+.
+    await _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+
     _initialized = true;
   }
 

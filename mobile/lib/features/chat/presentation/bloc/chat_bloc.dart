@@ -23,6 +23,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   StreamSubscription<MessageEntity>? _messageSub;
   StreamSubscription<Map<String, dynamic>>? _typingSub;
+  StreamSubscription<bool>? _connectionSub;
 
   ChatBloc({
     required this.companyId,
@@ -53,6 +54,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatReplyTargetChanged>(_onReplyTargetChanged);
     on<ChatReactToMessageRequested>(_onReactToMessageRequested);
     on<ChatEditMessageRequested>(_onEditMessageRequested);
+    on<ChatReconnectedRefreshRequested>(_onReconnectedRefresh);
   }
 
   Future<void> _onStarted(ChatStarted event, Emitter<ChatState> emit) async {
@@ -62,6 +64,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // sent by the peer in the gap between history-fetch and subscription
     // is missed.
     _repository.joinConversation(conversationId);
+
+    // BUG FIX (confirmed via real user reports: messages only arrive
+    // after leaving and reopening the chat): Socket.io room membership
+    // lives on the CONNECTION, not the user — if the underlying socket
+    // ever reconnects while this chat is open (a JWT refresh, the
+    // WebSocketClient watchdog fixing a stale connection, a brief
+    // network blip), the fresh connection starts with NO rooms joined
+    // at all, and this conversation's `message:new` events silently
+    // stop arriving with no error anywhere. joinConversation was only
+    // ever called ONCE, when the chat page first opened. Re-joining on
+    // every reconnect (not just the first connect) closes that gap —
+    // and re-fetching history alongside it catches anything sent during
+    // the gap itself, which a bare re-join wouldn't recover.
+    _connectionSub = _repository.onConnectionChanged.listen((connected) {
+      if (connected) {
+        _repository.joinConversation(conversationId);
+        add(const ChatReconnectedRefreshRequested());
+      }
+    });
 
     _messageSub = _repository.onMessageReceived
         .where((m) => m.conversationId == conversationId)
@@ -84,8 +105,23 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     add(const ChatMarkReadRequested());
   }
 
+  Future<void> _onReconnectedRefresh(ChatReconnectedRefreshRequested event, Emitter<ChatState> emit) async {
+    final result = await _getMessages(GetMessagesParams(companyId: companyId, conversationId: conversationId));
+    result.fold(
+      (_) {}, // best-effort — the socket subscription above still works going forward regardless
+      (messages) {
+        final merged = [...messages.reversed];
+        // Keep any newer, not-yet-persisted-looking local state intact
+        // is unnecessary here since this always fetches the authoritative
+        // full history — a plain replace is correct and simplest.
+        emit(state.copyWith(messages: merged));
+      },
+    );
+  }
+
   Future<void> _onEnded(ChatEnded event, Emitter<ChatState> emit) async {
     _repository.leaveConversation(conversationId);
+    await _connectionSub?.cancel();
     await _messageSub?.cancel();
     await _typingSub?.cancel();
   }
@@ -300,6 +336,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> close() async {
     _messageSub?.cancel();
     _typingSub?.cancel();
+    _connectionSub?.cancel();
     return super.close();
   }
 }

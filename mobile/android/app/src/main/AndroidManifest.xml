@@ -1,5 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Networking (chat, translation, all API calls) -->
+    <!-- Local/push notifications on Android 13+ (API 33) require this
+         explicit permission — without it, EVERY notification.show()
+         call fails completely silently: no error, no sound, no visible
+         notification at all. Declaring it here is necessary but not
+         sufficient by itself — it must also be requested at RUNTIME
+         (see LocalNotificationService.initialize()). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <!-- Group 1 (WhatsApp parity): camera capture for hazard/chat photos -->

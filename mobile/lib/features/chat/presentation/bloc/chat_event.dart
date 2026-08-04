@@ -34,6 +34,14 @@ class ChatMarkReadRequested extends ChatEvent {
   const ChatMarkReadRequested();
 }
 
+/// Fired whenever the underlying socket reconnects while this chat is
+/// open — see the "BUG FIX" comment on _onStarted in chat_bloc.dart for
+/// exactly why this is needed (room membership doesn't survive a
+/// reconnect on its own).
+class ChatReconnectedRefreshRequested extends ChatEvent {
+  const ChatReconnectedRefreshRequested();
+}
+
 class ChatTypingIndicatorChanged extends ChatEvent {
   final bool isTyping;
   const ChatTypingIndicatorChanged(this.isTyping);
