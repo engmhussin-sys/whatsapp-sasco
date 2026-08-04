@@ -316,6 +316,7 @@ class _ChatViewState extends State<_ChatView> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -477,7 +478,6 @@ class _ChatViewState extends State<_ChatView> {
           ),
         ],
       ),
-    ),
     );
   }
 
