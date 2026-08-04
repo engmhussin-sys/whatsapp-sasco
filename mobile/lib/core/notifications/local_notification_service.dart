@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// In-app / OS-level local notifications (e.g. "new message" while the
 /// app is backgrounded but not killed). Unlike push, this works fully
@@ -19,13 +20,18 @@ class LocalNotificationService {
     // BUG FIX (confirmed real cause: notifications silently never
     // appeared, no sound, no error anywhere): Android 13+ (API 33)
     // requires this permission at RUNTIME — declaring it in
-    // AndroidManifest.xml alone does nothing on its own; the OS shows
-    // the user a one-time "Allow notifications?" dialog only when the
-    // app explicitly asks, exactly like camera/microphone. Without this
-    // call, every plugin.show() below silently no-ops on Android 13+.
-    await _plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+    // AndroidManifest.xml alone does nothing on its own. Uses
+    // permission_handler (already a project dependency, with a stable,
+    // well-documented API) rather than
+    // flutter_local_notifications' own Android-specific plugin
+    // resolver method — that call's exact availability on this
+    // package version couldn't be independently confirmed, whereas
+    // Permission.notification.request() is standard across
+    // permission_handler's entire API surface. iOS's own permission
+    // dialog is handled separately by DarwinInitializationSettings'
+    // requestAlertPermission/requestSoundPermission (already implied
+    // true by default) — this call is a no-op there.
+    await Permission.notification.request();
 
     _initialized = true;
   }
