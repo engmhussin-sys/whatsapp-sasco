@@ -3,12 +3,14 @@ import { SystemRole, SubscriptionPlan } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateCompanyDto, UpdateCompanyDto } from './dto/companies.dto';
+import { ModulesCatalogService } from '../modules-catalog/modules-catalog.service';
 
 @Injectable()
 export class CompaniesService {
   constructor(
     private prisma: PrismaService,
     private authService: AuthService,
+    private modulesCatalog: ModulesCatalogService,
   ) {}
 
   /** Super Admin only: provisions a new tenant + its first Company Admin + trial subscription. */
@@ -18,20 +20,20 @@ export class CompaniesService {
 
     const adminPasswordHash = await this.authService.hashPassword(dto.adminPassword);
 
-    return this.prisma.$transaction(async (tx: any) => {
-      const company = await tx.company.create({
+    const company = await this.prisma.$transaction(async (tx: any) => {
+      const created = await tx.company.create({
         data: {
           name: dto.name,
           slug: dto.slug,
           industry: dto.industry,
           defaultLanguage: dto.defaultLanguage ?? 'en',
-          subscription: { create: { plan: SubscriptionPlan.TRIAL, seatsLimit: 10 } },
+          subscription: { create: { plan: dto.plan ?? SubscriptionPlan.TRIAL, seatsLimit: dto.seats ?? 10 } },
         },
       });
 
       await tx.user.create({
         data: {
-          companyId: company.id,
+          companyId: created.id,
           email: dto.adminEmail,
           passwordHash: adminPasswordHash,
           firstName: dto.adminFirstName,
@@ -41,8 +43,28 @@ export class CompaniesService {
         },
       });
 
-      return company;
+      return created;
     });
+
+    // Sprint 4 (co_new wizard, step 4 — "الوحدات والصلاحيات"): activate
+    // whichever modules the wizard selected, on top of whatever Sprint
+    // 1's seed-time backfill would otherwise apply. Runs AFTER the
+    // transaction (not inside it) since ModulesCatalogService does its
+    // own separate upserts — keeping the core company+admin creation
+    // transaction focused and fast, matching the same reasoning already
+    // used for fire-and-forget side effects elsewhere in this project
+    // (voice transcription, message broadcasts).
+    if (dto.moduleCodes?.length) {
+      for (const moduleCode of dto.moduleCodes) {
+        await this.modulesCatalog.activate(company.id, moduleCode, company.id).catch(() => {
+          // A module the wizard sent that somehow isn't in the catalog
+          // shouldn't fail company creation itself — the company and
+          // its admin already exist at this point.
+        });
+      }
+    }
+
+    return company;
   }
 
   /** Super Admin: list all tenants on the platform. */
