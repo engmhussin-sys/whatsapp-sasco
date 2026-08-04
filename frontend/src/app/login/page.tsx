@@ -7,7 +7,7 @@ import { testAccountsApi, type TestAccount } from '@/lib/api/test-accounts';
 
 export default function LoginPage() {
   const { login, testLogin } = useAuth();
-  const [loginMode, setLoginMode] = useState<'email' | 'phone'>('email');
+  const [loginMode, setLoginMode] = useState<'email' | 'phone'>('phone');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -91,7 +91,7 @@ export default function LoginPage() {
                         disabled={testLoginBusyId !== null}
                         className="rounded-full border border-amber-300 bg-white px-3 py-1 text-xs text-slate-700 transition hover:bg-amber-100 disabled:opacity-50"
                       >
-                        {testLoginBusyId === a.id ? '...جارٍ الدخول' : `${a.role} — ${a.email.split('@')[0]}`}
+                        {testLoginBusyId === a.id ? '...جارٍ الدخول' : `${a.role} — ${a.email ? a.email.split('@')[0] : a.phone ?? ''}`}
                       </button>
                     ))}
                   </div>
@@ -104,21 +104,21 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="card space-y-4">
           {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
-          {/* ---- Email / Phone toggle ---- */}
+          {/* ---- Phone / Email toggle — phone shown first as the primary method (see AuthenticatedUser/CreateUserDto's own either-or design, mirrored here) ---- */}
           <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
-            <button
-              type="button"
-              onClick={() => setLoginMode('email')}
-              className={`flex-1 rounded-md py-1.5 font-medium transition ${loginMode === 'email' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}
-            >
-              البريد الإلكتروني
-            </button>
             <button
               type="button"
               onClick={() => setLoginMode('phone')}
               className={`flex-1 rounded-md py-1.5 font-medium transition ${loginMode === 'phone' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}
             >
               رقم الهاتف
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginMode('email')}
+              className={`flex-1 rounded-md py-1.5 font-medium transition ${loginMode === 'email' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}
+            >
+              البريد الإلكتروني
             </button>
           </div>
 

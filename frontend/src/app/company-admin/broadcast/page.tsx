@@ -170,7 +170,7 @@ export default function BroadcastPage() {
               <option value="">اختر الشخص...</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.firstName} {u.lastName} ({u.email})
+                  {u.firstName} {u.lastName} ({u.phone ?? u.email ?? '—'})
                 </option>
               ))}
             </select>

@@ -8,7 +8,7 @@ import type { AppUser } from '@/lib/types';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { Loading } from '@/components/Loading';
 
-const emptyForm = { email: '', password: '', firstName: '', lastName: '', systemRole: 'WORKER' };
+const emptyForm = { email: '', phone: '', password: '', firstName: '', lastName: '', systemRole: 'WORKER' };
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -33,9 +33,20 @@ export default function UsersPage() {
     e.preventDefault();
     if (!user?.companyId) return;
     setFormError(null);
+
+    if (!form.email.trim() && !form.phone.trim()) {
+      setFormError('أدخل البريد الإلكتروني أو رقم الهاتف — أحدهما على الأقل مطلوب');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await usersApi.create(user.companyId, form);
+      await usersApi.create(user.companyId, {
+        ...form,
+        email: form.email.trim() || undefined,
+        phone: form.phone.trim() || undefined,
+        password: form.password.trim() || undefined,
+      });
       setForm(emptyForm);
       setShowForm(false);
       load();
@@ -70,9 +81,16 @@ export default function UsersPage() {
               <ErrorBanner message={formError} />
             </div>
           )}
+          <div className="md:col-span-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            رقم الهاتف هو وسيلة التسجيل الأساسية (يُستخدَم لتسجيل الدخول على تطبيق الموبايل) — البريد الإلكتروني اختياري إضافي. أدخل أحدهما على الأقل.
+          </div>
           <div>
-            <label className="label">البريد الإلكتروني</label>
-            <input type="email" required className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <label className="label">رقم الهاتف</label>
+            <input type="tel" className="input" placeholder="+9665XXXXXXXX" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">البريد الإلكتروني (اختياري)</label>
+            <input type="email" className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
           <div>
             <label className="label">كلمة المرور</label>
@@ -109,7 +127,7 @@ export default function UsersPage() {
             <thead className="border-b border-slate-200 bg-slate-50 text-right">
               <tr>
                 <th className="px-4 py-2">الاسم</th>
-                <th className="px-4 py-2">البريد</th>
+                <th className="px-4 py-2">الهاتف</th>
                 <th className="px-4 py-2">الدور</th>
                 <th className="px-4 py-2">الحالة</th>
                 <th className="px-4 py-2"></th>
@@ -119,7 +137,7 @@ export default function UsersPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-slate-100">
                   <td className="px-4 py-2">{u.firstName} {u.lastName}</td>
-                  <td className="px-4 py-2 text-slate-500">{u.email}</td>
+                  <td className="px-4 py-2 text-slate-500">{u.phone ?? u.email ?? '—'}</td>
                   <td className="px-4 py-2">{u.systemRole}</td>
                   <td className="px-4 py-2">
                     <span className={u.isActive ? 'text-green-600' : 'text-red-600'}>{u.isActive ? 'نشط' : 'معطّل'}</span>

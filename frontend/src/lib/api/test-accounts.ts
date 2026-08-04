@@ -3,7 +3,7 @@ import { api } from '../api-client';
 export interface TestAccount {
   id: string;
   label: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   role: string;
   companyName: string | null;

@@ -51,7 +51,7 @@ export interface CompanyDashboardStats {
 
 export interface AppUser {
   id: string;
-  email: string;
+  email: string | null;
   firstName: string;
   lastName: string;
   phone?: string | null;

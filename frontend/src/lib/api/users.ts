@@ -10,8 +10,9 @@ export const usersApi = {
   create: (
     companyId: string,
     data: {
-      email: string;
-      password: string;
+      email?: string;
+      phone?: string;
+      password?: string;
       firstName: string;
       lastName: string;
       systemRole?: string;
