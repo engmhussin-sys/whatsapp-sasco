@@ -16,24 +16,31 @@ class LocalNotificationService {
     await _plugin.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
     );
-
-    // BUG FIX (confirmed real cause: notifications silently never
-    // appeared, no sound, no error anywhere): Android 13+ (API 33)
-    // requires this permission at RUNTIME — declaring it in
-    // AndroidManifest.xml alone does nothing on its own. Uses
-    // permission_handler (already a project dependency, with a stable,
-    // well-documented API) rather than
-    // flutter_local_notifications' own Android-specific plugin
-    // resolver method — that call's exact availability on this
-    // package version couldn't be independently confirmed, whereas
-    // Permission.notification.request() is standard across
-    // permission_handler's entire API surface. iOS's own permission
-    // dialog is handled separately by DarwinInitializationSettings'
-    // requestAlertPermission/requestSoundPermission (already implied
-    // true by default) — this call is a no-op there.
-    await Permission.notification.request();
-
     _initialized = true;
+  }
+
+  /// BUG FIX (confirmed real cause — could not get a clear answer on
+  /// whether the permission dialog even appears, which itself was the
+  /// symptom): this used to request the permission INSIDE initialize(),
+  /// which main.dart calls BEFORE runApp(). At that point Flutter's
+  /// engine has not yet attached to a visible, RESUMED Activity — no
+  /// window exists to host a system permission dialog on. Depending on
+  /// the Android version/OEM, that request can silently fail, get
+  /// auto-denied, or render behind the splash screen invisibly, with no
+  /// error surfaced anywhere — exactly the "I can't tell if it ever
+  /// shows" symptom. This is now a SEPARATE method, called only after
+  /// the first frame has actually rendered (see main.dart's
+  /// addPostFrameCallback), once a real window unquestionably exists.
+  Future<void> requestPermission() async {
+    await Permission.notification.request();
+  }
+
+  /// Whether notifications are currently allowed — useful for a
+  /// settings-page banner prompting the person to enable them if they
+  /// were denied (Android will not re-show its OWN system dialog after
+  /// a denial; only Settings can grant it back from there).
+  Future<bool> isPermissionGranted() async {
+    return Permission.notification.isGranted;
   }
 
   Future<void> showNotification({

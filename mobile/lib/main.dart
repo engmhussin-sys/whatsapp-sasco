@@ -31,6 +31,13 @@ Future<void> main() async {
   // Phase 1 delivery (see mobile/README.md for the exact steps to add one).
   // NOTE: Firebase.initializeApp() would also be called here once a
   // google-services.json / GoogleService-Info.plist exists.
+  //
+  // initialize() itself (plugin/channel setup) is safe to run here,
+  // before runApp() — but the actual PERMISSION REQUEST is deliberately
+  // deferred to after the first frame renders (see addPostFrameCallback
+  // below): requesting it this early, before Flutter has attached to a
+  // visible window, is a confirmed real cause of the dialog silently
+  // failing to show on some Android versions/OEMs.
   await sl<LocalNotificationService>().initialize();
 
   runApp(
@@ -42,4 +49,8 @@ Future<void> main() async {
       child: const App(),
     ),
   );
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    sl<LocalNotificationService>().requestPermission();
+  });
 }
