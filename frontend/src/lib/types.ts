@@ -25,6 +25,11 @@ export interface Company {
   isActive: boolean;
   createdAt: string;
   subscription?: Subscription | null;
+  // Enterprise Platform pivot, Sprint 2 — see Company model in schema.prisma
+  orgUnitLabelSingularEn: string;
+  orgUnitLabelPluralEn: string;
+  orgUnitLabelSingularAr: string;
+  orgUnitLabelPluralAr: string;
 }
 
 export interface Subscription {
