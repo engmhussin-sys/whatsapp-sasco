@@ -8,6 +8,7 @@ class ConversationModel extends ConversationEntity {
     required super.members,
     super.lastMessagePreview,
     required super.updatedAt,
+    super.unreadCount,
   });
 
   factory ConversationModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +35,7 @@ class ConversationModel extends ConversationEntity {
       members: members,
       lastMessagePreview: preview,
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      unreadCount: json['unreadCount'] as int? ?? 0,
     );
   }
 

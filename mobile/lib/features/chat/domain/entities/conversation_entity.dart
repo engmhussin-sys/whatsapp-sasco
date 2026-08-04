@@ -23,6 +23,7 @@ class ConversationEntity extends Equatable {
   final List<ConversationMemberEntity> members;
   final String? lastMessagePreview;
   final DateTime updatedAt;
+  final int unreadCount;
 
   const ConversationEntity({
     required this.id,
@@ -31,6 +32,7 @@ class ConversationEntity extends Equatable {
     required this.members,
     this.lastMessagePreview,
     required this.updatedAt,
+    this.unreadCount = 0,
   });
 
   String displayName(String currentUserId) {
@@ -41,5 +43,5 @@ class ConversationEntity extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, type, title, members, lastMessagePreview, updatedAt];
+  List<Object?> get props => [id, type, title, members, lastMessagePreview, updatedAt, unreadCount];
 }

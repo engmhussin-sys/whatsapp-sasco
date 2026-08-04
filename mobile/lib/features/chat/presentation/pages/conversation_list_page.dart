@@ -158,7 +158,14 @@ class _ConversationCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white, border: Border.all(color: AppColors.divider), borderRadius: BorderRadius.circular(16)),
+        decoration: BoxDecoration(
+          // A subtle tint for unread conversations, on top of the bold
+          // text below — two independent signals rather than relying on
+          // just one, matching how WhatsApp itself marks unread chats.
+          color: conv.unreadCount > 0 ? AppColors.brandLight.withValues(alpha: 0.25) : Colors.white,
+          border: Border.all(color: AppColors.divider),
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Row(
           children: [
             CircleAvatar(
@@ -179,13 +186,33 @@ class _ConversationCard extends StatelessWidget {
                     conv.lastMessagePreview ?? 'لا رسائل بعد',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: conv.unreadCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
+                      fontWeight: conv.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(_relativeTime(conv.updatedAt), style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(_relativeTime(conv.updatedAt), style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                if (conv.unreadCount > 0) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(color: AppColors.brand, borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      conv.unreadCount > 99 ? '99+' : '${conv.unreadCount}',
+                      style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),

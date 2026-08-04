@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ConversationType, JoinRequestStatus, NotificationType, SystemRole } from '@prisma/client';
+import { ConversationType, JoinRequestStatus, MessageStatus, NotificationType, SystemRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ChatPolicyService } from '../chat-policy/chat-policy.service';
 import { CreateConversationDto } from './dto/conversations.dto';
@@ -200,7 +200,7 @@ export class ConversationsService {
   }
 
   async findAllForUser(companyId: string, userId: string, includeArchived = false) {
-    return this.prisma.conversation.findMany({
+    const conversations = await this.prisma.conversation.findMany({
       where: {
         companyId,
         // Group 4 (WhatsApp parity): archiving is per-member — this
@@ -214,6 +214,27 @@ export class ConversationsService {
       },
       orderBy: { updatedAt: 'desc' },
     });
+
+    // BUG FIX (confirmed real gap): unreadCount didn't exist ANYWHERE in
+    // the stack — a person could get a notification with the sender's
+    // name, open the app, and have no way to tell which conversation in
+    // the list it was for, since every conversation looked identical
+    // whether read or not. One query for all conversations at once
+    // (not N+1 per-conversation lookups), then a cheap in-memory
+    // grouping pass since Prisma's groupBy operates on the receipt's
+    // own columns and can't group by a related message's
+    // conversationId directly.
+    const unreadReceipts = await this.prisma.messageReceipt.findMany({
+      where: { userId, status: { not: MessageStatus.READ }, message: { conversationId: { in: conversations.map((c: { id: string }) => c.id) } } },
+      select: { message: { select: { conversationId: true } } },
+    });
+    const countMap = new Map<string, number>();
+    for (const r of unreadReceipts as { message: { conversationId: string } }[]) {
+      const id = r.message.conversationId;
+      countMap.set(id, (countMap.get(id) ?? 0) + 1);
+    }
+
+    return conversations.map((c: { id: string }) => ({ ...c, unreadCount: countMap.get(c.id) ?? 0 }));
   }
 
   async findOne(companyId: string, userId: string, id: string) {

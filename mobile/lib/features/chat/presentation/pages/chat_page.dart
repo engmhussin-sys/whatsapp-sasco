@@ -85,7 +85,21 @@ class _ChatViewState extends State<_ChatView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // BUG FIX (confirmed real gap): ChatBloc already set state.errorMessage
+    // on every failed send (including a failed reply), but NOTHING in
+    // this page ever displayed it — a rejected/failed send looked
+    // identical to a successful one: input clears, nothing else happens,
+    // no error, no confirmation. Whatever the underlying reason (a chat
+    // policy rule, a network blip, anything), the person had no way to
+    // know it failed at all.
+    return BlocListener<ChatBloc, ChatState>(
+      listenWhen: (previous, current) => current.errorMessage != null && current.errorMessage != previous.errorMessage,
+      listener: (context, state) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(state.errorMessage!), backgroundColor: AppColors.danger),
+        );
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: BlocBuilder<ChatBloc, ChatState>(
           buildWhen: (p, c) => p.isPeerTyping != c.isPeerTyping || p.isSocketConnected != c.isSocketConnected,
@@ -446,6 +460,7 @@ class _ChatViewState extends State<_ChatView> {
           ),
         ],
       ),
+    ),
     );
   }
 
