@@ -17,8 +17,8 @@ export const messagesApi = {
       `/companies/${companyId}/conversations/${conversationId}/messages${cursor ? `?cursor=${cursor}` : ''}`,
     ),
 
-  sendText: (companyId: string, conversationId: string, text: string) =>
-    api.post<Message>(`/companies/${companyId}/conversations/${conversationId}/messages/text`, { text }),
+  sendText: (companyId: string, conversationId: string, text: string, replyToId?: string) =>
+    api.post<Message>(`/companies/${companyId}/conversations/${conversationId}/messages/text`, { text, replyToId }),
 
   sendVoice: (companyId: string, conversationId: string, audioBlob: Blob, durationMs?: number) => {
     const form = new FormData();

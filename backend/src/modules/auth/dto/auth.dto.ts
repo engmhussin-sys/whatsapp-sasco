@@ -40,8 +40,16 @@ export class ChangePasswordDto {
 }
 
 export class RequestPasswordResetDto {
+  // BUG FIX (real, known gap — a phone-only worker had no way to
+  // reset a forgotten password at all): mirrors LoginDto's exact
+  // either-or pattern rather than hard-requiring email.
+  @ValidateIf((o) => !o.phone)
   @IsEmail()
-  email: string;
+  email?: string;
+
+  @ValidateIf((o) => !o.email)
+  @IsString()
+  phone?: string;
 }
 
 export class ResetPasswordDto {

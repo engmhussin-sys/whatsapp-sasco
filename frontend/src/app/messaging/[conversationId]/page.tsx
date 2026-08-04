@@ -139,16 +139,24 @@ export default function ChatPage() {
     if (!text.trim()) return;
     setSending(true);
     setError(null);
+    const toSend = text.trim();
     try {
-      // Sent over the socket — ChatGateway persists it AND broadcasts
-      // "message:new" to every room member (including this tab), so we
-      // don't optimistically append here to avoid duplicates; onNewMessage
-      // above handles insertion once the server echoes it back.
-      chatSocket.sendMessage(conversationId, text.trim());
+      // BUG FIX (confirmed real gap): this used to fire-and-forget over
+      // the socket (chatSocket.sendMessage), which has NO server
+      // acknowledgment and NO error surfacing at all — a rejected send
+      // (a chat policy rule, any backend validation failure) looked
+      // completely identical to a successful one: input clears,
+      // nothing else happens. Switched to the same REST endpoint
+      // sendVoice already used successfully, which throws a real,
+      // catchable error on failure. The message still appears via the
+      // exact same socket message:new broadcast either way (see
+      // onNewMessage above) — REST vs socket-originated sends both
+      // trigger the identical server-side broadcast now.
+      await messagesApi.sendText(user!.companyId!, conversationId, toSend);
       setText('');
       chatSocket.sendTyping(conversationId, false);
-    } catch {
-      setError('تعذّر إرسال الرسالة');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'تعذّر إرسال الرسالة');
     } finally {
       setSending(false);
     }

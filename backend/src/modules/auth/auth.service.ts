@@ -221,13 +221,15 @@ export class AuthService {
     });
   }
 
-  async requestPasswordReset(email: string) {
-    const user = await this.prisma.user.findFirst({ where: { email, isActive: true } });
+  async requestPasswordReset(identifier: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { OR: [{ email: identifier }, { phone: identifier }], isActive: true },
+    });
 
-    // SECURITY: never reveal whether an email exists — always return
+    // SECURITY: never reveal whether the account exists — always return
     // the same generic result regardless of whether a user was found.
     if (!user) {
-      return { message: 'If an account with this email exists, a reset link has been sent.' };
+      return { message: 'إن كان الحساب موجودًا، فقد أُرسِل رابط إعادة التعيين.' };
     }
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -241,15 +243,17 @@ export class AuthService {
       },
     });
 
-    // NOTE (Phase 1 limitation): no transactional email provider is wired
-    // up yet — this mirrors the same "interface ready, provider stubbed"
-    // pattern used for Voice Processing in Phase 2 planning. For now the
-    // raw token is logged server-side so the flow is fully testable
-    // end-to-end; wiring a real email provider (SendGrid/SES/etc.) is a
-    // drop-in replacement of this one log line, nothing else changes.
-    this.logger.warn(`[DEV ONLY — no email provider configured] Password reset token for ${email}: ${rawToken}`);
+    // NOTE (Phase 1 limitation): no transactional email/SMS provider is
+    // wired up yet — this mirrors the same "interface ready, provider
+    // stubbed" pattern used for Voice Processing in Phase 2 planning.
+    // For now the raw token is logged server-side so the flow is fully
+    // testable end-to-end; wiring a real provider (SendGrid/SES for
+    // email, Twilio/similar for SMS) is a drop-in replacement of this
+    // one log line, nothing else changes — and now it correctly covers
+    // BOTH delivery paths, not just email.
+    this.logger.warn(`[DEV ONLY — no email/SMS provider configured] Password reset token for ${identifier}: ${rawToken}`);
 
-    return { message: 'If an account with this email exists, a reset link has been sent.' };
+    return { message: 'إن كان الحساب موجودًا، فقد أُرسِل رابط إعادة التعيين.' };
   }
 
   async resetPassword(rawToken: string, newPassword: string) {

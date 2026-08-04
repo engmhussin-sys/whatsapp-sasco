@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api, ApiError } from '@/lib/api-client';
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -14,7 +14,12 @@ export default function ForgotPasswordPage() {
     setSubmitting(true);
     setResult(null);
     try {
-      const res = await api.post<{ message: string }>('/auth/forgot-password', { email }, { skipAuth: true });
+      // Same either-or identifier the login page and CreateUserDto
+      // already use — a simple heuristic (contains '@' → email, else
+      // phone) avoids forcing a mode toggle for this one field.
+      const trimmed = identifier.trim();
+      const payload = trimmed.includes('@') ? { email: trimmed } : { phone: trimmed };
+      const res = await api.post<{ message: string }>('/auth/forgot-password', payload, { skipAuth: true });
       setResult({ ok: true, message: res.message });
     } catch (err) {
       setResult({ ok: false, message: err instanceof ApiError ? err.message : 'تعذّر الاتصال بالخادم' });
@@ -28,7 +33,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <h1 className="text-xl font-bold text-brand-700">استعادة كلمة المرور</h1>
-          <p className="mt-1 text-sm text-slate-500">أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين</p>
+          <p className="mt-1 text-sm text-slate-500">أدخل بريدك الإلكتروني أو رقم هاتفك وسنرسل لك رابط إعادة التعيين</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
@@ -43,15 +48,15 @@ export default function ForgotPasswordPage() {
           )}
 
           <div>
-            <label className="label" htmlFor="email">البريد الإلكتروني</label>
+            <label className="label" htmlFor="identifier">البريد الإلكتروني أو رقم الهاتف</label>
             <input
-              id="email"
-              type="email"
+              id="identifier"
+              type="text"
               required
               className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="you@company.com أو +9665XXXXXXXX"
             />
           </div>
 

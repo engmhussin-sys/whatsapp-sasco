@@ -12,6 +12,7 @@ describe('AuthService', () => {
   let prisma: {
     user: any;
     refreshToken: any;
+    passwordResetToken: any;
   };
 
   const mockUser = {
@@ -39,6 +40,9 @@ describe('AuthService', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn(),
+      },
+      passwordResetToken: {
+        create: jest.fn().mockResolvedValue({}),
       },
     };
 
@@ -227,6 +231,33 @@ describe('AuthService', () => {
         where: { userId: mockUser.id, revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
+    });
+  });
+
+  describe('requestPasswordReset — phone-inclusive lookup', () => {
+    it('finds the account by EITHER email or phone in a single OR query, not email exclusively', async () => {
+      await authService.requestPasswordReset('+966501234567');
+
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { OR: [{ email: '+966501234567' }, { phone: '+966501234567' }], isActive: true },
+      });
+    });
+
+    it('creates a reset token when the identifier matches (regardless of whether it was an email or a phone)', async () => {
+      await authService.requestPasswordReset('+966501234567');
+
+      expect(prisma.passwordResetToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ userId: mockUser.id }) }),
+      );
+    });
+
+    it('returns the identical generic message whether or not an account was found — never leaks existence', async () => {
+      const foundResult = await authService.requestPasswordReset('+966501234567');
+
+      prisma.user.findFirst = jest.fn().mockResolvedValue(null);
+      const notFoundResult = await authService.requestPasswordReset('nobody@nowhere.com');
+
+      expect(foundResult.message).toBe(notFoundResult.message);
     });
   });
 });
