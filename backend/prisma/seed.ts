@@ -8,7 +8,7 @@
  *
  * Run with: npm run prisma:seed  (see package.json)
  */
-import { PrismaClient, SystemRole } from '@prisma/client';
+import { PrismaClient, SystemRole, ModuleCode } from '@prisma/client';
 import { TaskFieldType } from '../src/modules/task-engine/task-field-type.enum';
 import * as bcrypt from 'bcrypt';
 
@@ -18,6 +18,41 @@ const DEMO_PASSWORD = 'Demo@12345'; // same for every seeded account — change 
 
 async function hash(plain: string) {
   return bcrypt.hash(plain, 12);
+}
+
+/** Every module code that already gates real, shipped functionality —
+ * kept as an explicit list here (not "everything non-comingSoon in the
+ * catalog") so this backfill's behavior doesn't silently change if the
+ * catalog file is edited; a new LIVE module must be added to BOTH
+ * places deliberately. */
+const LIVE_MODULE_CODES: ModuleCode[] = [
+  ModuleCode.CHAT,
+  ModuleCode.TASKS,
+  ModuleCode.APPROVALS,
+  ModuleCode.SHIFTS,
+  ModuleCode.FUEL_REQUESTS,
+  ModuleCode.SAFETY,
+  ModuleCode.BROADCAST,
+  ModuleCode.DIRECTORY,
+  ModuleCode.REPORTS,
+];
+
+async function backfillLiveModulesForAllCompanies() {
+  const companies = await prisma.company.findMany({ select: { id: true } });
+  for (const { id: companyId } of companies) {
+    for (const moduleCode of LIVE_MODULE_CODES) {
+      await prisma.companyModule.upsert({
+        where: { companyId_moduleCode: { companyId, moduleCode } },
+        create: { companyId, moduleCode, isActive: true },
+        // Idempotent on re-run: an ALREADY-active row is left untouched
+        // (so a company that deliberately deactivated a module doesn't
+        // get it silently re-activated every deploy); only a MISSING
+        // row gets created.
+        update: {},
+      });
+    }
+  }
+  console.log(`  Module backfill: ensured ${LIVE_MODULE_CODES.length} live modules across ${companies.length} companies`);
 }
 
 async function main() {
@@ -482,6 +517,16 @@ async function main() {
       quickTestAccounts.push({ label: `${r.role} — ${def.name}`, email, phone, role: r.role });
     }
   }
+
+  // ---- Sprint 1 of the Enterprise Platform pivot: Module Marketplace ----
+  // Backfills an active CompanyModule row for every LIVE module, for
+  // EVERY company already in the database — not just ones this seed
+  // script itself creates. This is what keeps ModuleGuard from locking
+  // the real SASCO production company (and anyone else) out of features
+  // they already use the moment this deploys; RUN_SEED=true means this
+  // runs on every Railway deploy, so it's the correct place for a
+  // backfill that must reach production data, not just demo data.
+  await backfillLiveModulesForAllCompanies();
 
   console.log('\nSeed complete. Demo accounts (all use the same password):');
   console.log(`  Password for every account below: ${DEMO_PASSWORD}\n`);

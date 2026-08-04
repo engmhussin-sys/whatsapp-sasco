@@ -34,10 +34,12 @@ import { BroadcastModule } from './modules/broadcast/broadcast.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
 import { SafetyModule } from './modules/safety/safety.module';
+import { ModulesCatalogModule } from './modules/modules-catalog/modules-catalog.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
+import { ModuleGuard } from './common/guards/module.guard';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -75,13 +77,15 @@ import { HealthController } from './health.controller';
     NotificationsModule,
     SupportTicketsModule,
     SafetyModule,
+    ModulesCatalogModule,
   ],
   controllers: [HealthController],
   providers: [
-    // Global guard order matters: authenticate -> resolve tenant -> check role/permission
+    // Global guard order matters: authenticate -> resolve tenant -> check role/permission -> check module activation
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: TenantGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ModuleGuard },
   ],
 })
 export class AppModule {}

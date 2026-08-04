@@ -123,6 +123,9 @@ model Company {
   chatPolicyRules  ChatPolicyRule[]
   dictionaryTerms  CompanyDictionaryTerm[]
 
+  // Sprint 1 of the Enterprise Platform pivot — Module Marketplace
+  modules CompanyModule[]
+
   @@index([slug])
   @@map("companies")
 }
@@ -136,7 +139,7 @@ model User {
   companyId         String?    // null only for SUPER_ADMIN (platform-level user)
   company           Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  email             String
+  email             String?
   phone             String?
   passwordHash      String
   firstName         String
@@ -1802,4 +1805,62 @@ model SosAlert {
 
   @@index([companyId])
   @@map("sos_alerts")
+}
+
+// ============================================================================
+// ENTERPRISE PLATFORM PIVOT — SPRINT 1: MODULE MARKETPLACE
+// ----------------------------------------------------------------------------
+// The platform vision (see PROJECT_VISION.md) is a generic, multi-industry
+// workforce management SaaS, not a fuel-station-specific product. Every
+// existing feature becomes a MODULE a company can have active or inactive,
+// rather than something every company automatically gets. ModuleCode
+// includes both LIVE modules (gate real functionality today, via
+// ModuleGuard) and ROADMAP modules (registered in the catalog as
+// "comingSoon" for sprints 5-10, so the marketplace vision is visible
+// end-to-end from sprint 1 even before each one is actually built).
+// ============================================================================
+
+enum ModuleCode {
+  // ---- LIVE (already-built functionality, now gated by this system) ----
+  CHAT
+  TASKS
+  APPROVALS
+  SHIFTS
+  FUEL_REQUESTS // Sprint 5 will generalize this into WORK_ORDERS
+  SAFETY
+  BROADCAST
+  DIRECTORY
+  REPORTS
+
+  // ---- ROADMAP (catalog-only for now; ModulesCatalogService.isComingSoon()
+  //      is the single source of truth for which ones these are) ----
+  ATTENDANCE
+  ASSET_MANAGEMENT
+  FLEET_MANAGEMENT
+  VISITOR_MANAGEMENT
+  TRAINING
+  COMPLIANCE
+  MAINTENANCE
+  CRM
+  FORM_BUILDER
+}
+
+/// One row per (company, module) — whether that company currently has that
+/// module active. Absence of a row for a LIVE module is treated as
+/// "inactive" by ModuleGuard (fail-closed), which is why the seed/migration
+/// backfills a row for every existing company's current feature set (see
+/// migration-backfill-company-modules.ts) — without that, every existing
+/// tenant would suddenly lose access to features they already use.
+model CompanyModule {
+  id            String     @id @default(uuid())
+  companyId     String
+  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  moduleCode    ModuleCode
+  isActive      Boolean    @default(true)
+  activatedAt   DateTime   @default(now())
+  activatedById String?
+
+  @@unique([companyId, moduleCode])
+  @@index([companyId])
+  @@map("company_modules")
 }
