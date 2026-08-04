@@ -28,7 +28,7 @@ class ChatPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<ChatBloc>(param1: currentUser.companyId, param2: conversationId)..add(const ChatStarted()),
-      child: _ChatView(currentUserId: currentUser.id, myLang: currentUser.preferredLanguage),
+      child: _ChatView(currentUserId: currentUser.id, myLang: currentUser.preferredLanguage, systemRole: currentUser.systemRole),
     );
   }
 }
@@ -36,7 +36,8 @@ class ChatPage extends StatelessWidget {
 class _ChatView extends StatefulWidget {
   final String currentUserId;
   final String myLang;
-  const _ChatView({required this.currentUserId, required this.myLang});
+  final SystemRole systemRole;
+  const _ChatView({required this.currentUserId, required this.myLang, required this.systemRole});
 
   @override
   State<_ChatView> createState() => _ChatViewState();
@@ -128,13 +129,13 @@ class _ChatViewState extends State<_ChatView> {
           // found" error from the backend rather than crashing, an
           // acceptable trade-off against threading conversation-type
           // through ChatBloc just for this menu item's visibility.
-          if (widget.currentUser.systemRole == SystemRole.companyAdmin ||
-              widget.currentUser.systemRole == SystemRole.teamLead ||
-              widget.currentUser.systemRole == SystemRole.superAdmin)
+          if (widget.systemRole == SystemRole.companyAdmin ||
+              widget.systemRole == SystemRole.teamLead ||
+              widget.systemRole == SystemRole.superAdmin)
             IconButton(
               icon: const Icon(Icons.person_add_alt_1_rounded),
               tooltip: 'طلبات الانضمام',
-              onPressed: () => context.push(RouteNames.groupJoinRequestsPath(widget.conversationId)),
+              onPressed: () => context.push(RouteNames.groupJoinRequestsPath(context.read<ChatBloc>().conversationId)),
             ),
           BlocBuilder<ChatBloc, ChatState>(
             buildWhen: (p, c) => p.isRetranslating != c.isRetranslating,
