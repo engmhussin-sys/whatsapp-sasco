@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { MessageType } from '@prisma/client';
 import {
   SPEECH_TO_TEXT_PROVIDER,
@@ -34,6 +34,8 @@ const SYSTEM_MESSAGE_TEMPLATES: Record<string, Record<string, string>> = {
 
 @Injectable()
 export class VoiceProcessingService {
+  private readonly logger = new Logger(VoiceProcessingService.name);
+
   constructor(
     @Inject(SPEECH_TO_TEXT_PROVIDER) private stt: SpeechToTextProvider,
     @Inject(TRANSLATION_PROVIDER) private translation: TranslationProvider,
@@ -54,13 +56,18 @@ export class VoiceProcessingService {
    * configured) — intentionally left as a ready-to-call unit.
    */
   async processVoiceMessage(messageId: string) {
+    this.logger.log(`processVoiceMessage(${messageId}) started`);
     const message = await this.prisma.message.findUnique({
       where: { id: messageId },
       include: { conversation: { include: { company: { include: { supportedLanguages: true } } } } },
     });
-    if (!message || !message.audioUrl) return;
+    if (!message || !message.audioUrl) {
+      this.logger.warn(`processVoiceMessage(${messageId}): message not found or has no audioUrl — aborting`);
+      return;
+    }
 
     const transcription = await this.stt.transcribe({ audioUrl: message.audioUrl, mimeType: 'audio/webm' });
+    this.logger.log(`processVoiceMessage(${messageId}): transcription received, persisting`);
 
     await this.prisma.message.update({
       where: { id: messageId },
@@ -68,6 +75,7 @@ export class VoiceProcessingService {
     });
 
     await this.fanOutTranslations(messageId, transcription.text, transcription.languageCode);
+    this.logger.log(`processVoiceMessage(${messageId}): translations fanned out`);
 
     // Live update — without this, the voice message bubble would show
     // "transcribing…" (or nothing) forever until the conversation is
@@ -87,6 +95,9 @@ export class VoiceProcessingService {
         },
       });
       this.chatGateway.server.to(`conversation:${message.conversationId}`).emit('message:translated', full);
+      this.logger.log(`processVoiceMessage(${messageId}): message:translated broadcast — done`);
+    } else {
+      this.logger.warn(`processVoiceMessage(${messageId}): ChatGateway not available — transcript saved but NOT broadcast live`);
     }
   }
 

@@ -40,7 +40,7 @@ describe('WhisperSpeechToTextProvider', () => {
 
     const result = await provider.transcribe({ audioUrl: 'https://cdn.example.com/clip.webm', mimeType: 'audio/webm' });
 
-    expect(global.fetch).toHaveBeenCalledWith('https://cdn.example.com/clip.webm');
+    expect(global.fetch).toHaveBeenCalledWith('https://cdn.example.com/clip.webm', expect.objectContaining({ signal: expect.anything() }));
     expect(result.text).toBe('Hello there');
   });
 
