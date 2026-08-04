@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, forwardRef, ForbiddenException, Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { MessageStatus, MessageType, AttachmentKind } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -8,6 +8,7 @@ import { TranslationEngineService } from '../translation-engine/translation-engi
 import { LanguageDetectorService } from '../translation-engine/language-detector.service';
 import { TokenWalletService } from '../billing-engine/token-wallet.service';
 import { UsageEngineService } from '../billing-engine/usage-engine.service';
+import { ChatGateway } from '../websocket/chat.gateway';
 
 @Injectable()
 export class MessagesService {
@@ -21,6 +22,23 @@ export class MessagesService {
     private languageDetector: LanguageDetectorService,
     private tokenWallet: TokenWalletService,
     private usageEngine: UsageEngineService,
+    // ROOT CAUSE FIX — confirmed via a full code-path audit, not
+    // speculation: the mobile app sends every text message through
+    // this REST method (ChatRemoteDataSource.sendTextMessage ->
+    // POST .../messages/text), NEVER through the WebSocket's
+    // "sendMessage" event (grepped the entire mobile codebase —
+    // WebSocketClient.sendMessage() has zero callers). Only
+    // ChatGateway.onSendMessage(), the SOCKET path, ever emitted
+    // message:new/message:notification. Every single real-time symptom
+    // reported across this project — notifications never arriving, the
+    // chat list never updating, messages requiring a manual reopen —
+    // traces back to this one gap: the actually-used send path never
+    // broadcast anything at all. @Optional() so this service still
+    // works (message creation/translation/etc. all still succeed) in
+    // any test or future context where the gateway isn't wired up;
+    // real-time delivery is an enhancement layered on top of a
+    // REST API that must work on its own regardless.
+    @Optional() @Inject(forwardRef(() => ChatGateway)) private chatGateway?: ChatGateway,
   ) {}
 
   /**
@@ -159,7 +177,45 @@ export class MessagesService {
       this.logger.warn(`Background translation fan-out failed for message ${message.id}: ${(err as Error).message}`),
     );
 
+    // ROOT CAUSE FIX — see the constructor's chatGateway doc comment
+    // for the full story. Mirrors ChatGateway.onSendMessage()'s own
+    // broadcast exactly, so REST-originated and socket-originated sends
+    // behave identically to every recipient. Never awaited into the
+    // response — a slow/stuck socket emit must never delay the HTTP
+    // reply to the sender.
+    this.broadcastNewMessage(companyId, conversationId, senderId, message.id, dto.text).catch((err) =>
+      this.logger.warn(`Realtime broadcast failed for message ${message.id}: ${(err as Error).message}`),
+    );
+
     return this.findOne(companyId, senderId, message.id);
+  }
+
+  private async broadcastNewMessage(companyId: string, conversationId: string, senderId: string, messageId: string, text: string) {
+    if (!this.chatGateway?.server) return; // gateway not wired (e.g. some test/CLI contexts) — REST call itself already succeeded regardless
+
+    const fullMessage = await this.findOne(companyId, senderId, messageId);
+    this.chatGateway.server.to(`conversation:${conversationId}`).emit('message:new', fullMessage);
+
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId, userId: { not: senderId } },
+      select: { userId: true },
+    });
+    const sender = await this.prisma.user.findUnique({ where: { id: senderId }, select: { firstName: true, lastName: true } });
+    const senderName = sender ? `${sender.firstName} ${sender.lastName}` : '';
+    const preview = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+
+    for (const m of members) {
+      this.chatGateway.server.to(`user:${m.userId}`).emit('message:notification', {
+        conversationId,
+        messageId,
+        senderName,
+        preview,
+      });
+      const socketsInRoom = await this.chatGateway.server.in(`conversation:${conversationId}`).fetchSockets();
+      if (socketsInRoom.length > 0) {
+        await this.markDelivered(messageId, m.userId);
+      }
+    }
   }
 
   /** Voice message: audio buffer is uploaded, stored, and referenced as the message's primary clip. */

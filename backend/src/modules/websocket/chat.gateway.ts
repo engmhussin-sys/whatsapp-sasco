@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { forwardRef, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -46,7 +46,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwt: JwtService,
     private config: ConfigService,
     private prisma: PrismaService,
-    private messagesService: MessagesService,
+    @Inject(forwardRef(() => MessagesService)) private messagesService: MessagesService,
     private conversationsService: ConversationsService,
   ) {}
 
@@ -109,42 +109,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     if (!client.user?.companyId) return { error: 'Unauthorized' };
 
+    // MessagesService.sendText() now broadcasts message:new/
+    // message:notification internally (see its own doc comment — this
+    // used to be duplicated here AND there, which would have caused a
+    // recipient to see every message twice the moment this socket path
+    // ever actually got used instead of the REST one).
     const message = await this.messagesService.sendText(client.user.companyId, data.conversationId, client.user.sub, {
       text: data.text,
     });
-
-    // Fan out to everyone currently subscribed to the conversation room,
-    // and separately to each member's personal room so devices that
-    // haven't opened this specific conversation still get a notification.
-    this.server.to(`conversation:${data.conversationId}`).emit('message:new', message);
-
-    const members = await this.prisma.conversationMember.findMany({
-      where: { conversationId: data.conversationId },
-      select: { userId: true },
-    });
-    // Enriches the notification with a sender name + short preview —
-    // cheap enough (one extra small query) that it's worth doing here
-    // rather than shipping a bare {conversationId, messageId} payload
-    // that would force every recipient device to do its own fetch just
-    // to render a useful "Ahmed: hello" notification.
-    const sender = await this.prisma.user.findUnique({ where: { id: client.user.sub }, select: { firstName: true, lastName: true } });
-    const senderName = sender ? `${sender.firstName} ${sender.lastName}` : '';
-    const preview = data.text.length > 80 ? `${data.text.slice(0, 80)}…` : data.text;
-
-    for (const m of members) {
-      if (m.userId === client.user.sub) continue;
-      this.server.to(`user:${m.userId}`).emit('message:notification', {
-        conversationId: data.conversationId,
-        messageId: message.id,
-        senderName,
-        preview,
-      });
-      // Best-effort: mark delivered if the recipient has an active socket in that room.
-      const room = this.server.sockets.adapter.rooms.get(`conversation:${data.conversationId}`);
-      if (room && room.size > 0) {
-        await this.messagesService.markDelivered(message.id, m.userId);
-      }
-    }
 
     return { ok: true, messageId: message.id };
   }
