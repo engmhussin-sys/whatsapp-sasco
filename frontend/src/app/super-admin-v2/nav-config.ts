@@ -31,6 +31,11 @@ export const superAdminNavGroups: DsNavGroup[] = [
     items: [{ id: 'audit', href: '/super-admin-v2/audit-logs', label: 'سجلّ الأحداث' }],
   },
   {
+    id: 'operations',
+    label: 'العمليات',
+    items: [{ id: 'forms', href: '/super-admin-v2/forms', label: 'باني النماذج' }],
+  },
+  {
     id: 'support',
     label: 'الدعم',
     items: [{ id: 'support', href: '/super-admin/support', label: 'تذاكر الدعم' }],
