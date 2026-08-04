@@ -115,6 +115,7 @@ export interface Message {
   translations?: MessageTranslation[];
   audioUrl?: string | null;
   createdAt: string;
+  replyTo?: { id: string; originalText: string | null; senderId: string; sender: { firstName: string; lastName: string } } | null;
 }
 
 export interface TaskTemplate {

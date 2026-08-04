@@ -20,6 +20,7 @@ export default function ChatPage() {
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -152,8 +153,9 @@ export default function ChatPage() {
       // exact same socket message:new broadcast either way (see
       // onNewMessage above) — REST vs socket-originated sends both
       // trigger the identical server-side broadcast now.
-      await messagesApi.sendText(user!.companyId!, conversationId, toSend);
+      await messagesApi.sendText(user!.companyId!, conversationId, toSend, replyTarget?.id);
       setText('');
+      setReplyTarget(null);
       chatSocket.sendTyping(conversationId, false);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'تعذّر إرسال الرسالة');
@@ -235,8 +237,33 @@ export default function ChatPage() {
             const translated = isTranslatedFor(m, myLang);
             const missing = translationMissingFor(m, myLang);
             return (
-              <div key={m.id} className={`flex ${mine ? 'justify-start' : 'justify-end'}`}>
+              <div key={m.id} className={`group flex items-start gap-1.5 ${mine ? 'justify-start' : 'justify-end'}`}>
+                {mine && (
+                  <button
+                    onClick={() => setReplyTarget(m)}
+                    className="mt-2 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    title="الرد على هذه الرسالة"
+                  >
+                    <ReplyIcon />
+                  </button>
+                )}
                 <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm ${mine ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-800'}`}>
+                  {/* BUG FIX (confirmed real gap): the dashboard had no
+                      reply-to-message feature at all — not even a way to
+                      SEND a reply (the socket path this used to run on
+                      had no replyToId parameter), let alone display one.
+                      Mirrors the same quoted-preview pattern mobile
+                      already has. */}
+                  {m.replyTo && (
+                    <div
+                      className={`mb-1.5 rounded-lg border-r-2 px-2 py-1 text-xs ${
+                        mine ? 'border-brand-200 bg-brand-500/30 text-brand-50' : 'border-slate-400 bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <p className="font-semibold">{m.replyTo.sender.firstName} {m.replyTo.sender.lastName}</p>
+                      <p className="truncate">{m.replyTo.originalText ?? 'رسالة'}</p>
+                    </div>
+                  )}
                   {m.type === 'VOICE' && m.audioUrl ? (
                     <audio controls src={`${ORIGIN}${m.audioUrl}`} className="max-w-full" />
                   ) : (
@@ -262,6 +289,15 @@ export default function ChatPage() {
                     {mine && ` · ${statusLabel(m.status)}`}
                   </p>
                 </div>
+                {!mine && (
+                  <button
+                    onClick={() => setReplyTarget(m)}
+                    className="mt-2 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    title="الرد على هذه الرسالة"
+                  >
+                    <ReplyIcon />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -269,6 +305,20 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
       </div>
+
+      {replyTarget && (
+        <div className="flex items-center justify-between rounded-t-lg border-t border-x border-brand-200 bg-brand-50 px-3 py-2 text-xs">
+          <div className="min-w-0">
+            <p className="font-semibold text-brand-700">
+              الرد على {replyTarget.sender?.firstName ?? ''} {replyTarget.sender?.lastName ?? ''}
+            </p>
+            <p className="truncate text-slate-600">{replyTarget.originalText ?? 'رسالة'}</p>
+          </div>
+          <button onClick={() => setReplyTarget(null)} className="shrink-0 px-2 text-slate-400 hover:text-slate-700" title="إلغاء الرد">
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 border-t border-slate-200 pt-3">
         <button
@@ -297,6 +347,15 @@ function statusLabel(status: Message['status']) {
   if (status === 'READ') return 'قُرئت';
   if (status === 'DELIVERED') return 'وصلت';
   return 'أُرسلت';
+}
+
+function ReplyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400 hover:text-brand-600">
+      <path d="M9 17l-5-5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 12h10a6 6 0 0 1 6 6v1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 function formatLastSeen(iso: string | null): string {
