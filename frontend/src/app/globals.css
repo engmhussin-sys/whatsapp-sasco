@@ -32,3 +32,81 @@ body {
   @apply mb-1.5 block text-sm font-medium text-ink-700;
   @apply dark:text-ink-300;
 }
+
+/* ---- Sprint 2: adopted design system utilities ---------------------------
+   Additive only — nothing above this line is touched. New Super Admin
+   screens (sprint 3+) use these; existing pages are unaffected. */
+
+/* Numerals (quantities, dates, IDs) stay LTR and visually isolated even
+   inside an RTL page — without this, values like "2026-08-04" or "+9%"
+   render with their character order reversed. Matches the design
+   handoff's own `.num` class exactly. */
+.num {
+  font-family: 'Space Grotesk', 'Rubik', sans-serif;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+@keyframes dsFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes dsSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes dsPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes dsPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+@keyframes dsGrow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.ds-fade {
+  animation: dsFade 0.32s ease both;
+}
+.ds-slide {
+  animation: dsSlide 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.ds-pop {
+  animation: dsPop 0.2s ease both;
+}
+.ds-pulse {
+  animation: dsPulse 2.2s ease-in-out infinite;
+}
+.ds-grow {
+  transform-origin: bottom;
+  animation: dsGrow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
