@@ -22,12 +22,13 @@ export const superAdminNavGroups: DsNavGroup[] = [
     items: [
       { id: 'plans', href: '/super-admin/plans', label: 'الخطط' },
       { id: 'coupons', href: '/super-admin/coupons', label: 'القسائم' },
+      { id: 'modules', href: '/super-admin-v2/modules', label: 'متجر الوحدات' },
     ],
   },
   {
     id: 'monitoring',
     label: 'المراقبة',
-    items: [{ id: 'audit', href: '/super-admin/audit-logs', label: 'سجلّ الأحداث' }],
+    items: [{ id: 'audit', href: '/super-admin-v2/audit-logs', label: 'سجلّ الأحداث' }],
   },
   {
     id: 'support',

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { CommandPalette } from './CommandPalette';
 
 export interface DsNavLeaf {
   id: string;
@@ -79,8 +80,11 @@ export function DsShell({
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
+  const commandItems = groups.flatMap((g) => g.items.map((item) => ({ label: item.label, href: item.href, keywords: g.label })));
+
   return (
     <div dir="rtl" className="flex min-h-screen bg-ds-bg font-ds text-ds-text">
+      <CommandPalette items={commandItems} />
       {/* ---- Sidebar (258px, sticky, dark gradient) ---- */}
       <aside
         className="sticky top-0 flex h-screen w-[258px] shrink-0 flex-col bg-gradient-to-b from-ds-sidebarFrom to-ds-sidebarTo"
