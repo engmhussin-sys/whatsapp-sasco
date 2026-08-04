@@ -10,6 +10,8 @@ class RouteNames {
   static const chat = '/conversations/:conversationId';
   static const newChat = '/conversations/new';
   static const newGroup = '/conversations/new-group';
+  static const browseGroups = '/conversations/browse-groups';
+  static const groupJoinRequests = '/conversations/:conversationId/join-requests';
 
   static const tasks = '/tasks';
   static const taskDetails = '/tasks/:taskId';
@@ -34,6 +36,7 @@ class RouteNames {
   static const safetySos = '/safety/sos';
 
   static String chatPath(String conversationId) => '/conversations/$conversationId';
+  static String groupJoinRequestsPath(String conversationId) => '/conversations/$conversationId/join-requests';
   static String taskDetailsPath(String taskId) => '/tasks/$taskId';
   static String approvalDetailsPath(String approvalId) => '/approvals/$approvalId';
   static String fuelRequestDetailsPath(String id) => '/fuel-requests/$id';

@@ -120,6 +120,14 @@ class ConversationListPage extends StatelessWidget {
                 context.push(RouteNames.newChat);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.travel_explore_rounded, color: AppColors.brand),
+              title: const Text('تصفّح المجموعات'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.push(RouteNames.browseGroups);
+              },
+            ),
             // Group creation is admin/lead-only — see CreateGroupPage's
             // doc comment and the route-level redirect guard in
             // app_router.dart (this hides the option; the route itself

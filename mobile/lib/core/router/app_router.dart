@@ -12,6 +12,8 @@ import '../../features/fuel_requests/presentation/pages/fuel_request_details_pag
 import '../../features/fuel_requests/presentation/pages/fuel_request_list_page.dart';
 import '../../features/directory/presentation/pages/user_search_page.dart';
 import '../../features/directory/presentation/pages/create_group_page.dart';
+import '../../features/directory/presentation/pages/browse_groups_page.dart';
+import '../../features/directory/presentation/pages/group_join_requests_page.dart';
 import '../../features/approvals/presentation/pages/approvals_list_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/widgets/home_shell.dart';
@@ -103,6 +105,24 @@ GoRouter buildAppRouter() {
                 return allowed ? null : RouteNames.conversations;
               },
               builder: (context, state) => CreateGroupPage(currentUser: authBloc.state.user!),
+            ),
+            GoRoute(
+              path: RouteNames.browseGroups,
+              builder: (context, state) => BrowseGroupsPage(companyId: authBloc.state.user!.companyId!),
+            ),
+            GoRoute(
+              path: RouteNames.groupJoinRequests,
+              // Admin/lead-only, same guard pattern as newGroup above.
+              redirect: (context, state) {
+                final role = authBloc.state.user?.systemRole;
+                final allowed = role == SystemRole.companyAdmin || role == SystemRole.teamLead || role == SystemRole.superAdmin;
+                return allowed ? null : RouteNames.conversations;
+              },
+              builder: (context, state) => GroupJoinRequestsPage(
+                companyId: authBloc.state.user!.companyId!,
+                conversationId: state.pathParameters['conversationId']!,
+                groupTitle: (state.extra as String?) ?? 'مجموعة',
+              ),
             ),
             GoRoute(
               path: RouteNames.chat,

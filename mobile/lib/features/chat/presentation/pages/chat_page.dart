@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/tts/tts_service.dart';
 import '../../../../shared/widgets/error_view.dart';
@@ -119,6 +121,21 @@ class _ChatViewState extends State<_ChatView> {
           ),
         ),
         actions: [
+          // Admin/lead-only — same role gate as CreateGroupPage/newGroup
+          // route. Not gated on conversation TYPE (ChatState doesn't
+          // currently carry that) — tapping this on a non-group
+          // conversation surfaces a clear "Group conversation not
+          // found" error from the backend rather than crashing, an
+          // acceptable trade-off against threading conversation-type
+          // through ChatBloc just for this menu item's visibility.
+          if (widget.currentUser.systemRole == SystemRole.companyAdmin ||
+              widget.currentUser.systemRole == SystemRole.teamLead ||
+              widget.currentUser.systemRole == SystemRole.superAdmin)
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              tooltip: 'طلبات الانضمام',
+              onPressed: () => context.push(RouteNames.groupJoinRequestsPath(widget.conversationId)),
+            ),
           BlocBuilder<ChatBloc, ChatState>(
             buildWhen: (p, c) => p.isRetranslating != c.isRetranslating,
             builder: (context, state) => IconButton(

@@ -93,6 +93,11 @@ import '../../features/directory/data/datasources/directory_remote_data_source.d
 import '../../features/directory/data/repositories/directory_repository_impl.dart';
 import '../../features/directory/domain/repositories/directory_repository.dart';
 import '../../features/directory/presentation/cubit/directory_search_cubit.dart';
+import '../../features/directory/data/datasources/join_request_remote_data_source.dart';
+import '../../features/directory/data/repositories/join_request_repository_impl.dart';
+import '../../features/directory/domain/repositories/join_request_repository.dart';
+import '../../features/directory/presentation/cubit/joinable_groups_cubit.dart';
+import '../../features/directory/presentation/cubit/pending_requests_cubit.dart';
 
 final GetIt sl = GetIt.instance;
 
@@ -261,5 +266,15 @@ Future<void> initDependencyInjection() async {
   sl.registerLazySingleton<DirectoryRepository>(() => DirectoryRepositoryImpl(remote: sl(), networkInfo: sl()));
   sl.registerFactoryParam<DirectorySearchCubit, String, void>(
     (companyId, _) => DirectorySearchCubit(repository: sl(), companyId: companyId),
+  );
+
+  // ==== Feature: Join Requests (browse groups + admin approval) ======================
+  sl.registerLazySingleton<JoinRequestRemoteDataSource>(() => JoinRequestRemoteDataSourceImpl(sl()));
+  sl.registerLazySingleton<JoinRequestRepository>(() => JoinRequestRepositoryImpl(remote: sl(), networkInfo: sl()));
+  sl.registerFactoryParam<JoinableGroupsCubit, String, void>(
+    (companyId, _) => JoinableGroupsCubit(repository: sl(), companyId: companyId),
+  );
+  sl.registerFactoryParam<PendingRequestsCubit, String, String>(
+    (companyId, conversationId) => PendingRequestsCubit(repository: sl(), companyId: companyId, conversationId: conversationId),
   );
 }

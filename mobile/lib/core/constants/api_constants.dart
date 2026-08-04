@@ -25,6 +25,12 @@ class ApiConstants {
   // Company-scoped (companyId is interpolated at call time)
   static String companyDashboard(String companyId) => '/companies/$companyId/dashboard';
   static String conversations(String companyId) => '/companies/$companyId/conversations';
+  static String joinableGroups(String companyId) => '/companies/$companyId/conversations/joinable-groups';
+  static String joinRequest(String companyId, String conversationId) => '/companies/$companyId/conversations/$conversationId/join-request';
+  static String pendingJoinRequests(String companyId, String conversationId) =>
+      '/companies/$companyId/conversations/join-requests/$conversationId';
+  static String decideJoinRequest(String companyId, String requestId) =>
+      '/companies/$companyId/conversations/join-requests/$requestId/decide';
   static String directoryUsers(String companyId) => '/companies/$companyId/directory/users';
   static String messages(String companyId, String conversationId) =>
       '/companies/$companyId/conversations/$conversationId/messages';
