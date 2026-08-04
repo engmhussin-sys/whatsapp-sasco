@@ -171,7 +171,7 @@ Future<void> initDependencyInjection() async {
   sl.registerLazySingleton(() => SendVoiceMessageUseCase(sl()));
   sl.registerLazySingleton(() => MarkReadUseCase(sl()));
   sl.registerFactoryParam<ConversationsBloc, String, void>(
-    (companyId, _) => ConversationsBloc(getConversations: sl(), companyId: companyId),
+    (companyId, _) => ConversationsBloc(getConversations: sl(), chatRepository: sl(), companyId: companyId),
   );
   sl.registerFactoryParam<ChatBloc, String, String>(
     (companyId, conversationId) => ChatBloc(

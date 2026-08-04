@@ -9,3 +9,7 @@ abstract class ConversationsEvent extends Equatable {
 class ConversationsRequested extends ConversationsEvent {
   const ConversationsRequested();
 }
+
+class ConversationsRealtimeUpdateReceived extends ConversationsEvent {
+  const ConversationsRealtimeUpdateReceived();
+}
