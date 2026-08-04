@@ -7,7 +7,7 @@ export const companyAdminNavGroups: DsNavGroup[] = [
   {
     id: 'overview',
     label: 'نظرة عامة',
-    items: [{ id: 'dashboard', href: '/company-admin/dashboard', label: 'لوحة القيادة' }],
+    items: [{ id: 'dashboard', href: '/company-admin-v2/dash', label: 'لوحة القيادة' }],
   },
   {
     id: 'operations',
@@ -21,6 +21,7 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     id: 'people',
     label: 'الأشخاص',
     items: [
+      { id: 'people', href: '/company-admin-v2/people', label: 'الفرق والمواقع' },
       { id: 'users', href: '/company-admin/users', label: 'المستخدمون' },
       { id: 'teams', href: '/company-admin/teams', label: 'الفرق' },
     ],
