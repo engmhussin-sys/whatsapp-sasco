@@ -3,12 +3,10 @@ import { SystemRole } from '@prisma/client';
 import { ConversationsService } from '../../../src/modules/conversations/conversations.service';
 import { PrismaService } from '../../../src/common/prisma/prisma.service';
 import { ChatPolicyService } from '../../../src/modules/chat-policy/chat-policy.service';
-import { NotificationsService } from '../../../src/modules/notifications/notifications.service';
 
 describe('ConversationsService — Join Requests', () => {
   let service: ConversationsService;
   let prisma: any;
-  let notifications: any;
 
   const companyId = 'company-A';
   const conversationId = 'conv-1';
@@ -22,15 +20,14 @@ describe('ConversationsService — Join Requests', () => {
       conversationJoinRequest: { findFirst: jest.fn(), create: jest.fn(), findMany: jest.fn(), update: jest.fn() },
       user: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
       $transaction: jest.fn((ops) => Promise.all(ops)),
+      notification: { create: jest.fn().mockResolvedValue({}) },
     };
-    notifications = { create: jest.fn().mockResolvedValue({}) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         ConversationsService,
         { provide: PrismaService, useValue: prisma },
         { provide: ChatPolicyService, useValue: {} },
-        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile();
 
@@ -86,7 +83,7 @@ describe('ConversationsService — Join Requests', () => {
       const result = await service.requestToJoin(companyId, conversationId, userId);
 
       expect(prisma.conversationJoinRequest.create).toHaveBeenCalledWith({ data: { conversationId, requesterId: userId } });
-      expect(notifications.create).toHaveBeenCalledTimes(2);
+      expect(prisma.notification.create).toHaveBeenCalledTimes(2);
       expect(result).toEqual({ id: 'req-1', status: 'PENDING' });
     });
 
@@ -97,7 +94,7 @@ describe('ConversationsService — Join Requests', () => {
       prisma.conversationJoinRequest.create.mockResolvedValue({ id: 'req-1', status: 'PENDING' });
       prisma.user.findMany.mockResolvedValue([{ id: 'admin-1' }]);
       prisma.user.findUnique.mockResolvedValue({ firstName: 'S', lastName: 'W' });
-      notifications.create.mockRejectedValue(new Error('notification service down'));
+      prisma.notification.create.mockRejectedValue(new Error('notification service down'));
 
       await expect(service.requestToJoin(companyId, conversationId, userId)).resolves.toEqual({ id: 'req-1', status: 'PENDING' });
     });
@@ -168,7 +165,9 @@ describe('ConversationsService — Join Requests', () => {
       expect(prisma.conversationJoinRequest.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'req-1' }, data: expect.objectContaining({ status: 'APPROVED', decidedById: adminId }) }),
       );
-      expect(notifications.create).toHaveBeenCalledWith(expect.objectContaining({ userId, title: 'تمت الموافقة على طلب الانضمام' }));
+      expect(prisma.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ userId, title: 'تمت الموافقة على طلب الانضمام' }) }),
+      );
       expect(result).toEqual({ requestId: 'req-1', approved: true });
     });
 

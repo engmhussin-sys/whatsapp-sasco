@@ -2,7 +2,6 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { ConversationType, JoinRequestStatus, NotificationType, SystemRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ChatPolicyService } from '../chat-policy/chat-policy.service';
-import { NotificationsService } from '../notifications/notifications.service';
 import { CreateConversationDto } from './dto/conversations.dto';
 
 const MEMBER_SELECT = { id: true, firstName: true, lastName: true, avatarUrl: true, lastSeenAt: true };
@@ -13,8 +12,36 @@ export class ConversationsService {
   constructor(
     private prisma: PrismaService,
     private chatPolicy: ChatPolicyService,
-    private notifications: NotificationsService,
   ) {}
+
+  /**
+   * Writes a Notification row directly via Prisma rather than injecting
+   * NotificationsService/NotificationsModule.
+   *
+   * WHY (confirmed via a real boot crash, not a style preference):
+   * importing NotificationsModule here closes a genuine circular chain
+   * — ConversationsModule -> NotificationsModule -> ChatGatewayModule ->
+   * MessagesModule -> ConversationsModule — that NestJS's module
+   * resolver cannot untangle even with forwardRef() applied at every
+   * edge (tried; still failed at the provider-resolution layer after
+   * the module-graph layer was fixed). NotificationsService.create()
+   * itself is just this same Prisma write plus a best-effort Socket.io
+   * emit via an @Optional() ChatGateway — the realtime push is skipped
+   * here (recipients still see it via the existing unread-count
+   * polling, already happening every ~30-60s regardless), which is a
+   * far smaller and more honest trade-off than a fragile multi-module
+   * forwardRef chain.
+   */
+  private async notifyBestEffort(userId: string, companyId: string, title: string, body: string) {
+    try {
+      await this.prisma.notification.create({
+        data: { userId, companyId, type: NotificationType.SYSTEM, title, body },
+      });
+    } catch (err) {
+      // Never let a notification failure affect the actual action (join
+      // request created/decided) that triggered it.
+    }
+  }
 
   async create(companyId: string, creatorId: string, dto: CreateConversationDto) {
     switch (dto.type) {
@@ -299,15 +326,12 @@ export class ConversationsService {
     const requester = await this.prisma.user.findUnique({ where: { id: requesterId }, select: { firstName: true, lastName: true } });
     await Promise.all(
       admins.map((admin: { id: string }) =>
-        this.notifications
-          .create({
-            userId: admin.id,
-            companyId,
-            type: NotificationType.SYSTEM,
-            title: 'طلب انضمام جديد',
-            body: `${requester?.firstName ?? ''} ${requester?.lastName ?? ''} طلب الانضمام إلى "${conversation.title ?? 'مجموعة'}"`,
-          })
-          .catch(() => undefined),
+        this.notifyBestEffort(
+          admin.id,
+          companyId,
+          'طلب انضمام جديد',
+          `${requester?.firstName ?? ''} ${requester?.lastName ?? ''} طلب الانضمام إلى "${conversation.title ?? 'مجموعة'}"`,
+        ),
       ),
     );
 
@@ -356,17 +380,14 @@ export class ConversationsService {
       });
     }
 
-    await this.notifications
-      .create({
-        userId: request.requesterId,
-        companyId,
-        type: NotificationType.SYSTEM,
-        title: approve ? 'تمت الموافقة على طلب الانضمام' : 'رُفض طلب الانضمام',
-        body: approve
-          ? `تمت إضافتك إلى "${request.conversation.title ?? 'المجموعة'}"`
-          : `تعذَّر ضمّك إلى "${request.conversation.title ?? 'المجموعة'}"`,
-      })
-      .catch(() => undefined);
+    await this.notifyBestEffort(
+      request.requesterId,
+      companyId,
+      approve ? 'تمت الموافقة على طلب الانضمام' : 'رُفض طلب الانضمام',
+      approve
+        ? `تمت إضافتك إلى "${request.conversation.title ?? 'المجموعة'}"`
+        : `تعذَّر ضمّك إلى "${request.conversation.title ?? 'المجموعة'}"`,
+    );
 
     return { requestId, approved: approve };
   }
