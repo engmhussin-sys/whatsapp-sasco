@@ -6,7 +6,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateConversationDto } from './dto/conversations.dto';
 
 const MEMBER_SELECT = { id: true, firstName: true, lastName: true, avatarUrl: true, lastSeenAt: true };
-const GROUP_ADMIN_ROLES = [SystemRole.COMPANY_ADMIN, SystemRole.TEAM_LEAD, SystemRole.SUPER_ADMIN];
+const GROUP_ADMIN_ROLES: SystemRole[] = [SystemRole.COMPANY_ADMIN, SystemRole.TEAM_LEAD, SystemRole.SUPER_ADMIN];
 
 @Injectable()
 export class ConversationsService {
