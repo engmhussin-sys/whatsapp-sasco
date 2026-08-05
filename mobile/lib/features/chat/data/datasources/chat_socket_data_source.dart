@@ -19,6 +19,7 @@ class ChatSocketDataSource {
       _client.markRead(conversationId, upToMessageId: upToMessageId);
 
   Stream<MessageModel> get onNewMessage => _client.onNewMessage.map((json) => MessageModel.fromJson(json));
+  Stream<MessageModel> get onMessageTranslated => _client.onMessageTranslated.map((json) => MessageModel.fromJson(json));
   Stream<Map<String, dynamic>> get onNotification => _client.onNotification;
   Stream<Map<String, dynamic>> get onTyping => _client.onTyping;
   Stream<Map<String, dynamic>> get onMessageRead => _client.onMessageRead;

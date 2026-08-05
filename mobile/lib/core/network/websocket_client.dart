@@ -20,6 +20,7 @@ class WebSocketClient {
   final TokenRefreshService _tokenRefresh;
 
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
+  final _translatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
   final _typingController = StreamController<Map<String, dynamic>>.broadcast();
   final _readController = StreamController<Map<String, dynamic>>.broadcast();
@@ -31,6 +32,7 @@ class WebSocketClient {
   WebSocketClient(this._secureStorage, this._tokenRefresh);
 
   Stream<Map<String, dynamic>> get onNewMessage => _messageController.stream;
+  Stream<Map<String, dynamic>> get onMessageTranslated => _translatedController.stream;
   Stream<Map<String, dynamic>> get onNotification => _notificationController.stream;
   Stream<Map<String, dynamic>> get onTyping => _typingController.stream;
   Stream<Map<String, dynamic>> get onMessageRead => _readController.stream;
@@ -74,6 +76,7 @@ class WebSocketClient {
         if (refreshed) await connect();
       })
       ..on('message:new', (data) => _messageController.add(Map<String, dynamic>.from(data as Map)))
+      ..on('message:translated', (data) => _translatedController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:notification', (data) => _notificationController.add(Map<String, dynamic>.from(data as Map)))
       ..on('typing', (data) => _typingController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:read', (data) => _readController.add(Map<String, dynamic>.from(data as Map)));
@@ -135,6 +138,7 @@ class WebSocketClient {
   void dispose() {
     disconnect();
     _messageController.close();
+    _translatedController.close();
     _notificationController.close();
     _typingController.close();
     _readController.close();
