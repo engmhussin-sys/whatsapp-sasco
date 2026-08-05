@@ -24,6 +24,7 @@ import '../../features/safety/presentation/pages/hazard_report_page.dart';
 import '../../features/safety/presentation/pages/sos_page.dart';
 import '../../features/shift/presentation/pages/shift_page.dart';
 import '../../features/stations/presentation/pages/station_pages.dart';
+import '../../features/attendance/presentation/pages/attendance_page.dart';
 import '../../features/tasks/presentation/pages/task_details_page.dart';
 import '../../features/tasks/presentation/pages/task_list_page.dart';
 import 'go_router_refresh_stream.dart';
@@ -191,6 +192,10 @@ GoRouter buildAppRouter() {
                 companyId: authBloc.state.user!.companyId!,
                 stationId: state.pathParameters['stationId']!,
               ),
+            ),
+            GoRoute(
+              path: RouteNames.attendance,
+              builder: (context, state) => const AttendancePage(),
             ),
           ]),
         ],

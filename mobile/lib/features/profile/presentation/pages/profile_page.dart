@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../authentication/domain/entities/user_entity.dart';
@@ -77,6 +78,17 @@ class ProfilePage extends StatelessWidget {
                       ],
                     ),
                     onTap: () => context.push(RouteNames.languageSettings),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                _SectionLabel('الحضور'),
+                _Card(
+                  child: _Row(
+                    icon: Icons.location_searching_rounded,
+                    title: 'attendance.title'.tr(),
+                    trailing: const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+                    onTap: () => context.push(RouteNames.attendance),
                   ),
                 ),
                 const SizedBox(height: 20),

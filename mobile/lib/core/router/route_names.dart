@@ -28,6 +28,8 @@ class RouteNames {
   static const stations = '/stations';
   static const stationTanks = '/stations/:stationId/tanks';
 
+  static const attendance = '/attendance';
+
   static const profile = '/profile';
   static const languageSettings = '/profile/language';
 

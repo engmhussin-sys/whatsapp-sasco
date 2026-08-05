@@ -60,8 +60,7 @@ class _SplashPageState extends State<SplashPage> {
   }
 }
 
-/// White-on-green lockup — shows the real SASCO logo once
-/// assets/images/splash_logo.png is added (see that folder's README);
+/// White-on-green lockup — shows the Atheel Tech logo (V3 rebrand);
 /// falls back to a clean branded mark so the splash screen never shows
 /// a broken-image icon in the meantime.
 class _SplashMark extends StatelessWidget {
@@ -72,24 +71,24 @@ class _SplashMark extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          'assets/images/splash_logo.png',
+        Container(
           width: 110,
           height: 110,
-          errorBuilder: (context, error, stackTrace) => Container(
-            width: 110,
-            height: 110,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 24, offset: const Offset(0, 10))],
-            ),
-            child: Icon(Icons.local_gas_station_rounded, color: AppColors.brand, size: 58),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 24, offset: const Offset(0, 10))],
+          ),
+          child: Image.asset(
+            'assets/images/atheel_logo.png',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => Icon(Icons.eco_rounded, color: AppColors.brand, size: 58),
           ),
         ),
         const SizedBox(height: 18),
-        const Text('ساسكو', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 1)),
-        Text('SASCO', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 4)),
+        const Text('أثيل تك', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 1)),
+        Text('ATHEEL TECH', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 4)),
       ],
     );
   }

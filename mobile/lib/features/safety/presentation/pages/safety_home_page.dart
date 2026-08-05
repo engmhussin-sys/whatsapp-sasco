@@ -3,33 +3,72 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/network/sector_content_service.dart';
 import '../../../authentication/domain/entities/user_entity.dart';
 
 /// T8 screen 1/3 — PPE reminder grid + daily safety alert + entry points
-/// to hazard reporting and SOS. No real photos exist yet (design handoff
-/// used text-only placeholders) — every PPE tile uses a Material icon
-/// with an `Image.network(..., errorBuilder: ...)` slot underneath so a
-/// real photo can be dropped in later per-station with ZERO code
-/// changes, exactly as specified.
-class SafetyHomePage extends StatelessWidget {
+/// to hazard reporting and SOS.
+///
+/// V3 rebrand (four-sector expansion): PPE items and the daily safety
+/// alert are now SECTOR-AWARE — fetched from SectorContentService rather
+/// than hardcoded fuel-station text. Per V3_DESIGN_UPDATE.md's own rule
+/// ("لا تكتب القطاع في الكود — اقرأه من company.sector"), this screen's
+/// STRUCTURE is unchanged; only its content source changed. Falls back
+/// to the original generic 4-item PPE set (translation-key based, so
+/// still correctly localized) while loading or if the fetch fails, so
+/// the screen never shows empty/broken content.
+class SafetyHomePage extends StatefulWidget {
   final UserEntity currentUser;
   const SafetyHomePage({super.key, required this.currentUser});
 
-  static const _ppeItems = [
-    (icon: Icons.construction, labelKey: 'safety.ppe_helmet', imageUrl: null),
-    (icon: Icons.safety_divider, labelKey: 'safety.ppe_vest', imageUrl: null),
-    (icon: Icons.back_hand_outlined, labelKey: 'safety.ppe_gloves', imageUrl: null),
-    (icon: Icons.hiking, labelKey: 'safety.ppe_boots', imageUrl: null),
+  @override
+  State<SafetyHomePage> createState() => _SafetyHomePageState();
+}
+
+class _SafetyHomePageState extends State<SafetyHomePage> {
+  static const _fallbackPpeItems = [
+    (icon: Icons.construction, labelKey: 'safety.ppe_helmet'),
+    (icon: Icons.safety_divider, labelKey: 'safety.ppe_vest'),
+    (icon: Icons.back_hand_outlined, labelKey: 'safety.ppe_gloves'),
+    (icon: Icons.hiking, labelKey: 'safety.ppe_boots'),
   ];
+
+  SectorContent? _sectorContent;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSectorContent();
+  }
+
+  Future<void> _loadSectorContent() async {
+    try {
+      final content = await sl<SectorContentService>().getMySectorContent();
+      if (mounted) setState(() => _sectorContent = content);
+    } catch (_) {
+      // Silent fallback to the generic PPE set below — a failed sector
+      // fetch should never block the safety screen itself from being usable.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ppeTiles = _sectorContent != null
+        ? _sectorContent!.ppeItems.map((item) => _PpeTile(emoji: item.icon, label: item.labelAr)).toList()
+        : _fallbackPpeItems.map((item) => _PpeTile(fallbackIcon: item.icon, label: item.labelKey.tr())).toList();
+
+    final dailyAlertText = _sectorContent?.dailySafetyAlertAr ?? 'safety.daily_alert'.tr();
+
     return Scaffold(
       appBar: AppBar(title: Text('safety.tab'.tr())),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ---- Daily safety alert banner ----
+          // ---- Daily safety alert banner (sector-aware) ----
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -42,7 +81,7 @@ class SafetyHomePage extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'safety.daily_alert'.tr(),
+                    dailyAlertText,
                     style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700, height: 1.4),
                   ),
                 ),
@@ -54,18 +93,20 @@ class SafetyHomePage extends StatelessWidget {
           Text('safety.ppe'.tr(), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
 
-          // ---- PPE grid ----
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.15,
-            children: _ppeItems
-                .map((item) => _PpeTile(icon: item.icon, label: item.labelKey.tr(), imageUrl: item.imageUrl))
-                .toList(),
-          ),
+          // ---- PPE grid (sector-aware, or generic fallback while
+          //      loading / on error) ----
+          if (_loading)
+            const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Center(child: CircularProgressIndicator()))
+          else
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.15,
+              children: ppeTiles,
+            ),
 
           const SizedBox(height: 24),
 
@@ -92,10 +133,10 @@ class SafetyHomePage extends StatelessWidget {
 }
 
 class _PpeTile extends StatelessWidget {
-  final IconData icon;
+  final IconData? fallbackIcon;
+  final String? emoji;
   final String label;
-  final String? imageUrl;
-  const _PpeTile({required this.icon, required this.label, this.imageUrl});
+  const _PpeTile({this.fallbackIcon, this.emoji, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -109,21 +150,10 @@ class _PpeTile extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Real-photo slot: falls back to the Material icon whenever no
-          // image URL is set yet, or the network image fails to load.
-          if (imageUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl!,
-                width: 56,
-                height: 56,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Icon(icon, size: 40, color: AppColors.brand),
-              ),
-            )
+          if (emoji != null)
+            Text(emoji!, style: const TextStyle(fontSize: 36))
           else
-            Icon(icon, size: 40, color: AppColors.brand),
+            Icon(fallbackIcon, size: 40, color: AppColors.brand),
           const SizedBox(height: 8),
           Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ],

@@ -204,5 +204,15 @@
     "password_min_length": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
     "pin_length": "يجب أن يتكون الـ PIN من 4 إلى 8 أرقام فقط",
     "generic": "An unexpected error occurred"
+  },
+  "attendance": {
+    "title": "Attendance",
+    "check_in_button": "Check In",
+    "check_out_button": "Check Out",
+    "checked_in": "You are checked in",
+    "checked_out": "You are not checked in yet",
+    "processing": "Processing...",
+    "status_error": "Could not load attendance status",
+    "action_error": "Could not complete the action"
   }
 }

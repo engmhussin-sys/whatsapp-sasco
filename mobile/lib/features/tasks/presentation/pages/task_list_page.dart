@@ -95,7 +95,10 @@ class TaskListPage extends StatelessWidget {
                         final task = state.tasks[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _TaskCard(task: task, onTap: () => context.push(RouteNames.taskDetailsPath(task.id))),
+                          child: _StaggeredEntry(
+                            index: index,
+                            child: _TaskCard(task: task, onTap: () => context.push(RouteNames.taskDetailsPath(task.id))),
+                          ),
                         );
                       },
                       childCount: state.tasks.length,
@@ -106,6 +109,48 @@ class TaskListPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// V3 rebrand animation directive: task cards enter staggered, 0.05s
+/// delay per card index. Deliberately built with the simplest reliable
+/// primitives (Future.delayed + AnimatedOpacity/AnimatedSlide) rather
+/// than a full AnimationController — this widget's only job is a
+/// one-shot entry animation, so there's no ongoing animation to manage
+/// or dispose, and no risk to TasksBloc/the list's own logic since this
+/// is purely an additional render-layer wrapper.
+class _StaggeredEntry extends StatefulWidget {
+  final int index;
+  final Widget child;
+  const _StaggeredEntry({required this.index, required this.child});
+
+  @override
+  State<_StaggeredEntry> createState() => _StaggeredEntryState();
+}
+
+class _StaggeredEntryState extends State<_StaggeredEntry> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: 50 * widget.index), () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSlide(
+      offset: _visible ? Offset.zero : const Offset(0, 0.08),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      child: AnimatedOpacity(
+        opacity: _visible ? 1 : 0,
+        duration: const Duration(milliseconds: 260),
+        child: widget.child,
       ),
     );
   }

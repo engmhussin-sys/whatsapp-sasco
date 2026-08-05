@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// Professional SASCO-branded theme. Uses Cairo (a widely-used, highly
+/// Professional Atheel Tech-branded theme (V3 rebrand). Uses Cairo (a widely-used, highly
 /// legible Google Font for Arabic UI, also covers Latin text cleanly)
 /// via package:google_fonts — it fetches the font once and caches it
 /// locally afterwards (works offline on subsequent launches), which is

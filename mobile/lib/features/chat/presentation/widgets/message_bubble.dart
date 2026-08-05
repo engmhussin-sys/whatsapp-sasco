@@ -50,12 +50,13 @@ class MessageBubble extends StatelessWidget {
           color: isMine ? AppColors.brand : Colors.white,
           border: isMine ? null : Border.all(color: AppColors.divider),
           borderRadius: BorderRadiusDirectional.only(
-            topStart: const Radius.circular(16),
-            topEnd: const Radius.circular(16),
+            topStart: const Radius.circular(24),
+            topEnd: const Radius.circular(24),
             // Speech-bubble "tail" — the corner nearest the sender is
-            // sharp, the opposite corner stays fully rounded.
-            bottomStart: Radius.circular(isMine ? 16 : 4),
-            bottomEnd: Radius.circular(isMine ? 4 : 16),
+            // sharp (V3 spec: radius 8), the opposite corner stays
+            // fully rounded (24).
+            bottomStart: Radius.circular(isMine ? 24 : 8),
+            bottomEnd: Radius.circular(isMine ? 8 : 24),
           ),
         ),
         child: Column(
@@ -72,7 +73,7 @@ class MessageBubble extends StatelessWidget {
             ],
 
             if (message.type == MessageType.voice && message.audioUrl != null) ...[
-              VoiceMessagePlayer(audioUrl: message.audioUrl!, isMine: isMine),
+              VoiceMessagePlayer(audioUrl: message.audioUrl!, isMine: isMine, initialDurationMs: message.audioDurationMs),
               // ---- Voice transcript + translation — reuses the exact
               // same displayText()/isTranslatedFor()/translationMissingFor()
               // logic already proven for text messages, since the backend

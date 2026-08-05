@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// SASCO brand palette. Primary green matches the company's established
-/// corporate color (Saudi Automotive Services Co. — fuel stations,
-/// Tadawul: 4050). Exact hex values below are a professional, modern
-/// interpretation of that identity — swap `brand`/`brandDark` for the
-/// company's official brand-guideline hex codes if/when you have them
-/// (this is the ONLY place that needs to change; every screen references
-/// these constants rather than hardcoding colors).
+/// Atheel Tech brand palette (V3 rebrand — see V3_DESIGN_UPDATE.md).
+/// Primary green matches the Atheel Tech logo's own color (#0C7C42)
+/// almost exactly, so no palette change was needed for the rebrand
+/// itself — only the logo asset, wordmark text, and app name changed.
 class AppColors {
   AppColors._();
 
-  // Primary — SASCO green
+  // Primary — Atheel Tech green
   static const Color brand = Color(0xFF0C7C42);
   static const Color brandDark = Color(0xFF085C31);
   static const Color brandLight = Color(0xFFE6F4EC);

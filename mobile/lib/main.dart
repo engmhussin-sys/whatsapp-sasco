@@ -11,7 +11,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
 
-  // Branded status bar (SASCO green background, light icons) — applied
+  // Branded status bar (Atheel Tech green background, light icons) — applied
   // globally before runApp so it's consistent from the very first frame,
   // including the native splash screen before Flutter takes over.
   SystemChrome.setSystemUIOverlayStyle(

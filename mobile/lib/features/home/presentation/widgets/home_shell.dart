@@ -79,15 +79,50 @@ class _HomeShellState extends State<HomeShell> {
           initialLocation: index == widget.navigationShell.currentIndex,
         ),
         items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.chat_bubble_outline_rounded), label: 'nav.messaging'.tr()),
-          BottomNavigationBarItem(icon: const Icon(Icons.checklist_rounded), label: 'nav.tasks'.tr()),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.health_and_safety_outlined, color: AppColors.danger),
+            icon: _AnimatedNavIcon(active: widget.navigationShell.currentIndex == 0, icon: Icons.chat_bubble_outline_rounded),
+            label: 'nav.messaging'.tr(),
+          ),
+          BottomNavigationBarItem(
+            icon: _AnimatedNavIcon(active: widget.navigationShell.currentIndex == 1, icon: Icons.checklist_rounded),
+            label: 'nav.tasks'.tr(),
+          ),
+          BottomNavigationBarItem(
+            icon: _AnimatedNavIcon(
+              active: widget.navigationShell.currentIndex == 2,
+              icon: Icons.health_and_safety_outlined,
+              color: AppColors.danger,
+            ),
             label: 'safety.tab'.tr(),
           ),
-          BottomNavigationBarItem(icon: const Icon(Icons.person_outline_rounded), label: 'profile.tab'.tr()),
+          BottomNavigationBarItem(
+            icon: _AnimatedNavIcon(active: widget.navigationShell.currentIndex == 3, icon: Icons.person_outline_rounded),
+            label: 'profile.tab'.tr(),
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// V3 rebrand animation directive: active tab's icon scales 0.9→1 with
+/// `cubic-bezier(.2,1.4,.4,1)` — the overshoot (1.4 > 1.0) gives the
+/// slight "bounce" the design calls for. Wraps ONLY the icon widget;
+/// BottomNavigationBar's own currentIndex/onTap/selection-color logic
+/// is completely untouched.
+class _AnimatedNavIcon extends StatelessWidget {
+  final bool active;
+  final IconData icon;
+  final Color? color;
+  const _AnimatedNavIcon({required this.active, required this.icon, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: active ? 1.0 : 0.9,
+      duration: const Duration(milliseconds: 220),
+      curve: const Cubic(0.2, 1.4, 0.4, 1.0),
+      child: Icon(icon, color: color),
     );
   }
 }

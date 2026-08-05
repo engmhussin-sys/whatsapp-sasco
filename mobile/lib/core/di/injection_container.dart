@@ -8,6 +8,8 @@ import '../ai/text_to_speech_interface.dart';
 import '../ai/translation_interface.dart';
 import '../tts/tts_service.dart';
 import '../network/dio_client.dart';
+import '../network/sector_content_service.dart';
+import '../network/attendance_service.dart';
 import '../network/interceptors/auth_interceptor.dart';
 import '../network/network_info.dart';
 import '../network/token_refresh_service.dart';
@@ -125,6 +127,8 @@ Future<void> initDependencyInjection() async {
         onSessionExpired: () => sl<AuthBloc>().add(const AuthSessionExpired()),
       ));
   sl.registerLazySingleton(() => DioClient(authInterceptor: sl()));
+  sl.registerLazySingleton(() => SectorContentService(dioClient: sl(), secureStorage: sl()));
+  sl.registerLazySingleton(() => AttendanceService(dioClient: sl(), secureStorage: sl()));
   sl.registerLazySingleton(() => WebSocketClient(sl(), sl()));
   sl.registerLazySingleton(() => SyncService(sl(), sl(), sl()));
 

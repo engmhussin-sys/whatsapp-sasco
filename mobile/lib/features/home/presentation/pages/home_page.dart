@@ -27,11 +27,11 @@ class HomePage extends StatelessWidget {
     final tiles = hasCompanyContext
         ? <_HomeTile>[
             _HomeTile('المحادثات', Icons.chat_bubble_outline_rounded, AppColors.brand, () => context.push(RouteNames.conversations)),
-            _HomeTile('المهام', Icons.checklist_rounded, const Color(0xFF2563EB), () => context.push(RouteNames.tasks)),
-            _HomeTile('الموافقات', Icons.fact_check_outlined, const Color(0xFF7C3AED), () => context.push(RouteNames.approvals)),
+            _HomeTile('المهام', Icons.checklist_rounded, AppColors.brand, () => context.push(RouteNames.tasks)),
+            _HomeTile('الموافقات', Icons.fact_check_outlined, AppColors.brandDark, () => context.push(RouteNames.approvals)),
             _HomeTile('الورديات', Icons.schedule_rounded, AppColors.accent, () => context.push(RouteNames.shift)),
             _HomeTile('طلبات الوقود', Icons.local_gas_station_rounded, AppColors.brandDark, () => context.push(RouteNames.fuelRequests)),
-            _HomeTile('المحطات', Icons.store_outlined, const Color(0xFF0891B2), () => context.push(RouteNames.stations)),
+            _HomeTile('المحطات', Icons.store_outlined, AppColors.brand, () => context.push(RouteNames.stations)),
           ]
         : <_HomeTile>[];
 
@@ -50,7 +50,7 @@ class HomePage extends StatelessWidget {
                     end: Alignment.bottomRight,
                     colors: [AppColors.brand, AppColors.brandDark],
                   ),
-                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(36)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,

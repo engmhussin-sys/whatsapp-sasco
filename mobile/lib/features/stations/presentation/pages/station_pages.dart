@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../core/utils/locale_numerals.dart';
 import '../../../../shared/widgets/loading_view.dart';
 import '../../domain/entities/station_entity.dart';
 import '../bloc/stations_cubit.dart';
@@ -73,9 +75,17 @@ class TankLevelsPage extends StatelessWidget {
                       children: [
                         Text('${tank.code} — ${tank.fuelType}', style: const TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
-                        LinearProgressIndicator(value: tank.fillPercentage),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: tank.fillPercentage),
+                          duration: const Duration(milliseconds: 550),
+                          curve: Curves.easeOut,
+                          builder: (context, value, _) => LinearProgressIndicator(value: value),
+                        ),
                         const SizedBox(height: 4),
-                        Text('${tank.lastKnownLevel?.toStringAsFixed(0) ?? '؟'} / ${tank.capacityLiters.toStringAsFixed(0)} لتر'),
+                        Text(LocaleNumerals.format(
+                          '${tank.lastKnownLevel?.toStringAsFixed(0) ?? '؟'} / ${tank.capacityLiters.toStringAsFixed(0)} لتر',
+                          context.locale.languageCode,
+                        )),
                         TextButton(
                           onPressed: () => _showUpdateDialog(context, tank.id, tank.lastKnownLevel ?? 0),
                           child: const Text('تحديث المستوى'),

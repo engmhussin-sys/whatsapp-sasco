@@ -1,5 +1,5 @@
 name: workforce_connect_ai
-description: "WorkForce Connect AI (SASCO) - Mobile app for fuel station workforce management"
+description: "Atheel Tech (أثيل تك) - Multi-sector workforce management app (fuel stations, hospitals, construction, factories)"
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -76,8 +76,9 @@ dev_dependencies:
   mocktail: ^1.0.4
   # -- App icon + splash screen generation from a single source image --------
   # Run `dart run flutter_launcher_icons` and `dart run flutter_native_splash:create`
-  # after dropping the real SASCO logo into assets/images/ (see that folder's
-  # README) — see the "SASCO Branding" section of mobile/README.md.
+  # after updating assets/images/app_icon.png / splash_logo.png (already
+  # set to the Atheel Tech logo as of the V3 rebrand — regenerate only if
+  # the logo itself changes again).
   flutter_launcher_icons: ^0.14.1
   flutter_native_splash: ^2.4.1
 
@@ -88,9 +89,8 @@ flutter:
     - assets/images/
 
 # ---- App icon config (flutter_launcher_icons) --------------------------------
-# Points at a placeholder until the real SASCO logo file is added — see
-# assets/images/README.md. Re-run `dart run flutter_launcher_icons` after
-# replacing the placeholder.
+# Uses the Atheel Tech logo (V3 rebrand) — see assets/images/README.md.
+# Re-run `dart run flutter_launcher_icons` after replacing the logo file.
 flutter_launcher_icons:
   android: true
   ios: true
