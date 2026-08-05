@@ -40,7 +40,9 @@
     "hold_to_record": "রেকর্ড করতে চেপে ধরুন",
     "transcribing": "অডিও টেক্সটে রূপান্তরিত হচ্ছে...",
     "translation_failed": "অনুবাদ পাওয়া যায়নি — মূল লেখা",
-    "retranslate": "পুনরায় অনুবাদ"
+    "retranslate": "পুনরায় অনুবাদ",
+    "transcription_failed": "Transcription failed",
+    "retry": "Retry"
   },
   "tasks": {
     "today": "আজকের কাজ",

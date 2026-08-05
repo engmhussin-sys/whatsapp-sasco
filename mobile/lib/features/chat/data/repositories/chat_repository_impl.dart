@@ -119,6 +119,21 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<Either<Failure, void>> retryVoiceTranscription(String companyId, String conversationId, String messageId) async {
+    if (!await _networkInfo.isConnected) {
+      return const Left(NetworkFailure('لا يوجد اتصال — أعد المحاولة عند عودة الشبكة'));
+    }
+    try {
+      await _remote.retryVoiceTranscription(companyId, conversationId, messageId);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    }
+  }
+
+  @override
   Future<Either<Failure, MessageEntity>> sendAttachment(
     String companyId,
     String conversationId, {
@@ -258,6 +273,9 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Stream<MessageEntity> get onMessageReceived => _socket.onNewMessage;
+
+  @override
+  Stream<MessageEntity> get onMessageTranslated => _socket.onMessageTranslated;
 
   @override
   Stream<Map<String, dynamic>> get onNotification => _socket.onNotification;

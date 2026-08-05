@@ -17,6 +17,7 @@ class MessageBubble extends StatelessWidget {
   final bool isMine;
   final String myLang;
   final VoidCallback? onListen;
+  final VoidCallback? onRetryTranscription;
 
   /// The user's "إظهار النص الأصلي" profile preference (defaults to
   /// true) — independent from isTranslatedFor(): even when a real
@@ -30,6 +31,7 @@ class MessageBubble extends StatelessWidget {
     required this.isMine,
     required this.myLang,
     this.onListen,
+    this.onRetryTranscription,
     this.showOriginalSetting = true,
   });
 
@@ -81,8 +83,42 @@ class MessageBubble extends StatelessWidget {
               // originalText/originalLang/translations fields (see
               // VoiceProcessingService.processVoiceMessage). Shows a
               // "transcribing…" placeholder until message:translated
-              // delivers the live update. ----
-              if (message.text == null || message.text!.isEmpty) ...[
+              // delivers the live update. A1 (real-user review,
+              // 2026-08-05): the backend now writes this EXACT Arabic
+              // string as originalText on a transcription failure (see
+              // VoiceProcessingService.processVoiceMessage's catch
+              // block) — matched here so the UI can show a real retry
+              // action instead of spinning forever on a failure that
+              // already happened. ----
+              if (message.text == 'تعذّر تحويل هذه الرسالة الصوتية إلى نص') ...[
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 14, color: isMine ? Colors.white70 : AppColors.danger),
+                    const SizedBox(width: 4),
+                    Text(
+                      'chat.transcription_failed'.tr(),
+                      style: TextStyle(fontSize: 11, color: isMine ? Colors.white70 : AppColors.danger),
+                    ),
+                    if (onRetryTranscription != null) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: onRetryTranscription,
+                        child: Text(
+                          'chat.retry'.tr(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                            color: isMine ? Colors.white : AppColors.brand,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ] else if (message.text == null || message.text!.isEmpty) ...[
                 const SizedBox(height: 6),
                 Row(
                   mainAxisSize: MainAxisSize.min,

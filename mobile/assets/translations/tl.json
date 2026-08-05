@@ -40,7 +40,9 @@
     "hold_to_record": "Pindutin nang matagal",
     "transcribing": "Isinasalin ang boses sa text...",
     "translation_failed": "Walang salin — orihinal ang nakikita",
-    "retranslate": "Isalin muli"
+    "retranslate": "Isalin muli",
+    "transcription_failed": "Transcription failed",
+    "retry": "Retry"
   },
   "tasks": {
     "today": "Gawain ngayon",

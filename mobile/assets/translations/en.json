@@ -40,7 +40,9 @@
     "hold_to_record": "Hold to record",
     "transcribing": "Transcribing…",
     "translation_failed": "Translation unavailable — showing the original",
-    "retranslate": "Retranslate"
+    "retranslate": "Retranslate",
+    "transcription_failed": "Transcription failed",
+    "retry": "Retry"
   },
   "tasks": {
     "today": "Today’s tasks",

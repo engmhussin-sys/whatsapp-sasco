@@ -40,7 +40,9 @@
     "hold_to_record": "ریکارڈ کے لیے دبائے رکھیں",
     "transcribing": "آواز کو متن میں تبدیل کیا جا رہا ہے...",
     "translation_failed": "ترجمہ دستیاب نہیں — اصل متن",
-    "retranslate": "دوبارہ ترجمہ"
+    "retranslate": "دوبارہ ترجمہ",
+    "transcription_failed": "Transcription failed",
+    "retry": "Retry"
   },
   "tasks": {
     "today": "آج کے کام",

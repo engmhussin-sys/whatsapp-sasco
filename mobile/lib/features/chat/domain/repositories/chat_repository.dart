@@ -28,6 +28,9 @@ abstract class ChatRepository {
     int durationMs,
   );
 
+  /// A1 (real-user review, 2026-08-05).
+  Future<Either<Failure, void>> retryVoiceTranscription(String companyId, String conversationId, String messageId);
+
   /// Group 2 (WhatsApp parity) — "Delete for everyone". Sender-only,
   /// enforced server-side (see MessagesService.deleteMessage). "Delete
   /// for me" is intentionally NOT here — it's a purely local/client-side
@@ -75,6 +78,7 @@ abstract class ChatRepository {
   void leaveConversation(String conversationId);
   void sendTypingIndicator(String conversationId, bool isTyping);
   Stream<MessageEntity> get onMessageReceived;
+  Stream<MessageEntity> get onMessageTranslated;
   Stream<Map<String, dynamic>> get onNotification;
   Stream<bool> get onConnectionChanged;
   Stream<Map<String, dynamic>> get onTypingChanged;

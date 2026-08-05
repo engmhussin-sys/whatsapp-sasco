@@ -40,7 +40,9 @@
     "hold_to_record": "ለመቅረጽ ተጭነው ይያዙ",
     "transcribing": "ድምጽ ወደ ጽሑፍ በመቀየር ላይ...",
     "translation_failed": "ትርጉም አልተገኘም — መጀመሪያው ጽሑፍ",
-    "retranslate": "እንደገና ተርጉም"
+    "retranslate": "እንደገና ተርጉም",
+    "transcription_failed": "Transcription failed",
+    "retry": "Retry"
   },
   "tasks": {
     "today": "የዛሬ ተግባራት",

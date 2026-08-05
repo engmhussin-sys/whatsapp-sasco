@@ -22,6 +22,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final MarkReadUseCase _markRead;
 
   StreamSubscription<MessageEntity>? _messageSub;
+  StreamSubscription<MessageEntity>? _translatedSub;
   StreamSubscription<Map<String, dynamic>>? _typingSub;
   StreamSubscription<bool>? _connectionSub;
 
@@ -46,8 +47,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatMarkReadRequested>(_onMarkReadRequested);
     on<ChatTypingIndicatorChanged>(_onTypingIndicatorChanged);
     on<ChatMessageReceived>(_onMessageReceived);
+    on<ChatMessageTranslated>(_onMessageTranslated);
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
     on<ChatRetranslateRequested>(_onRetranslateRequested);
+    on<ChatRetryVoiceTranscriptionRequested>(_onRetryVoiceTranscriptionRequested);
     on<ChatSendAttachmentRequested>(_onSendAttachmentRequested);
     on<ChatDeleteMessageRequested>(_onDeleteMessageRequested);
     on<ChatLocalDeleteRequested>(_onLocalDeleteRequested);
@@ -88,6 +91,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         .where((m) => m.conversationId == conversationId)
         .listen((m) => add(ChatMessageReceived(m)));
 
+    // BUG FIX (confirmed real regression: messages arriving live via
+    // socket almost always beat their own background translation to
+    // the client, so they'd render untranslated and simply stay that
+    // way forever — nothing ever told this bloc a translation later
+    // became available). message:translated re-delivers the SAME
+    // message with its translations now populated; _onMessageTranslated
+    // below replaces the matching entry in place rather than appending.
+    _translatedSub = _repository.onMessageTranslated
+        .where((m) => m.conversationId == conversationId)
+        .listen((m) => add(ChatMessageTranslated(m)));
+
     _typingSub = _repository.onTypingChanged.listen((data) {
       add(ChatPeerTypingReceived(data['isTyping'] as bool? ?? false));
     });
@@ -123,6 +137,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _repository.leaveConversation(conversationId);
     await _connectionSub?.cancel();
     await _messageSub?.cancel();
+    await _translatedSub?.cancel();
     await _typingSub?.cancel();
   }
 
@@ -295,6 +310,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     add(const ChatMarkReadRequested());
   }
 
+  void _onMessageTranslated(ChatMessageTranslated event, Emitter<ChatState> emit) {
+    final index = state.messages.indexWhere((m) => m.id == event.message.id);
+    if (index == -1) return; // message already scrolled out of the loaded window, or history was since refreshed — nothing to update
+    final updated = [...state.messages];
+    updated[index] = event.message;
+    emit(state.copyWith(messages: updated));
+  }
+
   void _onPeerTypingReceived(ChatPeerTypingReceived event, Emitter<ChatState> emit) {
     emit(state.copyWith(isPeerTyping: event.isTyping));
   }
@@ -312,6 +335,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           (messages) => emit(state.copyWith(isRetranslating: false, messages: messages.reversed.toList())),
         );
       },
+    );
+  }
+
+  /// A1 (real-user review, 2026-08-05). Fire-and-forget — success shows
+  /// up via the SAME message:translated socket event the original
+  /// transcription attempt used; only an IMMEDIATE failure (e.g. no
+  /// network at all) surfaces here.
+  Future<void> _onRetryVoiceTranscriptionRequested(ChatRetryVoiceTranscriptionRequested event, Emitter<ChatState> emit) async {
+    final result = await _repository.retryVoiceTranscription(companyId, conversationId, event.messageId);
+    result.fold(
+      (failure) => emit(state.copyWith(errorMessage: failure.message)),
+      (_) {},
     );
   }
 
@@ -335,6 +370,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   @override
   Future<void> close() async {
     _messageSub?.cancel();
+    _translatedSub?.cancel();
     _typingSub?.cancel();
     _connectionSub?.cancel();
     return super.close();

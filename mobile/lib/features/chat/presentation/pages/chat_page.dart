@@ -209,6 +209,7 @@ class _ChatViewState extends State<_ChatView> {
                                 myLang: widget.myLang,
                                 showOriginalSetting: settingsState.showOriginalEnabled,
                                 onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
+                                onRetryTranscription: () => context.read<ChatBloc>().add(ChatRetryVoiceTranscriptionRequested(message.id)),
                               ),
                             ),
                           ],

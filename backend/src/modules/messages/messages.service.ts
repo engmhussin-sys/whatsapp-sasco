@@ -306,6 +306,27 @@ export class MessagesService {
     return this.findOne(companyId, senderId, message.id);
   }
 
+  /** A1 (real-user review, 2026-08-05): explicit retry for a voice
+   * message whose transcription failed. Re-runs the SAME
+   * processVoiceMessage() the original send used — no special "retry"
+   * code path, so a fix to the underlying provider (e.g. a missing
+   * OPENAI_API_KEY finally being set) is picked up automatically on
+   * the very next retry with zero extra code. */
+  async retryVoiceTranscription(companyId: string, messageId: string, userId: string) {
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, conversation: { companyId } },
+    });
+    if (!message) throw new NotFoundException('Message not found');
+    if (message.type !== MessageType.VOICE) throw new BadRequestException('Not a voice message');
+
+    this.logger.log(`Voice transcription retry for message ${message.id} requested by user ${userId}`);
+    this.voiceProcessing.processVoiceMessage(message.id).catch((err) =>
+      this.logger.warn(`Voice transcription retry failed for message ${message.id}: ${(err as Error).message}`),
+    );
+
+    return { retrying: true };
+  }
+
   async addAttachment(
     companyId: string,
     conversationId: string,

@@ -40,7 +40,9 @@
     "hold_to_record": "रिकॉर्ड के लिए दबाए रखें",
     "transcribing": "ऑडियो को टेक्स्ट में बदला जा रहा है...",
     "translation_failed": "अनुवाद उपलब्ध नहीं — मूल पाठ",
-    "retranslate": "फिर से अनुवाद करें"
+    "retranslate": "फिर से अनुवाद करें",
+    "transcription_failed": "Transcription failed",
+    "retry": "Retry"
   },
   "tasks": {
     "today": "आज के काम",

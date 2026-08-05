@@ -57,6 +57,13 @@ class ChatMessageReceived extends ChatEvent {
   List<Object?> get props => [message];
 }
 
+class ChatMessageTranslated extends ChatEvent {
+  final MessageEntity message;
+  const ChatMessageTranslated(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
 /// Internal — dispatched when the peer's typing state changes over the socket.
 class ChatPeerTypingReceived extends ChatEvent {
   final bool isTyping;
@@ -72,6 +79,17 @@ class ChatRetranslateRequested extends ChatEvent {
   const ChatRetranslateRequested(this.targetLanguage);
   @override
   List<Object?> get props => [targetLanguage];
+}
+
+/// A1 (real-user review, 2026-08-05): explicit retry when voice
+/// transcription failed — no client-side state change here, the actual
+/// update arrives via the SAME message:translated socket event a
+/// successful transcription would use.
+class ChatRetryVoiceTranscriptionRequested extends ChatEvent {
+  final String messageId;
+  const ChatRetryVoiceTranscriptionRequested(this.messageId);
+  @override
+  List<Object?> get props => [messageId];
 }
 
 /// Group 1 (WhatsApp parity) — send an image/document. [caption] is

@@ -84,6 +84,17 @@ export class MessagesController {
     );
   }
 
+  /** A1 (real-user review, 2026-08-05): explicit retry button on the
+   * mobile voice-transcription failure notice. */
+  @Post(':messageId/retry-transcription')
+  retryVoiceTranscription(
+    @TenantId() companyId: string,
+    @Param('messageId') messageId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.messagesService.retryVoiceTranscription(companyId, messageId, user.sub);
+  }
+
   @Post(':messageId/attachments')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES } }))
