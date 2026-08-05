@@ -122,8 +122,8 @@ export default function EntitlementsPage() {
                       }`}
                     >
                       <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                          effectiveActive ? '-translate-x-0.5' : '-translate-x-[21px]'
+                        className={`absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                          effectiveActive ? '-translate-x-[18px]' : 'translate-x-0'
                         }`}
                       />
                     </button>

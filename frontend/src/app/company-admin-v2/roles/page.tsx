@@ -137,7 +137,7 @@ export default function RolesMatrixPage() {
                   >
                     {role.name}
                   </button>
-                  {role.isSystem && <span className="mr-1 block text-[9px] text-ds-textDisabled">(أساسي)</span>}
+                  {role.isSystem && <span className="me-1 block text-[9px] text-ds-textDisabled">(أساسي)</span>}
                 </th>
               ))}
             </tr>
