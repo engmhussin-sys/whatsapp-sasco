@@ -66,15 +66,38 @@ export class VoiceProcessingService {
       return;
     }
 
-    const transcription = await this.stt.transcribe({ audioUrl: message.audioUrl, mimeType: 'audio/webm' });
-    this.logger.log(`processVoiceMessage(${messageId}): transcription received, persisting`);
+    let transcribedText: string;
+    let transcribedLang: string;
+
+    try {
+      const transcription = await this.stt.transcribe({ audioUrl: message.audioUrl, mimeType: 'audio/webm' });
+      this.logger.log(`processVoiceMessage(${messageId}): transcription received, persisting`);
+      transcribedText = transcription.text;
+      transcribedLang = transcription.languageCode;
+    } catch (err) {
+      // BUG FIX (confirmed via real user report + screenshot: voice
+      // bubbles stuck on "جارٍ تحويل الصوت إلى نص..." forever): this
+      // used to have NO try/catch at all — an exception here (timeout,
+      // missing OPENAI_API_KEY, quota, anything) propagated up to the
+      // fire-and-forget .catch() in MessagesService, which only wrote a
+      // SERVER LOG line. The message's originalText was never updated,
+      // no socket event was ever emitted, so the client had nothing to
+      // react to and waited forever. Now: write an honest, real
+      // (Arabic) failure notice as the message's own text — and
+      // deliberately route it through the SAME fanOutTranslations()
+      // pipeline just like a real transcript, so non-Arabic readers
+      // ALSO see a translated failure notice, not just Arabic speakers.
+      this.logger.warn(`processVoiceMessage(${messageId}): transcription failed — ${(err as Error).message}`);
+      transcribedText = 'تعذّر تحويل هذه الرسالة الصوتية إلى نص';
+      transcribedLang = 'ar';
+    }
 
     await this.prisma.message.update({
       where: { id: messageId },
-      data: { originalText: transcription.text, originalLang: transcription.languageCode },
+      data: { originalText: transcribedText, originalLang: transcribedLang },
     });
 
-    await this.fanOutTranslations(messageId, transcription.text, transcription.languageCode);
+    await this.fanOutTranslations(messageId, transcribedText, transcribedLang);
     this.logger.log(`processVoiceMessage(${messageId}): translations fanned out`);
 
     // Live update — without this, the voice message bubble would show
