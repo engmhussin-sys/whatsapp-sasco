@@ -1,5 +1,5 @@
 import { IsString, IsOptional, MinLength, IsEmail, IsEnum, IsInt, Min, IsArray } from 'class-validator';
-import { SubscriptionPlan, ModuleCode } from '@prisma/client';
+import { SubscriptionPlan, ModuleCode, Sector } from '@prisma/client';
 
 export class CreateCompanyDto {
   @IsString()
@@ -130,4 +130,8 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   brandPrimaryHex?: string;
+
+  @IsOptional()
+  @IsEnum(Sector)
+  sector?: Sector;
 }

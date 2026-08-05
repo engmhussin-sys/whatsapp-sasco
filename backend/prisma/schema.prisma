@@ -85,12 +85,32 @@ enum AuditAction {
 // TENANT / COMPANY
 // --------------------------------------------------------------------------
 
+// V3 rebrand — the four sectors this platform now serves, per
+// V3_DESIGN_UPDATE.md section 4. Adding a fifth sector later means
+// adding an enum value here (non-breaking) plus a SectorContent entry
+// (see sector-content.data.ts) — it does NOT require touching any
+// mobile screen, since screens read sector CONTENT, not sector CODE.
+enum Sector {
+  FUEL_STATION
+  HOSPITAL
+  CONSTRUCTION
+  FACTORY
+}
+
 model Company {
   id              String   @id @default(uuid())
   name            String
   slug            String   @unique // used in subdomain / tenant routing
   logoUrl         String?
   industry        String?
+  // V3 rebrand — four-sector content system (task templates, PPE items,
+  // hazard kinds, daily safety alert text — see SectorContentService).
+  // Distinct from the free-text `industry` field above: this is the
+  // STRICT, typed enum that sector-specific CONTENT keys off of.
+  // Defaults to FUEL_STATION so every existing company (SASCO included)
+  // keeps its current fuel-specific content unchanged after this
+  // migration — nothing silently switches sector underneath them.
+  sector          Sector   @default(FUEL_STATION)
   defaultLanguage String   @default("en")
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -1860,6 +1880,11 @@ enum HazardKind {
   FIRE_SMOKE
   SLIPPERY_FLOOR
   ELECTRICAL
+  // V3 rebrand (four-sector expansion) — one new hazard kind per
+  // non-fuel sector (hospital / construction / factory respectively).
+  MEDICAL_WASTE
+  UNSAFE_SCAFFOLD
+  UNGUARDED_MACHINE
   OTHER
 }
 

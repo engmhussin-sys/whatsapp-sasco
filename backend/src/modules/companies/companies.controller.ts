@@ -47,6 +47,19 @@ export class CompaniesController {
     return this.companiesService.getIndustryPresets();
   }
 
+  // V3 rebrand — four-sector content. Public catalog (like
+  // industry-presets above) plus a per-company lookup.
+  @Get('sector-content')
+  allSectorContent() {
+    return this.companiesService.getAllSectorContent();
+  }
+
+  @Get(':companyId/sector-content')
+  @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN, SystemRole.TEAM_LEAD, SystemRole.WORKER)
+  mySectorContent(@TenantId() companyId: string) {
+    return this.companiesService.getMySectorContent(companyId);
+  }
+
   @Get(':companyId')
   @Roles(SystemRole.SUPER_ADMIN, SystemRole.COMPANY_ADMIN)
   findOne(@TenantId() companyId: string) {

@@ -66,7 +66,7 @@ class _LoginPageState extends State<LoginPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const SizedBox(height: 24),
-                          const Center(child: SascoLogo(size: 84)),
+                          const Center(child: SascoLogo(size: 72)),
                           const SizedBox(height: 36),
                           Text(
                             'تسجيل الدخول',

@@ -5,6 +5,7 @@ import { AuthService } from '../auth/auth.service';
 import { CreateCompanyDto, UpdateCompanyDto } from './dto/companies.dto';
 import { ModulesCatalogService } from '../modules-catalog/modules-catalog.service';
 import { TAXONOMY_PRESETS, getPresetByCode } from './taxonomy-presets.data';
+import { SECTOR_CONTENT, getSectorContent } from './sector-content.data';
 
 @Injectable()
 export class CompaniesService {
@@ -272,5 +273,19 @@ export class CompaniesService {
 
   getIndustryPresets() {
     return TAXONOMY_PRESETS;
+  }
+
+  /** V3 rebrand — the four-sector content system. Mobile reads
+   * `company.sector` then fetches THIS content by that code; screens
+   * themselves never hardcode sector-specific text (see
+   * V3_DESIGN_UPDATE.md section 4's own explicit rule). */
+  getAllSectorContent() {
+    return SECTOR_CONTENT;
+  }
+
+  async getMySectorContent(companyId: string) {
+    const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { sector: true } });
+    if (!company) throw new NotFoundException('Company not found');
+    return getSectorContent(company.sector) ?? SECTOR_CONTENT[0];
   }
 }
