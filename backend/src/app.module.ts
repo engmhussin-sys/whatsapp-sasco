@@ -35,6 +35,15 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SupportTicketsModule } from './modules/support-tickets/support-tickets.module';
 import { SafetyModule } from './modules/safety/safety.module';
 import { ModulesCatalogModule } from './modules/modules-catalog/modules-catalog.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { AssetsModule } from './modules/assets/assets.module';
+import { VisitorsModule } from './modules/visitors/visitors.module';
+import { TrainingModule } from './modules/training/training.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
+import { SystemHealthModule } from './modules/system-health/system-health.module';
+import { SecuritySessionsModule } from './modules/security-sessions/security-sessions.module';
+import { StorageStatsModule } from './modules/storage-stats/storage-stats.module';
+import { KnowledgeBaseModule } from './modules/knowledge-base/knowledge-base.module';
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -78,6 +87,15 @@ import { HealthController } from './health.controller';
     SupportTicketsModule,
     SafetyModule,
     ModulesCatalogModule,
+    AttendanceModule,
+    AssetsModule,
+    VisitorsModule,
+    TrainingModule,
+    ComplianceModule,
+    SystemHealthModule,
+    SecuritySessionsModule,
+    StorageStatsModule,
+    KnowledgeBaseModule,
   ],
   controllers: [HealthController],
   providers: [

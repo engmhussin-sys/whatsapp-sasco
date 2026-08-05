@@ -96,6 +96,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 Expanded(
                                   child: _ModeButton(
+                                    key: const ValueKey('login_mode_email_button'),
                                     label: 'البريد الإلكتروني',
                                     selected: _mode == _LoginMode.email,
                                     onTap: () => setState(() => _mode = _LoginMode.email),
@@ -139,6 +140,7 @@ class _LoginPageState extends State<LoginPage> {
                                   CountryPhoneField(key: _phoneFieldKey, onChanged: (full) => _fullPhone = full)
                                 else
                                   TextFormField(
+                                    key: const ValueKey('login_email_field'),
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
                                     decoration: const InputDecoration(
@@ -150,6 +152,7 @@ class _LoginPageState extends State<LoginPage> {
 
                                 const SizedBox(height: 14),
                                 TextFormField(
+                                  key: const ValueKey('login_password_field'),
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   decoration: InputDecoration(
@@ -175,6 +178,7 @@ class _LoginPageState extends State<LoginPage> {
                                   builder: (context, state) => SizedBox(
                                     height: 52,
                                     child: ElevatedButton(
+                                      key: const ValueKey('login_submit_button'),
                                       onPressed: state.isSubmitting ? null : _submit,
                                       child: state.isSubmitting
                                           ? const SizedBox(
@@ -215,7 +219,7 @@ class _ModeButton extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _ModeButton({required this.label, required this.selected, required this.onTap});
+  const _ModeButton({super.key, required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

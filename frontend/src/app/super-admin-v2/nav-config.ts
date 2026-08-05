@@ -28,7 +28,13 @@ export const superAdminNavGroups: DsNavGroup[] = [
   {
     id: 'monitoring',
     label: 'المراقبة',
-    items: [{ id: 'audit', href: '/super-admin-v2/audit-logs', label: 'سجلّ الأحداث' }],
+    items: [
+      { id: 'audit', href: '/super-admin-v2/audit-logs', label: 'سجلّ الأحداث' },
+      { id: 'health', href: '/super-admin-v2/health', label: 'صحة النظام' },
+      { id: 'sessions', href: '/super-admin-v2/sessions', label: 'جلسات الدخول' },
+      { id: 'ai-usage', href: '/super-admin-v2/ai-usage', label: 'استهلاك الذكاء' },
+      { id: 'storage', href: '/super-admin-v2/storage', label: 'التخزين' },
+    ],
   },
   {
     id: 'operations',

@@ -38,7 +38,7 @@ export const companiesApi = {
     data: Partial<
       Pick<
         Company,
-        'name' | 'industry' | 'defaultLanguage' | 'isActive' | 'orgUnitLabelSingularEn' | 'orgUnitLabelPluralEn' | 'orgUnitLabelSingularAr' | 'orgUnitLabelPluralAr'
+        'name' | 'industry' | 'defaultLanguage' | 'isActive' | 'orgUnitLabelSingularEn' | 'orgUnitLabelPluralEn' | 'orgUnitLabelSingularAr' | 'orgUnitLabelPluralAr' | 'brandLogoUrl' | 'brandPrimaryHex'
       >
     >,
   ) => api.patch<Company>(`/companies/${companyId}`, data),

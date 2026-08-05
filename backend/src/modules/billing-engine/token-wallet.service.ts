@@ -72,4 +72,52 @@ export class TokenWalletService {
           : [],
       );
   }
+
+  /** Sprint 15/16 add-on ("استهلاك الذكاء" screen) — platform-wide AI
+   * token consumption, built entirely from TokenWalletTransaction rows
+   * that were already being recorded on every translation/AI debit.
+   * No new tracking added; just the first aggregate view of data that
+   * already existed. */
+  async getPlatformUsageSummary() {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [totalDebitsLast30Days, wallets] = await Promise.all([
+      this.prisma.tokenWalletTransaction.aggregate({
+        where: { amount: { lt: 0 }, createdAt: { gte: thirtyDaysAgo } },
+        _sum: { amount: true },
+      }),
+      // BUG AVOIDED (same class caught earlier in this project on
+      // CompanySubscription): TokenWallet has a plain companyId COLUMN,
+      // not a `@relation` to Company — no `include: { company }` here.
+      // Company names are fetched via a separate lookup below instead.
+      this.prisma.tokenWallet.findMany({
+        include: {
+          transactions: {
+            where: { amount: { lt: 0 }, createdAt: { gte: thirtyDaysAgo } },
+            select: { amount: true },
+          },
+        },
+      }),
+    ]);
+
+    const companies = await this.prisma.company.findMany({
+      where: { id: { in: wallets.map((w: { companyId: string }) => w.companyId) } },
+      select: { id: true, name: true },
+    });
+    const companyNameById = new Map(companies.map((c: { id: string; name: string }) => [c.id, c.name]));
+
+    const companyBreakdown = wallets
+      .map((w: { companyId: string; balanceTokens: any; transactions: { amount: any }[] }) => ({
+        companyId: w.companyId,
+        companyName: companyNameById.get(w.companyId) ?? '—',
+        currentBalance: Number(w.balanceTokens),
+        consumedLast30Days: Math.abs(w.transactions.reduce((sum: number, t: { amount: any }) => sum + Number(t.amount), 0)),
+      }))
+      .sort((a: { consumedLast30Days: number }, b: { consumedLast30Days: number }) => b.consumedLast30Days - a.consumedLast30Days);
+
+    return {
+      totalConsumedLast30Days: Math.abs(Number(totalDebitsLast30Days._sum.amount ?? 0)),
+      companyBreakdown,
+    };
+  }
 }

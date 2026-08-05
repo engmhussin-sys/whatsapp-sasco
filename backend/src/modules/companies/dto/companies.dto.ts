@@ -122,4 +122,12 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   workOrderLabelPluralAr?: string;
+
+  @IsOptional()
+  @IsString()
+  brandLogoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  brandPrimaryHex?: string;
 }

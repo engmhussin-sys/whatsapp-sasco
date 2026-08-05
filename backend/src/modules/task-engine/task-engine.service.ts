@@ -83,11 +83,46 @@ export class TaskEngineService {
   }
 
   async updateTemplate(companyId: string, id: string, dto: UpdateTaskTemplateDto) {
-    await this.findTemplate(companyId, id);
+    const existing = await this.findTemplate(companyId, id);
     if (dto.fields) this.validateFieldDefinitions(dto.fields);
-    return this.prisma.taskTemplate.update({
-      where: { id },
-      data: { ...dto, fields: dto.fields as any },
+
+    // Sprint 7 (Form Builder) — only snapshot + bump the version when
+    // something that actually defines the FORM changed (fields, name,
+    // description). A pure isActive toggle, for example, doesn't
+    // warrant a new version entry — it's not a different form.
+    const isFormChange = dto.fields !== undefined || dto.name !== undefined || dto.description !== undefined;
+
+    return this.prisma.$transaction(async (tx: any) => {
+      if (isFormChange) {
+        await tx.taskTemplateVersion.create({
+          data: {
+            templateId: id,
+            version: existing.version,
+            name: existing.name,
+            description: existing.description,
+            fields: existing.fields,
+          },
+        });
+      }
+
+      return tx.taskTemplate.update({
+        where: { id },
+        data: {
+          ...dto,
+          fields: dto.fields as any,
+          version: isFormChange ? existing.version + 1 : existing.version,
+        },
+      });
+    });
+  }
+
+  /** Sprint 7 (Form Builder) — browsable version history for the
+   * `forms` screen's versioning UI. */
+  async getTemplateVersions(companyId: string, id: string) {
+    await this.findTemplate(companyId, id);
+    return this.prisma.taskTemplateVersion.findMany({
+      where: { templateId: id },
+      orderBy: { version: 'desc' },
     });
   }
 
@@ -209,8 +244,42 @@ export class TaskEngineService {
 
   private validateAnswersAgainstTemplate(fields: TaskFieldDefinitionDto[], answers: Record<string, unknown>) {
     for (const field of fields) {
-      if (field.required && (answers[field.id] === undefined || answers[field.id] === null || answers[field.id] === '')) {
+      // Sprint 7 (Form Builder) — a field hidden by conditional logic
+      // (its dependency's answer doesn't match showWhenEquals) is never
+      // required, regardless of its own `required` flag — the person
+      // submitting the form literally never saw it.
+      if (field.conditionalLogic) {
+        const dependencyAnswer = answers[field.conditionalLogic.dependsOnFieldId];
+        if (String(dependencyAnswer) !== field.conditionalLogic.showWhenEquals) continue;
+      }
+
+      const value = answers[field.id];
+      const isEmpty = value === undefined || value === null || value === '';
+
+      if (field.required && isEmpty) {
         throw new BadRequestException(`Field "${field.label}" (${field.id}) is required`);
+      }
+      if (isEmpty || !field.validation) continue;
+
+      const v = field.validation;
+      if (typeof value === 'number') {
+        if (v.min !== undefined && value < v.min) {
+          throw new BadRequestException(`Field "${field.label}" must be at least ${v.min}`);
+        }
+        if (v.max !== undefined && value > v.max) {
+          throw new BadRequestException(`Field "${field.label}" must be at most ${v.max}`);
+        }
+      }
+      if (typeof value === 'string') {
+        if (v.minLength !== undefined && value.length < v.minLength) {
+          throw new BadRequestException(`Field "${field.label}" must be at least ${v.minLength} characters`);
+        }
+        if (v.maxLength !== undefined && value.length > v.maxLength) {
+          throw new BadRequestException(`Field "${field.label}" must be at most ${v.maxLength} characters`);
+        }
+        if (v.pattern && !new RegExp(v.pattern).test(value)) {
+          throw new BadRequestException(`Field "${field.label}" does not match the required format`);
+        }
       }
     }
   }
@@ -220,7 +289,7 @@ export class TaskEngineService {
     responseId: string,
     fieldId: string,
     kind: any,
-    stored: { url: string },
+    stored: { url: string; sizeBytes?: number },
     gps?: { lat: number; lng: number },
   ) {
     const response = await this.prisma.taskResponse.findFirst({
@@ -234,6 +303,7 @@ export class TaskEngineService {
         fieldId,
         kind,
         url: stored.url,
+        sizeBytes: stored.sizeBytes,
         gpsLat: gps?.lat,
         gpsLng: gps?.lng,
       },

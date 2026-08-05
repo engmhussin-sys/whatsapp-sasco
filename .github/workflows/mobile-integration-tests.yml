@@ -1,0 +1,56 @@
+name: Mobile Integration Tests
+
+# Automatic, unattended, after every push AND on a schedule — this IS
+# the "responsible for running tests automatically after launch" system
+# requested. No human needs to trigger or watch this; failures show up
+# as a red X on the commit/PR and (once configured — see the commented
+# section at the bottom) can notify a Slack channel or email.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+  pull_request:
+    paths:
+      - 'mobile/**'
+  schedule:
+    # Runs against the LIVE production backend every 6 hours — catches
+    # real-world regressions (backend deploys, expired demo data, etc.)
+    # that only a push-triggered run against a fixed commit would miss.
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
+
+jobs:
+  integration-test:
+    runs-on: macos-latest # only macOS GitHub runners support KVM-accelerated Android emulators reliably
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Run integration tests on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          working-directory: mobile
+          script: |
+            flutter test integration_test/app_test.dart \
+              --dart-define=API_BASE_URL=${{ secrets.MOBILE_TEST_API_BASE_URL }} \
+              --dart-define=WS_BASE_URL=${{ secrets.MOBILE_TEST_WS_BASE_URL }}
+
+      # ---- Uncomment once a Slack/email webhook secret is configured ----
+      # - name: Notify on failure
+      #   if: failure()
+      #   run: curl -X POST -H 'Content-type: application/json' \
+      #     --data '{"text":"❌ Mobile integration tests failed on ${{ github.ref }}"}' \
+      #     ${{ secrets.SLACK_WEBHOOK_URL }}

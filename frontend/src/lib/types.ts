@@ -35,6 +35,9 @@ export interface Company {
   workOrderLabelPluralEn: string;
   workOrderLabelSingularAr: string;
   workOrderLabelPluralAr: string;
+  // Sprint 16 (white-label branding)
+  brandLogoUrl?: string | null;
+  brandPrimaryHex?: string | null;
 }
 
 export interface Subscription {

@@ -139,6 +139,15 @@ model Company {
   workOrderLabelSingularEn String @default("Fuel Request")
   workOrderLabelPluralEn   String @default("Fuel Requests")
 
+  // Sprint 16 — per-tenant white-label branding. Null means "use the
+  // platform default" (currently SASCO's own mark, passed as a literal
+  // prop — see DsShell.tsx) — this is NOT itself the platform-owner
+  // identity decision, just the per-company override layer on top of it.
+  brandLogoUrl     String?
+  brandPrimaryHex  String? // e.g. "#0C7C42" — validated as a hex color at the API layer, not the DB layer
+
+  knowledgeArticles KnowledgeArticle[]
+
   // Relations (all tenant-scoped data hangs off Company for isolation)
   users             User[]
   teams             Team[]
@@ -168,6 +177,18 @@ model Company {
 
   // Sprint 1 of the Enterprise Platform pivot — Module Marketplace
   modules CompanyModule[]
+
+  // Sprint 11 — Attendance & Time Tracking
+  attendanceRecords AttendanceRecord[]
+
+  // Sprint 12 — Asset & Fleet Management
+  assets   Asset[]
+  vehicles Vehicle[]
+
+  // Sprint 13 — Visitors / Training / Compliance
+  visitors                Visitor[]
+  certifications          Certification[]
+  complianceRequirements  ComplianceRequirement[]
 
   @@index([slug])
   @@map("companies")
@@ -233,6 +254,13 @@ model User {
   messageReactions  MessageReaction[]
   joinRequests      ConversationJoinRequest[] @relation("JoinRequester")
   decidedJoinRequests ConversationJoinRequest[] @relation("JoinRequestDecider")
+  attendanceRecords AttendanceRecord[]
+  assignedAssets    Asset[]
+  assignedVehicles  Vehicle[]
+  hostedVisitors           Visitor[]
+  certifications           Certification[]
+  assignedComplianceItems  ComplianceRequirement[]
+  authoredKnowledgeArticles KnowledgeArticle[]
 
   // Multi-tenant data isolation: composite uniqueness scoped by company
   @@unique([companyId, email])
@@ -838,6 +866,7 @@ model TaskAttachment {
   fieldId        String         // matches an id inside TaskTemplate.fields
   kind           AttachmentKind
   url            String
+  sizeBytes      Int?
   gpsLat         Float?
   gpsLng         Float?
   capturedAt     DateTime       @default(now())
@@ -1014,6 +1043,9 @@ model Station {
   primaryUsers  User[]
   hazardReports HazardReport[]
   sosAlerts     SosAlert[]
+  attendanceRecords AttendanceRecord[]
+  assets Asset[]
+  visitors Visitor[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1931,3 +1963,219 @@ model CompanyModule {
   @@index([companyId])
   @@map("company_modules")
 }
+
+// ============================================================================
+// SPRINT 11 — ATTENDANCE & TIME TRACKING (ModuleCode.ATTENDANCE)
+// ----------------------------------------------------------------------------
+// GPS-tagged check-in/check-out. Deliberately its own module, not folded
+// into ShiftLog: a shift log is "I opened/closed this shift's paperwork"
+// (task-template-driven, station-scoped); attendance is "I am physically
+// present right now" (pure timestamp + coordinates, no form). Companies
+// without a physical/field workforce concept can leave this module off
+// entirely — Sprint 1's ModuleGuard already covers that.
+// ============================================================================
+
+model AttendanceRecord {
+  id             String    @id @default(uuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkInAt      DateTime  @default(now())
+  checkInLat     Float?
+  checkInLng     Float?
+  checkOutAt     DateTime?
+  checkOutLat    Float?
+  checkOutLng    Float?
+  // Optional — ties this attendance record to a specific org unit
+  // (whatever this company currently calls it — see Company.orgTaxonomy).
+  // Nullable because not every industry's attendance is site-bound
+  // (e.g. a remote-first company still wants clock-in/out without GPS
+  // being tied to any particular Station row).
+  stationId      String?
+  station        Station?  @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now())
+
+  @@index([companyId, userId])
+  @@index([companyId, checkInAt])
+  @@map("attendance_records")
+}
+
+// ============================================================================
+// SPRINT 12 — ASSET & FLEET MANAGEMENT (ModuleCode.ASSET_MANAGEMENT / FLEET_MANAGEMENT)
+// ----------------------------------------------------------------------------
+// Two separate models, matching two separate ModuleCode entries in the
+// catalog — a company can activate one without the other (a hospital
+// wants Asset Management for equipment but has no Fleet; a logistics
+// company wants both). Deliberately NOT unified into one polymorphic
+// "Item" table: vehicles have genuinely different lifecycle fields
+// (plate number, maintenance schedule) that would just be null noise
+// on every non-vehicle asset row otherwise.
+// ============================================================================
+
+enum AssetStatus {
+  ACTIVE
+  IN_MAINTENANCE
+  RETIRED
+}
+
+model Asset {
+  id             String      @id @default(uuid())
+  companyId      String
+  company        Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name           String
+  category       String? // free-form: "Generator", "Pump", "Medical Device" — no fixed taxonomy imposed
+  serialNumber   String?
+  status         AssetStatus @default(ACTIVE)
+  assignedToUserId String?
+  assignedToUser   User?     @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  stationId      String?
+  station        Station?    @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  purchasedAt    DateTime?
+  valueSar       Decimal?    @db.Decimal(12, 2)
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("assets")
+}
+
+model Vehicle {
+  id                String      @id @default(uuid())
+  companyId         String
+  company           Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plateNumber       String
+  make              String?
+  model             String?
+  year              Int?
+  status            AssetStatus @default(ACTIVE)
+  assignedToUserId  String?
+  assignedToUser    User?       @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  lastMaintenanceAt DateTime?
+  nextMaintenanceAt DateTime?
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([companyId, plateNumber])
+  @@index([companyId])
+  @@map("vehicles")
+}
+
+// ============================================================================
+// SPRINT 13 — VISITOR MANAGEMENT / TRAINING & CERTIFICATIONS / COMPLIANCE
+// Three independent modules (ModuleCode.VISITOR_MANAGEMENT / TRAINING /
+// COMPLIANCE) — each activatable on its own, same as every module built
+// since Sprint 1.
+// ============================================================================
+
+model Visitor {
+  id           String    @id @default(uuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fullName     String
+  phone        String?
+  purpose      String?
+  hostUserId   String?
+  hostUser     User?     @relation(fields: [hostUserId], references: [id], onDelete: SetNull)
+  stationId    String?
+  station      Station?  @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  checkInAt    DateTime  @default(now())
+  checkOutAt   DateTime?
+  badgeNumber  String?
+  createdAt    DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([companyId, checkInAt])
+  @@map("visitors")
+}
+
+enum CertificationStatus {
+  VALID
+  EXPIRING_SOON
+  EXPIRED
+}
+
+model Certification {
+  id          String   @id @default(uuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  issuedAt    DateTime
+  expiresAt   DateTime?
+  documentUrl String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, userId])
+  @@index([companyId, expiresAt])
+  @@map("certifications")
+}
+
+enum ComplianceStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+model ComplianceRequirement {
+  id               String            @id @default(uuid())
+  companyId        String
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?
+  dueAt            DateTime?
+  status           ComplianceStatus  @default(OPEN)
+  assignedToUserId String?
+  assignedToUser   User?             @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  completedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("compliance_requirements")
+}
+
+// ============================================================================
+// SPRINT 16 — WHITE-LABEL BRANDING (final sprint)
+// ----------------------------------------------------------------------------
+// ============================================================================
+// KNOWLEDGE BASE — last remaining item from the original gap list.
+// Platform-wide articles (companyId null = visible to everyone) or
+// company-specific ones (e.g. a company's own onboarding notes) — one
+// model covers both scopes via a nullable companyId, matching the same
+// pattern used elsewhere (SupportTicket, AuditLog) rather than building
+// two parallel tables.
+// ============================================================================
+
+enum KnowledgeArticleCategory {
+  GETTING_STARTED
+  MODULES
+  BILLING
+  TROUBLESHOOTING
+  OTHER
+}
+
+model KnowledgeArticle {
+  id          String                   @id @default(uuid())
+  companyId   String? // null = platform-wide, visible to every company
+  company     Company?                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title       String
+  body        String // markdown
+  category    KnowledgeArticleCategory @default(OTHER)
+  isPublished Boolean                  @default(false)
+  authorId    String?
+  author      User?                    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([companyId])
+  @@index([isPublished])
+  @@map("knowledge_articles")
+}
+

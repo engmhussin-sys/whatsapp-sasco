@@ -17,6 +17,7 @@ import { MoyasarPaymentProvider } from './payment-providers/moyasar-payment.prov
 import { StcPayPaymentProvider } from './payment-providers/stcpay-payment.provider';
 import { PlansController } from './plans.controller';
 import { BillingEngineController } from './billing-engine.controller';
+import { PlatformAiUsageController } from './platform-ai-usage.controller';
 
 /**
  * STANDALONE, REUSABLE ENGINE — zero imports from any WorkForce-Connect-
@@ -34,7 +35,7 @@ import { BillingEngineController } from './billing-engine.controller';
  * real gateway credentials to test against).
  */
 @Module({
-  controllers: [PlansController, BillingEngineController],
+  controllers: [PlansController, BillingEngineController, PlatformAiUsageController],
   providers: [
     FeatureEngineService,
     UsageEngineService,

@@ -102,7 +102,7 @@ export const MODULE_CATALOG: ModuleCatalogEntry[] = [
     nameEn: 'Attendance & Time Tracking',
     descriptionAr: 'تسجيل حضور بموقع GPS وتتبّع ساعات العمل',
     category: 'workforce',
-    isComingSoon: true,
+    isComingSoon: false,
   },
   {
     code: ModuleCode.ASSET_MANAGEMENT,
@@ -110,7 +110,7 @@ export const MODULE_CATALOG: ModuleCatalogEntry[] = [
     nameEn: 'Asset & Inventory Management',
     descriptionAr: 'تتبّع الأصول والمخزون عبر كل المواقع',
     category: 'assets',
-    isComingSoon: true,
+    isComingSoon: false,
   },
   {
     code: ModuleCode.FLEET_MANAGEMENT,
@@ -118,7 +118,7 @@ export const MODULE_CATALOG: ModuleCatalogEntry[] = [
     nameEn: 'Fleet Management',
     descriptionAr: 'تتبّع المركبات وصيانتها وجداول استخدامها',
     category: 'assets',
-    isComingSoon: true,
+    isComingSoon: false,
   },
   {
     code: ModuleCode.VISITOR_MANAGEMENT,
@@ -126,7 +126,7 @@ export const MODULE_CATALOG: ModuleCatalogEntry[] = [
     nameEn: 'Visitor Management',
     descriptionAr: 'تسجيل دخول وخروج الزوّار وتصاريح الدخول',
     category: 'operations',
-    isComingSoon: true,
+    isComingSoon: false,
   },
   {
     code: ModuleCode.TRAINING,
@@ -134,7 +134,7 @@ export const MODULE_CATALOG: ModuleCatalogEntry[] = [
     nameEn: 'Training & Certifications',
     descriptionAr: 'مسارات تدريب وتتبّع صلاحية الشهادات',
     category: 'compliance',
-    isComingSoon: true,
+    isComingSoon: false,
   },
   {
     code: ModuleCode.COMPLIANCE,
@@ -142,7 +142,7 @@ export const MODULE_CATALOG: ModuleCatalogEntry[] = [
     nameEn: 'Compliance',
     descriptionAr: 'متابعة الالتزام بالمعايير التنظيمية',
     category: 'compliance',
-    isComingSoon: true,
+    isComingSoon: false,
   },
   {
     code: ModuleCode.MAINTENANCE,

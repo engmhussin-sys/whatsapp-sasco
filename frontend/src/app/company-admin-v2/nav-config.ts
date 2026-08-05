@@ -16,6 +16,7 @@ export const companyAdminNavGroups: DsNavGroup[] = [
       { id: 'tasks', href: '/company-admin-v2/tasks', label: 'المهام' },
       { id: 'approvals', href: '/company-admin-v2/approvals', label: 'الموافقات' },
       { id: 'work-orders', href: '/company-admin-v2/work-orders', label: 'أوامر العمل' },
+      { id: 'attendance', href: '/company-admin-v2/attendance', label: 'الحضور والانصراف' },
     ],
   },
   {
@@ -25,6 +26,24 @@ export const companyAdminNavGroups: DsNavGroup[] = [
       { id: 'people', href: '/company-admin-v2/people', label: 'الفرق والمواقع' },
       { id: 'users', href: '/company-admin/users', label: 'المستخدمون' },
       { id: 'teams', href: '/company-admin/teams', label: 'الفرق' },
+      { id: 'roles', href: '/company-admin-v2/roles', label: 'الأدوار والصلاحيات' },
+    ],
+  },
+  {
+    id: 'assets',
+    label: 'الأصول',
+    items: [
+      { id: 'assets', href: '/company-admin-v2/assets', label: 'إدارة الأصول' },
+      { id: 'fleet', href: '/company-admin-v2/fleet', label: 'إدارة الأسطول' },
+    ],
+  },
+  {
+    id: 'compliance-safety',
+    label: 'الامتثال والسلامة',
+    items: [
+      { id: 'visitors', href: '/company-admin-v2/visitors', label: 'إدارة الزوّار' },
+      { id: 'training', href: '/company-admin-v2/training', label: 'التدريب والشهادات' },
+      { id: 'compliance', href: '/company-admin-v2/compliance', label: 'الامتثال' },
     ],
   },
   {
@@ -41,6 +60,8 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     items: [
       { id: 'billing', href: '/company-admin/billing', label: 'الفوترة' },
       { id: 'settings', href: '/company-admin/settings', label: 'الإعدادات' },
+      { id: 'branding', href: '/company-admin-v2/branding', label: 'العلامة التجارية' },
+      { id: 'knowledge-base', href: '/company-admin-v2/knowledge-base', label: 'قاعدة المعرفة' },
     ],
   },
 ];
