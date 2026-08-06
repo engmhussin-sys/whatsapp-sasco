@@ -80,7 +80,7 @@ export function DsShell({
   serviceStatus,
   notificationCount = 0,
 }: DsShellProps) {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
@@ -94,24 +94,6 @@ export function DsShell({
     <div dir="rtl" className="flex min-h-screen bg-ds-bg font-ds text-ds-text">
       {/* ══ القائمة الجانبية 258px ══ */}
       <aside className="sticky top-0 flex h-screen w-[258px] shrink-0 flex-col bg-gradient-to-b from-ds-sidebarFrom to-ds-sidebarTo px-3.5 pb-3.5 pt-4">
-        {/* مبدّل الأدوار */}
-        {roles && roles.length > 1 && (
-          <div className="mb-4 flex gap-[3px] rounded-dsField bg-white/[.06] p-[3px]">
-            {roles.map((role) => (
-              <Link
-                key={role.id}
-                href={role.href}
-                className={`flex-1 rounded-[9px] px-2 py-1.5 text-center text-xs transition ${
-                  activeRole === role.id
-                    ? 'bg-white/[.14] font-medium text-white'
-                    : 'text-ds-onDarkMuted hover:text-white'
-                }`}
-              >
-                {role.label}
-              </Link>
-            ))}
-          </div>
-        )}
 
         {/* العلامة — الشعار الداكن داخل مربّع أبيض دائمًا */}
         <div className="flex items-center gap-2.5 px-2 pb-5">
@@ -182,39 +164,15 @@ export function DsShell({
           </div>
         )}
 
-        {/* شعار المالك + السلوجن */}
-        <div className="mt-3.5 flex items-center gap-2.5 border-t border-white/[.08] pt-3.5">
-          <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg bg-white/[.94] p-[3px]">
-            <Image
-              src="/atheel-logo.png"
-              alt="أثيل تك"
-              width={26}
-              height={26}
-              className="h-auto max-h-full w-auto max-w-full object-contain"
-              unoptimized
-            />
-          </span>
-          <span className="min-w-0 leading-snug">
-            <span className="block text-[11.5px] font-medium text-[#C9CBD9]">أثيل تك</span>
-            <span className="block text-[10.5px] tracking-wide text-ds-onDarkMuted">أصالة المستقبل</span>
-          </span>
-        </div>
-
-        {/* المستخدم */}
-        <div className="mt-2.5 flex items-center gap-2.5 rounded-dsField px-2.5 py-2.5 transition hover:bg-white/[.06]">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-ds-coralFrom to-ds-coralTo text-xs font-semibold text-white">
-            {user?.firstName?.charAt(0) ?? '؟'}
-          </div>
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-[13px] font-medium text-white">
-              {user ? `${user.firstName} ${user.lastName}` : '—'}
-            </p>
-            <p className="truncate text-[11px] text-ds-onDarkMuted">{userRoleLabel ?? ''}</p>
-          </div>
-          <button onClick={logout} className="text-[11px] text-ds-onDarkMuted transition hover:text-white">
-            خروج
-          </button>
-        </div>
+        {/* زر خروج بسيط — بلا اسم مستخدم ولا هوية منصّة، بناءً على طلب
+            تبسيط الشريط الجانبي لاسم الشركة فقط. الوظيفة الأساسية
+            (تسجيل الخروج) تبقى متاحة، فقط بلا العرض الموسّع السابق. */}
+        <button
+          onClick={logout}
+          className="mt-3.5 flex items-center justify-center gap-2 rounded-dsField border-t border-white/[.08] px-2.5 pt-3.5 text-[12px] text-ds-onDarkMuted transition hover:text-white"
+        >
+          خروج
+        </button>
       </aside>
 
       {/* ══ العمود الرئيسي ══ */}
