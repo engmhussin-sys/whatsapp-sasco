@@ -23,7 +23,10 @@ class MessageBubble extends StatelessWidget {
     required this.isMine,
     this.onListen,
     this.onRetryTranscription,
+    this.onRetrySend,
     this.showOriginalSetting = true,
+    this.isGroupChat = true,
+    this.isGroupedWithPrevious = false,
   });
 
   final MessageEntity message;
@@ -39,8 +42,21 @@ class MessageBubble extends StatelessWidget {
   /// A1 (مراجعة ٥ أغسطس) — إعادة محاولة تحويل صوتي فشل.
   final VoidCallback? onRetryTranscription;
 
+  /// CHAT_SPEC.md §1: علامة الفشل قابلة للنقر لإعادة الإرسال — لا وظيفة
+  /// حتى يُبنى نمط الإرسال المتفائل الكامل (انظر message_entity.dart).
+  final VoidCallback? onRetrySend;
+
   /// مفتاح المستخدم في «حسابي» لإظهار النص الأصلي
   final bool showOriginalSetting;
+
+  /// CHAT_SPEC.md §1: "في المحادثة الفردية: لا اسم مرسِل إطلاقاً
+  /// (تعرفه من الرأس)". افتراضي true لعدم كسر الاستدعاءات القديمة.
+  final bool isGroupChat;
+
+  /// CHAT_SPEC.md §1: هذه الرسالة من نفس مرسِل الرسالة السابقة خلال
+  /// ٦٠ ثانية — تُخفي اسم المرسِل (حتى في المحادثة الجماعية)، تُقلِّل
+  /// المسافة السفلية إلى 2dp، وتُزيل ذيل الفقاعة (زوايا 18dp كاملة).
+  final bool isGroupedWithPrevious;
 
   @override
   Widget build(BuildContext context) {
@@ -61,16 +77,15 @@ class MessageBubble extends StatelessWidget {
     final ruleColor = isMine ? Colors.white30 : AppColors.divider;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: Gap.md),
+      // CHAT_SPEC.md §1: "المسافة بين رسالتين: 2dp لنفس المرسِل · 8dp
+      // عند تغيّر المرسِل". Gap.md=12 هنا يبقى الافتراضي غير المُجمَّع؛
+      // 2dp فقط عند isGroupedWithPrevious.
+      padding: EdgeInsets.only(bottom: isGroupedWithPrevious ? 2 : Gap.md),
       child: Column(
         crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          _SenderRow(
-            name: message.senderName,
-            time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
-            langCode: myLang,
-          ),
-          const SizedBox(height: Gap.xs),
+          if (isGroupChat && !isMine && !isGroupedWithPrevious) _SenderNameLabel(name: message.senderName),
+          if (isGroupChat && !isMine && !isGroupedWithPrevious) const SizedBox(height: 2),
           Align(
             alignment: isMine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
             child: ConstrainedBox(
@@ -79,7 +94,7 @@ class MessageBubble extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: Gap.md),
                 decoration: BoxDecoration(
                   color: isMine ? AppColors.brand : Colors.white,
-                  borderRadius: R.bubbleR(isMine: isMine, isRtl: isRtl),
+                  borderRadius: R.bubbleR(isMine: isMine, isRtl: isRtl, hasTail: !isGroupedWithPrevious),
                   border: isMine ? null : Border.all(color: AppColors.divider),
                 ),
                 child: Column(
@@ -138,16 +153,46 @@ class MessageBubble extends StatelessWidget {
                         ],
                       ),
                     ] else ...[
-                      // ١ — الترجمة: النص الأكبر والأهم
-                      Text(
-                        displayText,
-                        style: TextStyle(
-                          fontFamily: fontFamilyFor(myLang),
-                          fontSize: FS.message,
-                          fontWeight: FontWeight.w600,
-                          height: 1.55,
-                          color: fg,
-                        ),
+                      // ١ — الترجمة + الصفّ السفلي (وقت + علامة تسليم)
+                      // مُدمَجان: CHAT_SPEC.md §1 — واتساب يُدخل الميتا في
+                      // نفس سطر النص إن اتسع، فلا يُهدر سطراً كاملاً في
+                      // الرسائل القصيرة. Stack + مسافة شفافة بعرض الميتا
+                      // في نهاية النص + الميتا الحقيقية مثبَّتة بالزاوية.
+                      Stack(
+                        children: [
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: displayText,
+                                  style: TextStyle(
+                                    fontFamily: fontFamilyFor(myLang),
+                                    fontSize: FS.message,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.55,
+                                    color: fg,
+                                  ),
+                                ),
+                                WidgetSpan(
+                                  alignment: PlaceholderAlignment.middle,
+                                  child: SizedBox(width: _metaRowWidth(isMine)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PositionedDirectional(
+                            end: 0,
+                            bottom: 0,
+                            child: _MetaRow(
+                              time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
+                              langCode: myLang,
+                              isMine: isMine,
+                              status: message.status,
+                              metaFg: metaFg,
+                              onRetrySend: onRetrySend,
+                            ),
+                          ),
+                        ],
                       ),
 
                       // ٢ — النص الأصلي: فقط عند اختلاف اللغة
@@ -256,25 +301,94 @@ class _RetryableImageState extends State<_RetryableImage> {
   }
 }
 
-class _SenderRow extends StatelessWidget {
-  const _SenderRow({required this.name, required this.time, required this.langCode});
+class _SenderNameLabel extends StatelessWidget {
+  const _SenderNameLabel({required this.name});
 
   final String name;
-  final String time;
-  final String langCode;
+
+  /// CHAT_SPEC.md §1: لون ثابت مشتقّ من هوية المرسل (الاسم هنا بدل
+  /// senderId لعدم تمرير المعرّف الخام لهذه الودجة الصغيرة — الاسم
+  /// كافٍ إحصائياً لتفادي تصادم بصري داخل نفس المحادثة الصغيرة).
+  int get _colorIndex => name.codeUnits.fold(0, (sum, c) => sum + c) % AppColors.senderPalette.length;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(name, style: const TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-        const SizedBox(width: Gap.sm),
-        Text(localizedDigits(time, langCode), style: const TextStyle(fontSize: FS.caption, color: AppColors.textSecondary)),
-      ],
+    return Text(name, style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w700, color: AppColors.senderPalette[_colorIndex]));
+  }
+}
+
+/// CHAT_SPEC.md §1: الصفّ السفلي — الوقت + علامة تسليم (لرسائلي فقط).
+class _MetaRow extends StatelessWidget {
+  const _MetaRow({
+    required this.time,
+    required this.langCode,
+    required this.isMine,
+    required this.status,
+    required this.metaFg,
+    this.onRetrySend,
+  });
+
+  final String time;
+  final String langCode;
+  final bool isMine;
+  final MessageDeliveryStatus status;
+  final Color metaFg;
+  final VoidCallback? onRetrySend;
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = status == MessageDeliveryStatus.failed;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(top: 6),
+      child: GestureDetector(
+        onTap: failed ? onRetrySend : null,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              localizedDigits(time, langCode),
+              style: TextStyle(fontSize: 11, color: failed ? AppColors.danger : metaFg),
+            ),
+            if (isMine) ...[
+              const SizedBox(width: 3),
+              _DeliveryIcon(status: status, metaFg: metaFg),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
+
+class _DeliveryIcon extends StatelessWidget {
+  const _DeliveryIcon({required this.status, required this.metaFg});
+
+  final MessageDeliveryStatus status;
+  final Color metaFg;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (status) {
+      case MessageDeliveryStatus.sending:
+        return Icon(Icons.schedule, size: 12, color: metaFg);
+      case MessageDeliveryStatus.sent:
+        return Icon(Icons.done, size: 14, color: metaFg);
+      case MessageDeliveryStatus.delivered:
+        return Icon(Icons.done_all, size: 14, color: metaFg);
+      case MessageDeliveryStatus.read:
+        // CHAT_SPEC.md §1: أزرق واتساب الحرفي — استثناء وحيد مقصود عن
+        // AppColors لأنه معيار تعرّف عالمي (نفس اللون الذي يعرفه كل
+        // مستخدم واتساب لـ"قُرئت")، وليس اختياراً تصميمياً حراً.
+        return const Icon(Icons.done_all, size: 14, color: Color(0xFF53BDEB));
+      case MessageDeliveryStatus.failed:
+        return const Icon(Icons.error_outline, size: 13, color: AppColors.danger);
+    }
+  }
+}
+
+/// عرض تقريبي لصفّ الميتا (وقت + علامة اختيارية) — يُستخدَم كمسافة
+/// شفافة في نهاية النص الرئيسي حتى لا يتراكب معها في السطر الأخير.
+double _metaRowWidth(bool isMine) => isMine ? 58 : 42;
 
 /// الفاصل المتقطّع — ليس خطاً متصلاً وليس مسافة فارغة.
 /// هذا التفصيل يميّز الترجمة عن الأصل بصرياً؛ لا تستبدله بـ Divider.

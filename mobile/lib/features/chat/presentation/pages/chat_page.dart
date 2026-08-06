@@ -218,10 +218,18 @@ class _ChatViewState extends State<_ChatView> {
                       itemBuilder: (context, index) {
                         final MessageEntity message = state.messages[index];
                         final showDateSeparator = index == 0 || !_isSameDay(state.messages[index - 1].createdAt, message.createdAt);
+                        // CHAT_SPEC.md §1: تجميع الرسائل — نفس المرسِل خلال
+                        // ٦٠ ثانية يُعتبر "مجموعة واحدة". يُعاد الحساب عند
+                        // فاصل تاريخ حتى لو كان الفارق الزمني أقل من الدقيقة
+                        // (لا يصح دمج رسالتين من يومين مختلفين بصرياً).
+                        final isGroupedWithPrevious = !showDateSeparator &&
+                            index > 0 &&
+                            state.messages[index - 1].senderId == message.senderId &&
+                            message.createdAt.difference(state.messages[index - 1].createdAt).inSeconds.abs() < 60;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (showDateSeparator) _DateSeparator(date: message.createdAt),
+                            if (showDateSeparator) _DateSeparator(date: message.createdAt, langCode: widget.myLang),
                             // تشخيص المهمة ١ (PROMPT_ROUND3.md): لم أستطع الحصول على قيم
                             // حيّة (لا Flutter SDK في بيئتي) — هذا يطبعها من تشغيلك الفعلي
                             // بدلاً من ذلك. احذف هذا السطر بعد التأكّد من النتيجة.
@@ -240,6 +248,13 @@ class _ChatViewState extends State<_ChatView> {
                                 isMine: message.senderId == widget.currentUserId,
                                 myLang: widget.myLang,
                                 showOriginalSetting: settingsState.showOriginalEnabled,
+                                // CHAT_SPEC.md §1: لا اسم مرسِل في المحادثة
+                                // الفردية. widget.conversation قد تكون null
+                                // (فتح رابط مباشر بلا مرور بالقائمة) —
+                                // الاحتياط الآمن هنا "جماعية" (تُظهر الاسم)
+                                // بدل إخفائه خطأً في محادثة جماعية فعلية.
+                                isGroupChat: widget.conversation?.type != ConversationType.direct,
+                                isGroupedWithPrevious: isGroupedWithPrevious,
                                 onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
                                 onRetryTranscription: () => context.read<ChatBloc>().add(ChatRetryVoiceTranscriptionRequested(message.id)),
                               ),
@@ -534,15 +549,23 @@ class _ChatViewState extends State<_ChatView> {
 /// message groups from different days.
 class _DateSeparator extends StatelessWidget {
   final DateTime date;
-  const _DateSeparator({required this.date});
+  final String langCode;
+  const _DateSeparator({required this.date, required this.langCode});
+
+  static const _arabicMonths = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      // CHAT_SPEC.md §1: هامش رأسي 16dp (كان 10).
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          // CHAT_SPEC.md §1: حشو 6×12 بالضبط.
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(color: AppColors.brandLight, borderRadius: BorderRadius.circular(20)),
           child: Text(_label(), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.brandDark)),
         ),
@@ -557,6 +580,10 @@ class _DateSeparator extends StatelessWidget {
     final diff = today.difference(target).inDays;
     if (diff == 0) return 'اليوم';
     if (diff == 1) return 'أمس';
-    return '${date.day}/${date.month}/${date.year}';
+    // CHAT_SPEC.md §1: "٣ أغسطس ٢٠٢٦" — تاريخ كامل بأرقام عربية-هندية
+    // واسم شهر عربي، لا تنسيق مختصر بأرقام لاتينية.
+    final day = localizedDigits('${date.day}', langCode);
+    final year = localizedDigits('${date.year}', langCode);
+    return '$day ${_arabicMonths[date.month - 1]} $year';
   }
 }

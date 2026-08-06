@@ -18,8 +18,11 @@ abstract final class R {
   static const double sheetTop = 30; // الورقة المرتفعة فوق الرأس
   static const double headerBottom = 28; // انحناء الرأس الملوّن
   static const double homeHeaderBottom = 36; // رأس الرئيسية أعمق
-  static const double bubble = 24; // فقاعة الرسالة
-  static const double bubbleTail = 8; // الزاوية المدبّبة جهة المرسل
+  // CHAT_SPEC.md §1 (مرجع تنفيذي أحدث وأدق لهذه الشاشة تحديدًا):
+  // "18dp للزوايا الثلاث، 6dp للزاوية السفلية جهة المرسِل" — يستبدل
+  // القيمتين الأعمّ (24/8) المُستخدَمتين سابقًا قبل وجود هذا المرجع.
+  static const double bubble = 18;
+  static const double bubbleTail = 6;
   static const double pill = 999; // كبسولة كاملة
 
   static BorderRadius get cardR => BorderRadius.circular(card);
@@ -30,8 +33,12 @@ abstract final class R {
   static BorderRadius get sheetR => const BorderRadius.vertical(top: Radius.circular(sheetTop));
 
   /// فقاعة الرسالة: الزاوية المدبّبة أسفل جهة المرسل، وتنقلب مع RTL.
-  static BorderRadius bubbleR({required bool isMine, required bool isRtl}) {
+  /// CHAT_SPEC.md §1: "الذيل لأول رسالة في المجموعة فقط، لا لكل رسالة"
+  /// — [hasTail]=false (بقية رسائل مجموعة مُتتالية) يجعل كل الزوايا
+  /// 18dp بلا استثناء، بدل الزاوية المدبّبة المعتادة.
+  static BorderRadius bubbleR({required bool isMine, required bool isRtl, bool hasTail = true}) {
     const b = Radius.circular(bubble);
+    if (!hasTail) return const BorderRadius.all(b);
     const t = Radius.circular(bubbleTail);
     if (isMine) {
       return isRtl
