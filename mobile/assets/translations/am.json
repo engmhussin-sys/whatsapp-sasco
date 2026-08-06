@@ -1,5 +1,5 @@
 {
-  "app_name": "አቲል ቴክ — የሰራተኞች ሥራ አስተዳደር",
+  "app_name": "አቲል — የሰራተኞች ሥራ አስተዳደር",
   "common": {
     "loading": "በመጫን ላይ...",
     "retry": "እንደገና ሞክር",
@@ -42,7 +42,10 @@
     "translation_failed": "ትርጉም አልተገኘም — መጀመሪያው ጽሑፍ",
     "retranslate": "እንደገና ተርጉም",
     "transcription_failed": "Transcription failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "default_title": "Chat",
+    "members": "members",
+    "image_load_failed": "Could not load image"
   },
   "tasks": {
     "today": "የዛሬ ተግባራት",

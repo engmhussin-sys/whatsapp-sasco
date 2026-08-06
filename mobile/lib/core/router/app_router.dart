@@ -7,6 +7,7 @@ import '../../features/authentication/presentation/pages/login_page.dart';
 import '../../features/authentication/presentation/pages/splash_page.dart';
 import '../../features/chat/presentation/pages/chat_page.dart';
 import '../../features/chat/presentation/pages/conversation_list_page.dart';
+import '../../features/chat/domain/entities/conversation_entity.dart';
 import '../../features/fuel_requests/presentation/pages/create_fuel_request_page.dart';
 import '../../features/fuel_requests/presentation/pages/fuel_request_details_page.dart';
 import '../../features/fuel_requests/presentation/pages/fuel_request_list_page.dart';
@@ -130,6 +131,7 @@ GoRouter buildAppRouter() {
               builder: (context, state) => ChatPage(
                 conversationId: state.pathParameters['conversationId']!,
                 currentUser: authBloc.state.user!,
+                conversation: state.extra as ConversationEntity?,
               ),
             ),
           ]),

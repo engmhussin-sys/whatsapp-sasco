@@ -90,8 +90,7 @@ class _HomeShellState extends State<HomeShell> {
           BottomNavigationBarItem(
             icon: _AnimatedNavIcon(
               active: widget.navigationShell.currentIndex == 2,
-              icon: Icons.health_and_safety_outlined,
-              color: AppColors.danger,
+              icon: Icons.shield_outlined,
             ),
             label: 'safety.tab'.tr(),
           ),
@@ -118,11 +117,17 @@ class _AnimatedNavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // المهمة ٤ (design_handoff_atheel_community/PROMPT_CATCHUP.md):
+    // لون ثابت (كالأحمر السابق لتبويب السلامة) يُستهلَك معناه إن ظهر
+    // دائمًا — الأحمر محجوز للخطر/الطوارئ فقط في هذا النظام. الافتراض
+    // الآن صريح ومتّسق مع كل تبويب: أخضر عند النشاط، رمادي عند غيره،
+    // ما لم يُمرَّر لون مختلف عمدًا (لا يوجد استدعاء يفعل ذلك حاليًا).
+    final resolvedColor = color ?? (active ? AppColors.brand : AppColors.textSecondary);
     return AnimatedScale(
       scale: active ? 1.0 : 0.9,
       duration: const Duration(milliseconds: 220),
       curve: const Cubic(0.2, 1.4, 0.4, 1.0),
-      child: Icon(icon, color: color),
+      child: Icon(icon, color: resolvedColor),
     );
   }
 }

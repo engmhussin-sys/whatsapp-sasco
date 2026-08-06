@@ -292,7 +292,7 @@ export class MessagesService {
     // cause already found and fixed for text messages (see sendText's
     // own doc comment) turned out to apply here too, just never
     // verified for this specific method until now.
-    this.broadcastNewMessage(companyId, conversationId, senderId, message.id, '🎤 رسالة صوتية').catch((err) =>
+    this.broadcastNewMessage(companyId, conversationId, senderId, message.id, 'رسالة صوتية').catch((err) =>
       this.logger.warn(`Realtime broadcast failed for voice message ${message.id}: ${(err as Error).message}`),
     );
 

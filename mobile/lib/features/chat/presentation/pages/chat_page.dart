@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/design_tokens.dart';
 import '../../../../core/tts/tts_service.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../../../../shared/widgets/loading_view.dart';
@@ -14,6 +15,7 @@ import '../../../authentication/domain/entities/user_entity.dart';
 import '../../../profile/presentation/bloc/settings_cubit.dart';
 import '../../domain/entities/message_attachment_entity.dart';
 import '../../domain/entities/message_entity.dart';
+import '../../domain/entities/conversation_entity.dart';
 import '../bloc/chat_bloc.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/voice_recorder_button.dart';
@@ -21,14 +23,25 @@ import '../widgets/voice_recorder_button.dart';
 class ChatPage extends StatelessWidget {
   final String conversationId;
   final UserEntity currentUser;
+  /// المهمة ٣ (design_handoff_atheel_community/PROMPT_CATCHUP.md) — بيانات
+  /// المحادثة الفعلية (الاسم، الأعضاء) تُمرَّر من شاشة القائمة عبر
+  /// `extra` بدل عنوان ثابت "محادثة". قابلة لأن تكون null (فتح رابط
+  /// مباشر للمحادثة بلا مرور بالقائمة)، وفي تلك الحالة نعرض احتياطًا
+  /// معقولًا لا نصًا مُضلِّلاً.
+  final ConversationEntity? conversation;
 
-  const ChatPage({super.key, required this.conversationId, required this.currentUser});
+  const ChatPage({super.key, required this.conversationId, required this.currentUser, this.conversation});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<ChatBloc>(param1: currentUser.companyId, param2: conversationId)..add(const ChatStarted()),
-      child: _ChatView(currentUserId: currentUser.id, myLang: currentUser.preferredLanguage, systemRole: currentUser.systemRole),
+      child: _ChatView(
+        currentUserId: currentUser.id,
+        myLang: currentUser.preferredLanguage,
+        systemRole: currentUser.systemRole,
+        conversation: conversation,
+      ),
     );
   }
 }
@@ -37,7 +50,8 @@ class _ChatView extends StatefulWidget {
   final String currentUserId;
   final String myLang;
   final SystemRole systemRole;
-  const _ChatView({required this.currentUserId, required this.myLang, required this.systemRole});
+  final ConversationEntity? conversation;
+  const _ChatView({required this.currentUserId, required this.myLang, required this.systemRole, this.conversation});
 
   @override
   State<_ChatView> createState() => _ChatViewState();
@@ -110,13 +124,20 @@ class _ChatViewState extends State<_ChatView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('محادثة', style: TextStyle(fontSize: 16)),
+              Text(
+                widget.conversation?.displayName(widget.currentUserId) ?? 'chat.default_title'.tr(),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
               if (state.isPeerTyping)
                 const Text('يكتب الآن...', style: TextStyle(fontSize: 12, color: AppColors.success))
-              else
+              else if (widget.conversation != null)
+                // المهمة ٣: عدد الأعضاء الفعلي بدل حالة اتصال الشبكة
+                // المُضلِّلة — لا بيانات حضور فعلية (isOnline/lastSeenAt)
+                // لأعضاء المحادثة بعد؛ بُنية بيانات جديدة تحتاج جولة
+                // عمل منفصلة، وليست مجرد إصلاح عرض.
                 Text(
-                  state.isSocketConnected ? 'متصل' : 'غير متصل',
-                  style: TextStyle(fontSize: 12, color: state.isSocketConnected ? Colors.green : Colors.grey),
+                  localizedDigits('${widget.conversation!.members.length} ${'chat.members'.tr()}', widget.myLang),
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
             ],
           ),
@@ -308,7 +329,10 @@ class _ChatViewState extends State<_ChatView> {
                     builder: (context, state) => IconButton(
                       icon: state.isSending
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.send, color: AppColors.brand),
+                          : Transform.flip(
+                              flipX: Directionality.of(context) == TextDirection.rtl,
+                              child: const Icon(Icons.send, color: AppColors.brand),
+                            ),
                       onPressed: state.isSending ? null : _sendText,
                     ),
                   ),

@@ -1,5 +1,5 @@
 {
-  "app_name": "Atheel Tech — Workforce Operations",
+  "app_name": "Atheel — Workforce Operations",
   "common": {
     "loading": "Loading...",
     "retry": "Retry",
@@ -42,7 +42,10 @@
     "translation_failed": "Translation unavailable — showing the original",
     "retranslate": "Retranslate",
     "transcription_failed": "Transcription failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "default_title": "Chat",
+    "members": "members",
+    "image_load_failed": "Could not load image"
   },
   "tasks": {
     "today": "Today’s tasks",

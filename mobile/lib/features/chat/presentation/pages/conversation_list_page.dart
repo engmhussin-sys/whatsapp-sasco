@@ -80,7 +80,7 @@ class ConversationListPage extends StatelessWidget {
                           child: _ConversationCard(
                             conv: conv,
                             currentUserId: currentUser.id,
-                            onTap: () => context.push(RouteNames.chatPath(conv.id)),
+                            onTap: () => context.push(RouteNames.chatPath(conv.id), extra: conv),
                           ),
                         );
                       },

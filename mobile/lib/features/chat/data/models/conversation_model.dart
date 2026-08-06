@@ -25,7 +25,7 @@ class ConversationModel extends ConversationEntity {
     String? preview;
     if (messages != null && messages.isNotEmpty) {
       final last = messages.first as Map<String, dynamic>;
-      preview = last['type'] == 'VOICE' ? '🎤 رسالة صوتية' : (last['originalText'] as String?);
+      preview = last['type'] == 'VOICE' ? 'رسالة صوتية' : (last['originalText'] as String?);
     }
 
     return ConversationModel(

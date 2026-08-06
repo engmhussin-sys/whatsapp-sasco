@@ -1,5 +1,5 @@
 {
-  "app_name": "أثیل ٹیک — ورک فورس آپریشنز",
+  "app_name": "أثیل — ورک فورس آپریشنز",
   "common": {
     "loading": "لوڈ ہو رہا ہے...",
     "retry": "دوبارہ کوشش",
@@ -42,7 +42,10 @@
     "translation_failed": "ترجمہ دستیاب نہیں — اصل متن",
     "retranslate": "دوبارہ ترجمہ",
     "transcription_failed": "Transcription failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "default_title": "Chat",
+    "members": "members",
+    "image_load_failed": "Could not load image"
   },
   "tasks": {
     "today": "آج کے کام",

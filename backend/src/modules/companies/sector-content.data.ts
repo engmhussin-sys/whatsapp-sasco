@@ -15,6 +15,9 @@ export interface SectorContent {
   groupLabelAr: string;
   jobTitleAr: string;
   tasks: SectorTaskSeed[];
+  // icon: اسم أيقونة Material نصي (مثل 'construction') — يُترجَم
+  // لأيقونة فعلية في الموبايل، وليس إيموجي (يظهر بشكل مختلف بين
+  // الأجهزة، لا يقبل التلوين، ويقرأ كمحتوى مستخدم لا واجهة نظام).
   ppeItems: { labelAr: string; icon: string }[];
   hazardKinds: string[]; // subset of the HazardKind enum relevant to this sector
   dailySafetyAlertAr: string;
@@ -35,10 +38,10 @@ export const SECTOR_CONTENT: SectorContent[] = [
       { nameAr: 'تسليم الوردية', nameEn: 'Shift Handover', descriptionAr: 'تسجيل قراءات الخزانات والمبالغ النقدية وتسليمها للوردية التالية' },
     ],
     ppeItems: [
-      { labelAr: 'قفازات مقاومة للوقود', icon: '🧤' },
-      { labelAr: 'حذاء أمان مضاد للانزلاق', icon: '🥾' },
-      { labelAr: 'نظارة واقية', icon: '🥽' },
-      { labelAr: 'سترة عاكسة', icon: '🦺' },
+      { labelAr: 'قفازات مقاومة للوقود', icon: 'back_hand_outlined' },
+      { labelAr: 'حذاء أمان مضاد للانزلاق', icon: 'hiking' },
+      { labelAr: 'نظارة واقية', icon: 'remove_red_eye_outlined' },
+      { labelAr: 'سترة عاكسة', icon: 'safety_divider' },
     ],
     hazardKinds: ['FUEL_LEAK', 'FIRE_SMOKE', 'SLIPPERY_FLOOR', 'ELECTRICAL'],
     dailySafetyAlertAr: 'تذكير: لا تستخدم الهاتف المحمول بالقرب من المضخات — خطر اشتعال حقيقي',
@@ -57,10 +60,10 @@ export const SECTOR_CONTENT: SectorContent[] = [
       { nameAr: 'تسليم الوردية الطبية', nameEn: 'Clinical Shift Handover', descriptionAr: 'تسليم حالات المرضى والملاحظات الحرجة للوردية التالية' },
     ],
     ppeItems: [
-      { labelAr: 'قفازات معقَّمة', icon: '🧤' },
-      { labelAr: 'كمّامة طبية', icon: '😷' },
-      { labelAr: 'مريلة واقية', icon: '🥼' },
-      { labelAr: 'واقي وجه', icon: '🛡️' },
+      { labelAr: 'قفازات معقَّمة', icon: 'back_hand_outlined' },
+      { labelAr: 'كمّامة طبية', icon: 'masks_outlined' },
+      { labelAr: 'مريلة واقية', icon: 'checkroom_outlined' },
+      { labelAr: 'واقي وجه', icon: 'shield_outlined' },
     ],
     hazardKinds: ['MEDICAL_WASTE', 'ELECTRICAL', 'SLIPPERY_FLOOR', 'FIRE_SMOKE'],
     dailySafetyAlertAr: 'تذكير: تخلَّص من الإبر والأدوات الحادة في الحاوية المخصَّصة فقط',
@@ -79,10 +82,10 @@ export const SECTOR_CONTENT: SectorContent[] = [
       { nameAr: 'تقرير نهاية اليوم', nameEn: 'End of Day Report', descriptionAr: 'توثيق التقدّم والحوادث والمواد المُستخدَمة' },
     ],
     ppeItems: [
-      { labelAr: 'خوذة أمان', icon: '⛑️' },
-      { labelAr: 'حزام أمان للارتفاعات', icon: '🪢' },
-      { labelAr: 'حذاء بمقدمة فولاذية', icon: '🥾' },
-      { labelAr: 'سترة عاكسة', icon: '🦺' },
+      { labelAr: 'خوذة أمان', icon: 'construction' },
+      { labelAr: 'حزام أمان للارتفاعات', icon: 'link' },
+      { labelAr: 'حذاء بمقدمة فولاذية', icon: 'hiking' },
+      { labelAr: 'سترة عاكسة', icon: 'safety_divider' },
     ],
     hazardKinds: ['UNSAFE_SCAFFOLD', 'ELECTRICAL', 'SLIPPERY_FLOOR', 'FIRE_SMOKE'],
     dailySafetyAlertAr: 'تذكير: لا تعمل على أي سقالة لم تُفحَص وتُختَم اليوم',
@@ -101,10 +104,10 @@ export const SECTOR_CONTENT: SectorContent[] = [
       { nameAr: 'تقرير نهاية الوردية', nameEn: 'End of Shift Report', descriptionAr: 'تسجيل الكمية المُنتَجة والأعطال والمواد المُستهلَكة' },
     ],
     ppeItems: [
-      { labelAr: 'واقي سمع', icon: '🎧' },
-      { labelAr: 'نظارة واقية', icon: '🥽' },
-      { labelAr: 'قفازات مقاومة للقطع', icon: '🧤' },
-      { labelAr: 'حذاء بمقدمة فولاذية', icon: '🥾' },
+      { labelAr: 'واقي سمع', icon: 'headset_outlined' },
+      { labelAr: 'نظارة واقية', icon: 'remove_red_eye_outlined' },
+      { labelAr: 'قفازات مقاومة للقطع', icon: 'back_hand_outlined' },
+      { labelAr: 'حذاء بمقدمة فولاذية', icon: 'hiking' },
     ],
     hazardKinds: ['UNGUARDED_MACHINE', 'ELECTRICAL', 'FIRE_SMOKE', 'SLIPPERY_FLOOR'],
     dailySafetyAlertAr: 'تذكير: لا تُشغِّل أي آلة بغطائها الواقي مرفوعًا أو مفقودًا',

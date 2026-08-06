@@ -134,9 +134,27 @@ class _SafetyHomePageState extends State<SafetyHomePage> {
 
 class _PpeTile extends StatelessWidget {
   final IconData? fallbackIcon;
+  /// B1 fix: اسم أيقونة Material نصي من الخادم (مثل 'construction') —
+  /// وليس إيموجي كما كان الاسم يُوحي سابقًا. الاسم مُبقًى كـ`emoji`
+  /// لتفادي كسر استدعاءات موجودة؛ القيمة نفسها تغيّرت جذريًا.
   final String? emoji;
   final String label;
   const _PpeTile({this.fallbackIcon, this.emoji, required this.label});
+
+  static const Map<String, IconData> _iconsByName = {
+    'construction': Icons.construction,
+    'safety_divider': Icons.safety_divider,
+    'back_hand_outlined': Icons.back_hand_outlined,
+    'hiking': Icons.hiking,
+    'remove_red_eye_outlined': Icons.remove_red_eye_outlined,
+    'masks_outlined': Icons.masks_outlined,
+    'checkroom_outlined': Icons.checkroom_outlined,
+    'shield_outlined': Icons.shield_outlined,
+    'link': Icons.link,
+    'headset_outlined': Icons.headset_outlined,
+  };
+
+  IconData? _iconFor(String? name) => name == null ? null : _iconsByName[name];
 
   @override
   Widget build(BuildContext context) {
@@ -150,10 +168,10 @@ class _PpeTile extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (emoji != null)
-            Text(emoji!, style: const TextStyle(fontSize: 36))
-          else
-            Icon(fallbackIcon, size: 40, color: AppColors.brand),
+          // B1 (design_handoff_atheel_community/PROMPT_CATCHUP.md): لا
+          // إيموجي في الواجهة — الخادم يُرسل اسم أيقونة Material نصيًا
+          // الآن (sector-content.data.ts) بدل رمز إيموجي مباشر.
+          Icon(_iconFor(emoji) ?? fallbackIcon, size: 36, color: AppColors.brand),
           const SizedBox(height: 8),
           Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         ],

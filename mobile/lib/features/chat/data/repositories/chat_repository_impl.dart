@@ -176,11 +176,11 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   String _defaultCaptionFor(MessageAttachmentKind kind) => switch (kind) {
-        MessageAttachmentKind.image => '📷 صورة',
-        MessageAttachmentKind.video => '🎥 فيديو',
-        MessageAttachmentKind.document => '📄 مستند',
-        MessageAttachmentKind.audio => '🎵 صوت',
-        MessageAttachmentKind.signature => '✍️ توقيع',
+        MessageAttachmentKind.image => 'صورة',
+        MessageAttachmentKind.video => 'فيديو',
+        MessageAttachmentKind.document => 'مستند',
+        MessageAttachmentKind.audio => 'صوت',
+        MessageAttachmentKind.signature => 'توقيع',
       };
 
   @override

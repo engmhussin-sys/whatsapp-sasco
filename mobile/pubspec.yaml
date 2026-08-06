@@ -87,16 +87,21 @@ flutter:
   assets:
     - assets/translations/
     - assets/images/
+    - assets/launcher/
 
 # ---- App icon config (flutter_launcher_icons) --------------------------------
-# Uses the Atheel Tech logo (V3 rebrand) — see assets/images/README.md.
-# Re-run `dart run flutter_launcher_icons` after replacing the logo file.
+# Task 9 (design_handoff_atheel_community/PROMPT_CATCHUP.md): the real
+# launcher files (ic_launcher.png 512×512, ic_launcher_foreground.png
+# 432×432) are provided directly — using them instead of the earlier
+# app_icon.png pair. Background is WHITE, not green: the logo itself is
+# dark green (#0D3B33-ish) and disappears against a green background.
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/app_icon.png"
-  adaptive_icon_background: "#0C7C42"
-  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+  remove_alpha_ios: true
+  image_path: "assets/launcher/ic_launcher.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/launcher/ic_launcher_foreground.png"
   min_sdk_android: 21
 
 # ---- Splash screen config (flutter_native_splash) -----------------------------

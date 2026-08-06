@@ -1,5 +1,5 @@
 {
-  "app_name": "Atheel Tech — Workforce Operations",
+  "app_name": "Atheel — Workforce Operations",
   "common": {
     "loading": "Naglo-load...",
     "retry": "Subukan muli",
@@ -42,7 +42,10 @@
     "translation_failed": "Walang salin — orihinal ang nakikita",
     "retranslate": "Isalin muli",
     "transcription_failed": "Transcription failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "default_title": "Chat",
+    "members": "members",
+    "image_load_failed": "Could not load image"
   },
   "tasks": {
     "today": "Gawain ngayon",

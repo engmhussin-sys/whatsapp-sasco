@@ -1,5 +1,5 @@
 {
-  "app_name": "অ্যাথিল টেক — ওয়ার্কফোর্স অপারেশনস",
+  "app_name": "অ্যাথিল — ওয়ার্কফোর্স অপারেশনস",
   "common": {
     "loading": "লোড হচ্ছে...",
     "retry": "আবার চেষ্টা",
@@ -42,7 +42,10 @@
     "translation_failed": "অনুবাদ পাওয়া যায়নি — মূল লেখা",
     "retranslate": "পুনরায় অনুবাদ",
     "transcription_failed": "Transcription failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "default_title": "Chat",
+    "members": "members",
+    "image_load_failed": "Could not load image"
   },
   "tasks": {
     "today": "আজকের কাজ",

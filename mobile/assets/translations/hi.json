@@ -1,5 +1,5 @@
 {
-  "app_name": "अथील टेक — वर्कफोर्स ऑपरेशंस",
+  "app_name": "अथील — वर्कफोर्स ऑपरेशंस",
   "common": {
     "loading": "लोड हो रहा है...",
     "retry": "पुनः प्रयास",
@@ -42,7 +42,10 @@
     "translation_failed": "अनुवाद उपलब्ध नहीं — मूल पाठ",
     "retranslate": "फिर से अनुवाद करें",
     "transcription_failed": "Transcription failed",
-    "retry": "Retry"
+    "retry": "Retry",
+    "default_title": "Chat",
+    "members": "members",
+    "image_load_failed": "Could not load image"
   },
   "tasks": {
     "today": "आज के काम",
