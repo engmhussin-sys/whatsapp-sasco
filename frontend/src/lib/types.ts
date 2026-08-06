@@ -74,6 +74,7 @@ export interface AppUser {
   preferredLanguage: string;
   createdAt: string;
   lastLoginAt?: string | null;
+  primaryStationId?: string | null;
 }
 
 export interface Team {

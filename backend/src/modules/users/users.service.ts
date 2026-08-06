@@ -21,10 +21,31 @@ export class UsersService {
   ) {}
 
   async create(companyId: string, dto: CreateUserDto) {
-    const existing = await this.prisma.user.findUnique({
-      where: { companyId_email: { companyId, email: dto.email } },
+    // Defense in depth — the DTO's @ValidateIf pair already enforces
+    // this, but a service-level check costs nothing and protects any
+    // future caller that bypasses the HTTP validation pipe.
+    if (!dto.email && !dto.phone) {
+      throw new ConflictException('Either email or phone is required');
+    }
+
+    // NOTE: switched from findUnique on the companyId_email compound
+    // key to findFirst with an OR — findUnique() rejects a compound key
+    // object where a member is undefined (confirmed via a real
+    // production crash earlier on TranslationProviderConfig's own
+    // nullable-field compound key), which email now is whenever a user
+    // is created phone-only.
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        companyId,
+        OR: [...(dto.email ? [{ email: dto.email }] : []), ...(dto.phone ? [{ phone: dto.phone }] : [])],
+      },
     });
-    if (existing) throw new ConflictException('A user with this email already exists in this company');
+    if (existing) {
+      const clashedOnEmail = dto.email && existing.email === dto.email;
+      throw new ConflictException(
+        clashedOnEmail ? 'A user with this email already exists in this company' : 'A user with this phone number already exists in this company',
+      );
+    }
 
     // Enterprise onboarding: the worker never sets their own initial
     // password — if the admin didn't supply one, generate a random,
@@ -51,15 +72,17 @@ export class UsersService {
         systemRole: role,
         status,
         preferredLanguage: dto.preferredLanguage ?? 'en',
+        primaryStationId: dto.primaryStationId,
         preferences: { create: {} },
       },
       select: this.publicSelect,
     });
   }
 
-  async findAll(companyId: string, params: { skip?: number; take?: number; search?: string }) {
+  async findAll(companyId: string, params: { skip?: number; take?: number; search?: string; stationId?: string }) {
     const where = {
       companyId,
+      ...(params.stationId ? { primaryStationId: params.stationId } : {}),
       ...(params.search
         ? {
             OR: [
@@ -121,9 +144,20 @@ export class UsersService {
     }
 
     await this.findOne(companyId, id); // ensures tenant ownership
+
+    // Gap fix: `password` was never hashed before persisting on update —
+    // it wasn't even a field on the DTO until now, so this path never
+    // ran in production, but writing a plaintext password unhashed
+    // would be a real credential-exposure bug the moment it did.
+    const { password, ...rest } = dto;
+    const data: Record<string, unknown> = { ...rest };
+    if (password) {
+      data.passwordHash = await this.authService.hashPassword(password);
+    }
+
     return this.prisma.user.update({
       where: { id },
-      data: dto,
+      data,
       select: this.publicSelect,
     });
   }
@@ -152,5 +186,6 @@ export class UsersService {
     createdAt: true,
     lastLoginAt: true,
     companyId: true,
+    primaryStationId: true,
   };
 }

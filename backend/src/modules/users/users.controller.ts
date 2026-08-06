@@ -35,11 +35,13 @@ export class UsersController {
     @Query('skip') skip: string,
     @Query('take') take: string,
     @Query('search') search: string,
+    @Query('stationId') stationId: string,
   ) {
     return this.usersService.findAll(companyId, {
       skip: skip ? parseInt(skip, 10) : undefined,
       take: take ? parseInt(take, 10) : undefined,
       search,
+      stationId,
     });
   }
 

@@ -23,7 +23,7 @@ export default function CompanyAdminPeoplePage() {
   useEffect(() => {
     if (!companyId) return;
     usersApi
-      .list(companyId, search || undefined)
+      .list(companyId, { search: search || undefined })
       .then((res) => setUsers(res.items))
       .catch((err) => setError(err instanceof Error ? err.message : 'تعذّر تحميل المستخدمين'));
   }, [companyId, search]);

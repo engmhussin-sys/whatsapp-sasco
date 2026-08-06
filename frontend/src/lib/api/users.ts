@@ -2,10 +2,13 @@ import { api } from '../api-client';
 import type { AppUser, Team, RoleDef, PermissionDef } from '../types';
 
 export const usersApi = {
-  list: (companyId: string, search?: string) =>
-    api.get<{ items: AppUser[]; total: number }>(
-      `/companies/${companyId}/users${search ? `?search=${encodeURIComponent(search)}` : ''}`,
-    ),
+  list: (companyId: string, params?: { search?: string; stationId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.stationId) qs.set('stationId', params.stationId);
+    const query = qs.toString();
+    return api.get<{ items: AppUser[]; total: number }>(`/companies/${companyId}/users${query ? `?${query}` : ''}`);
+  },
 
   create: (
     companyId: string,
@@ -17,11 +20,15 @@ export const usersApi = {
       lastName: string;
       systemRole?: string;
       preferredLanguage?: string;
+      primaryStationId?: string;
     },
   ) => api.post<AppUser>(`/companies/${companyId}/users`, data),
 
-  update: (companyId: string, userId: string, data: Partial<{ isActive: boolean; firstName: string; lastName: string }>) =>
-    api.patch<AppUser>(`/companies/${companyId}/users/${userId}`, data),
+  update: (
+    companyId: string,
+    userId: string,
+    data: Partial<{ isActive: boolean; firstName: string; lastName: string; password: string; systemRole: string; primaryStationId: string | null }>,
+  ) => api.patch<AppUser>(`/companies/${companyId}/users/${userId}`, data),
 };
 
 export const teamsApi = {
