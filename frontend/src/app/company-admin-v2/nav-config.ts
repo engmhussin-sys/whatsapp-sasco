@@ -47,22 +47,23 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     ],
   },
   {
-    id: 'communication',
-    label: 'التواصل',
-    items: [
-      { id: 'chat', href: '/messaging', label: 'المحادثات' },
-      { id: 'broadcast', href: '/company-admin/broadcast', label: 'البث والإعلانات' },
-      { id: 'kb', href: '/company-admin-v2/knowledge-base', label: 'قاعدة المعرفة' },
-    ],
-  },
-  {
     id: 'assets',
     label: 'الأصول والامتثال',
     items: [
+      { id: 'stations', href: '/company-admin-v2/stations', label: 'المحطات والخزانات' },
       { id: 'assets', href: '/company-admin-v2/assets', label: 'إدارة الأصول' },
       { id: 'fleet', href: '/company-admin-v2/fleet', label: 'إدارة الأسطول' },
       { id: 'visitors', href: '/company-admin-v2/visitors', label: 'إدارة الزوّار' },
       { id: 'compliance', href: '/company-admin-v2/compliance', label: 'الامتثال والسلامة' },
+    ],
+  },
+  {
+    id: 'communication',
+    label: 'التواصل',
+    items: [
+      { id: 'chat', href: '/messaging', label: 'المحادثات' },
+      { id: 'broadcast', href: '/company-admin-v2/broadcast', label: 'البث والإعلانات' },
+      { id: 'kb', href: '/company-admin-v2/knowledge-base', label: 'قاعدة المعرفة' },
     ],
   },
   {
@@ -110,4 +111,6 @@ export const companyScreenTitles: Record<string, string> = {
   '/company-admin-v2/branding': 'العلامة التجارية',
   '/company-admin-v2/billing': 'الفاتورة والاشتراك',
   '/company-admin-v2/settings': 'إعدادات الشركة',
+  '/company-admin-v2/stations': 'المحطات والخزانات',
+  '/company-admin-v2/broadcast': 'البث والإعلانات',
 };
