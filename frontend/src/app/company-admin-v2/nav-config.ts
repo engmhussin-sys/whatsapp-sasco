@@ -73,6 +73,8 @@ export const companyAdminNavGroups: DsNavGroup[] = [
       { id: 'billing', href: '/company-admin-v2/billing', label: 'الفاتورة والاشتراك' },
       { id: 'branding', href: '/company-admin-v2/branding', label: 'العلامة التجارية' },
       { id: 'settings', href: '/company-admin-v2/settings', label: 'إعدادات الشركة' },
+      { id: 'support', href: '/company-admin-v2/support', label: 'الدعم الفني' },
+      { id: 'audit-logs', href: '/company-admin-v2/audit-logs', label: 'سجلّ الأحداث' },
     ],
   },
 ];
@@ -113,4 +115,6 @@ export const companyScreenTitles: Record<string, string> = {
   '/company-admin-v2/settings': 'إعدادات الشركة',
   '/company-admin-v2/stations': 'المحطات والخزانات',
   '/company-admin-v2/broadcast': 'البث والإعلانات',
+  '/company-admin-v2/support': 'الدعم الفني',
+  '/company-admin-v2/audit-logs': 'سجلّ الأحداث',
 };
