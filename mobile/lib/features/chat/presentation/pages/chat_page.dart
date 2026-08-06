@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/audio/audio_playback_service.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/design_tokens.dart';
@@ -62,10 +64,33 @@ class _ChatViewState extends State<_ChatView> {
   String? _editingMessageId; // Group 3 (WhatsApp parity): non-null while editing an existing message
   final _scrollController = ScrollController();
   final _tts = sl<TtsService>();
+  final _audioService = sl<AudioPlaybackService>();
   int _previousMessageCount = 0;
 
   @override
+  void initState() {
+    super.initState();
+    // CHAT_SPEC.md §3: "تشغيل متسلسل: عند انتهاء رسالة صوتية تُشغَّل
+    // التالية تلقائياً إن كانت غير مسموعة ومن نفس المرسِل". البنية
+    // التحتية (onCompletion) كانت جاهزة بلا ربط فعلي — هذا هو الربط.
+    _audioService.onCompletion((finishedMessageId) async {
+      final messages = context.read<ChatBloc>().state.messages;
+      final index = messages.indexWhere((m) => m.id == finishedMessageId);
+      if (index == -1 || index + 1 >= messages.length) return;
+      final next = messages[index + 1];
+      final finished = messages[index];
+      if (next.type != MessageType.voice || next.audioUrl == null) return;
+      if (next.senderId != finished.senderId) return;
+      if (_audioService.hasBeenPlayed(next.id)) return;
+      final origin = ApiConstants.baseUrl.replaceAll(RegExp(r'/api/v1$'), '');
+      final url = next.audioUrl!.startsWith('http') ? next.audioUrl! : '$origin${next.audioUrl}';
+      await _audioService.play(next.id, url, title: next.senderName);
+    });
+  }
+
+  @override
   void dispose() {
+    _audioService.clearCompletion();
     context.read<ChatBloc>().add(const ChatEnded());
     _textController.dispose();
     _scrollController.dispose();
@@ -211,6 +236,15 @@ class _ChatViewState extends State<_ChatView> {
                 }
                 return BlocBuilder<SettingsCubit, SettingsState>(
                   builder: (context, settingsState) {
+                    // CHAT_SPEC.md §4: كل روابط صور المحادثة، بترتيبها
+                    // الزمني — تُحسَب مرة واحدة هنا (لا داخل itemBuilder
+                    // المُتكرِّر) وتُمرَّر لكل فقاعة صورة لدعم التمرير
+                    // بين صور المحادثة داخل العارض كامل الشاشة.
+                    final allImageUrls = [
+                      for (final m in state.messages)
+                        for (final a in m.attachments)
+                          if (a.kind == MessageAttachmentKind.image) a.url,
+                    ];
                     return ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.all(12),
@@ -241,22 +275,42 @@ class _ChatViewState extends State<_ChatView> {
                               );
                               return const SizedBox.shrink();
                             }),
-                            GestureDetector(
-                              onLongPress: message.isDeletedForEveryone ? null : () => _showMessageActions(context, message),
-                              child: MessageBubble(
-                                message: message,
-                                isMine: message.senderId == widget.currentUserId,
-                                myLang: widget.myLang,
-                                showOriginalSetting: settingsState.showOriginalEnabled,
+                            // CHAT_SPEC.md §8: "الرد على رسالة: سحب أفقي
+                            // على الفقاعة → اقتباس داخل الفقاعة الجديدة".
+                            // Dismissible توفّر الحركة البصرية التدريجية
+                            // جاهزة؛ confirmDismiss تُعيد false دائماً —
+                            // السحب يُفعِّل الرد فقط، لا يحذف الرسالة أبداً.
+                            Dismissible(
+                              key: ValueKey('reply-${message.id}'),
+                              direction: message.isDeletedForEveryone ? DismissDirection.none : DismissDirection.startToEnd,
+                              dismissThresholds: const {DismissDirection.startToEnd: 0.28},
+                              background: Container(
+                                alignment: AlignmentDirectional.centerStart,
+                                padding: const EdgeInsetsDirectional.only(start: 20),
+                                child: const Icon(Icons.reply_rounded, color: AppColors.brand),
+                              ),
+                              confirmDismiss: (_) async {
+                                context.read<ChatBloc>().add(ChatReplyTargetChanged(message));
+                                return false;
+                              },
+                              child: GestureDetector(
+                                onLongPress: message.isDeletedForEveryone ? null : () => _showMessageActions(context, message),
+                                child: MessageBubble(
+                                  message: message,
+                                  isMine: message.senderId == widget.currentUserId,
+                                  myLang: widget.myLang,
+                                  showOriginalSetting: settingsState.showOriginalEnabled,
                                 // CHAT_SPEC.md §1: لا اسم مرسِل في المحادثة
                                 // الفردية. widget.conversation قد تكون null
                                 // (فتح رابط مباشر بلا مرور بالقائمة) —
                                 // الاحتياط الآمن هنا "جماعية" (تُظهر الاسم)
                                 // بدل إخفائه خطأً في محادثة جماعية فعلية.
-                                isGroupChat: widget.conversation?.type != ConversationType.direct,
-                                isGroupedWithPrevious: isGroupedWithPrevious,
-                                onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
-                                onRetryTranscription: () => context.read<ChatBloc>().add(ChatRetryVoiceTranscriptionRequested(message.id)),
+                                  isGroupChat: widget.conversation?.type != ConversationType.direct,
+                                  isGroupedWithPrevious: isGroupedWithPrevious,
+                                  allConversationImageUrls: allImageUrls,
+                                  onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
+                                  onRetryTranscription: () => context.read<ChatBloc>().add(ChatRetryVoiceTranscriptionRequested(message.id)),
+                                ),
                               ),
                             ),
                           ],

@@ -2,7 +2,12 @@ import 'package:equatable/equatable.dart';
 import 'message_attachment_entity.dart';
 
 enum MessageType { text, voice, system }
-enum MessageDeliveryStatus { sent, delivered, read }
+// CHAT_SPEC.md §1: أربع حالات تسليم مطلوبة (قيد الإرسال، أُرسلت،
+// وصلت، قُرئت) + فشلت. `sent`/`delivered`/`read` تصل من الخادم فعلياً؛
+// `sending`/`failed` حالتان محليتان بحتتان (النمط المتفائل الكامل —
+// رسالة تظهر فوراً محلياً قبل تأكيد الخادم — عمل معماري منفصل لم يُبنَ
+// بعد؛ هاتان القيمتان جاهزتان في النموذج لتلك الخطوة التالية).
+enum MessageDeliveryStatus { sending, sent, delivered, read, failed }
 
 /// Group 2 (WhatsApp parity) — lightweight quoted-preview of the message
 /// being replied to. Deliberately NOT the full MessageEntity (avoids
@@ -24,11 +29,20 @@ class MessageEntity extends Equatable {
   final String conversationId;
   final String senderId;
   final String senderName;
+  /// CHAT_SPEC.md §1: "اسم المرسِل والصورة الرمزية للأولى فقط" —
+  /// كانت موجودة في استجابة الخادم (sender.avatarUrl) لكن غير مُستخرَجة
+  /// في الموبايل إطلاقاً؛ null إن لم يضبط المستخدم صورة شخصية.
+  final String? senderAvatarUrl;
   final MessageType type;
   final MessageDeliveryStatus status;
   final String? text;
   final String? audioUrl;
   final int? audioDurationMs;
+  /// CHAT_SPEC.md §3/§9: قيم سعة صوت حقيقية 0-100 (45 قيمة عادةً) —
+  /// null قبل اكتمال processVoiceMessage في الخادم، أو فارغة إن فشل
+  /// الاستخراج. لا تُختلَق موجة عشوائية إن كانت null/فارغة — الواجهة
+  /// تعرض خطًا متساوي الارتفاع بدلاً من موجة كاذبة.
+  final List<int>? voiceWaveform;
   final DateTime createdAt;
   final List<MessageAttachmentEntity> attachments;
   final ReplyPreview? replyTo;
@@ -61,11 +75,13 @@ class MessageEntity extends Equatable {
     required this.conversationId,
     required this.senderId,
     required this.senderName,
+    this.senderAvatarUrl,
     required this.type,
     required this.status,
     this.text,
     this.audioUrl,
     this.audioDurationMs,
+    this.voiceWaveform,
     required this.createdAt,
     this.originalLang = 'ar',
     this.translations = const {},
@@ -112,11 +128,13 @@ class MessageEntity extends Equatable {
         conversationId: conversationId,
         senderId: senderId,
         senderName: senderName,
+        senderAvatarUrl: senderAvatarUrl,
         type: type,
         status: status ?? this.status,
         text: text,
         audioUrl: audioUrl,
         audioDurationMs: audioDurationMs,
+        voiceWaveform: voiceWaveform,
         createdAt: createdAt,
         originalLang: originalLang,
         translations: translations,
@@ -136,6 +154,7 @@ class MessageEntity extends Equatable {
         status,
         text,
         audioUrl,
+        voiceWaveform,
         createdAt,
         originalLang,
         translations,

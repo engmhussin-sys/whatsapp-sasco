@@ -9,6 +9,7 @@ import {
   TEXT_TO_SPEECH_PROVIDER,
 } from '../../../src/modules/voice-processing/voice-processing.interfaces';
 import { ChatGateway } from '../../../src/modules/websocket/chat.gateway';
+import { WaveformExtractorService } from '../../../src/modules/voice-processing/providers/waveform-extractor.service';
 
 /**
  * processVoiceMessage() is the Phase-2 activation entry point that
@@ -55,6 +56,7 @@ describe('VoiceProcessingService.processVoiceMessage() — end-to-end orchestrat
         { provide: TRANSLATION_PROVIDER, useValue: translationProvider },
         { provide: TEXT_TO_SPEECH_PROVIDER, useValue: { synthesize: jest.fn() } },
         { provide: ChatGateway, useValue: { server: socketServer } },
+        { provide: WaveformExtractorService, useValue: { extract: jest.fn().mockReturnValue([]) } },
       ],
     }).compile();
 
@@ -125,6 +127,7 @@ describe('VoiceProcessingService.processVoiceMessage() — end-to-end orchestrat
         { provide: SPEECH_TO_TEXT_PROVIDER, useValue: stt },
         { provide: TRANSLATION_PROVIDER, useValue: translationProvider },
         { provide: TEXT_TO_SPEECH_PROVIDER, useValue: { synthesize: jest.fn() } },
+        { provide: WaveformExtractorService, useValue: { extract: jest.fn().mockReturnValue([]) } },
         // ChatGateway deliberately NOT provided.
       ],
     }).compile();

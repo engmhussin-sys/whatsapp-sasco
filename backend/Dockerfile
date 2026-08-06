@@ -14,7 +14,7 @@ WORKDIR /app
 # (the engine process itself was crashing on a missing shared library and
 # printing a text error where Prisma's CLI expected JSON). Installing
 # openssl explicitly fixes detection at the source.
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl ffmpeg
 
 # Install ALL dependencies first (this layer is cached as long as
 # package*.json don't change — full source changes below won't invalidate it).
@@ -42,7 +42,10 @@ ENV NODE_ENV=production
 # Same reason as the builder stage — this stage independently runs
 # `prisma db push` (via start.sh) at container startup, which needs the
 # schema-engine to detect OpenSSL correctly too.
-RUN apk add --no-cache openssl
+# ffmpeg هنا هو الأهم فعلياً — هذه المرحلة (production) هي التي تُشغِّل
+# التطبيق على Railway، حيث تُستدعى WaveformExtractorService/
+# VideoThumbnailExtractorService فعلياً وقت التشغيل.
+RUN apk add --no-cache openssl ffmpeg
 
 COPY package*.json ./
 RUN npm ci --omit=dev

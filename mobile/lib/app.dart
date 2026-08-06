@@ -6,6 +6,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/profile/presentation/bloc/settings_cubit.dart';
+import 'core/audio/persistent_mini_player.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -42,7 +43,10 @@ class App extends StatelessWidget {
                       : MediaQuery.of(context).textScaler;
                   return MediaQuery(
                     data: MediaQuery.of(context).copyWith(textScaler: scaler),
-                    child: child!,
+                    // CHAT_SPEC.md §3: "الاستمرار خارج الشاشة" — يُغلِّف
+                    // كل شاشات التطبيق فيظهر الشريط المصغّر أينما كان
+                    // المستخدم عند وجود تشغيل صوتي نشط.
+                    child: PersistentMiniPlayer(child: child!),
                   );
                 },
               );

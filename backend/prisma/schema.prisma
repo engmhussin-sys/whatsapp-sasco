@@ -514,6 +514,10 @@ model Message {
   // Voice message support (Phase 1 storage only, processing in Phase 2)
   audioUrl       String?
   audioDurationMs Int?
+  // CHAT_SPEC.md §3/§9: "45 قيمة للموجة — بدونها الموجة كاذبة". قيم
+  // سعة صوت حقيقية (0-100) مُستخرَجة فعلياً من الملف عبر ffmpeg عند
+  // الرفع (انظر WaveformExtractorService) — ليست عشوائية أو مُختلَقة.
+  voiceWaveform  Json?
 
   // Group 2 (WhatsApp parity): reply-to / quote. Nullable self-relation —
   // a message with no replyToId is a normal top-level message.
@@ -754,6 +758,11 @@ model MessageAttachment {
   fileName  String?
   mimeType  String?
   sizeBytes Int?
+  // CHAT_SPEC.md §4/§9: "لحجز مساحة الصورة قبل التحميل ومنع قفز
+  // الشاشة" + "معاينة ضبابية فورية". صور فقط؛ null لأنواع أخرى.
+  width           Int?
+  height          Int?
+  thumbnailBase64 String?
   createdAt DateTime       @default(now())
 
   @@index([messageId])

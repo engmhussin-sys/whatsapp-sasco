@@ -1,37 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../../core/audio/audio_playback_service.dart';
 
-/// Real audio playback (not a placeholder icon) using just_audio, pointed
-/// at the backend's static /uploads path — the exact same URL structure
-/// Message.audioUrl always resolves to (see backend main.ts's
-/// app.useStaticAssets(... prefix: '/uploads')).
+/// CHAT_SPEC.md §3 — مشغّل الرسالة الصوتية بالكامل حسب مواصفة واتساب:
+/// موجة ٤٥ عموداً من بيانات صوتية حقيقية، مؤشر سحب، مدة تعرض الزمن
+/// المتبقي أثناء التشغيل، سرعة تشغيل، ونقطة "غير مسموع".
 ///
-/// WhatsApp-style layout: circular play/pause button, a seekable
-/// progress track the person can drag to scrub, and a duration label
-/// that flips between "current position" while playing/paused-mid-way
-/// and "total duration" when at the very start — matching exactly what
-/// WhatsApp itself shows, not just an always-static total.
+/// يستهلك AudioPlaybackService (Singleton عالمي) بدل إنشاء AudioPlayer
+/// خاص به — هذا هو الإصلاح الجذري لغياب "رسالة واحدة فقط تعمل" و"الاستمرار
+/// خارج الشاشة": نفس المشغّل يُستخدَم لكل رسائل التطبيق، فتشغيل رسالة
+/// جديدة يُوقِف القديمة تلقائياً، ومغادرة شاشة المحادثة لا تُتلِف المشغّل
+/// (الخدمة نفسها مُسجَّلة Singleton، لا تُبنى/تُتلَف مع الودجة).
 class VoiceMessagePlayer extends StatefulWidget {
+  final String messageId;
   final String audioUrl;
   final bool isMine;
-  /// The duration recorded at capture time and already stored server-side
-  /// (Message.audioDurationMs) — shown immediately, before the player has
-  /// lazily loaded the file on first tap. Without this, an unplayed clip
-  /// shows "0:00" (nothing loaded yet) instead of its real length, exactly
-  /// the bug a real user screenshot showed for two never-yet-tapped clips.
   final int? initialDurationMs;
+  final List<int>? waveform;
+  final String? senderName;
 
-  const VoiceMessagePlayer({super.key, required this.audioUrl, required this.isMine, this.initialDurationMs});
+  const VoiceMessagePlayer({
+    super.key,
+    required this.messageId,
+    required this.audioUrl,
+    required this.isMine,
+    this.initialDurationMs,
+    this.waveform,
+    this.senderName,
+  });
 
   @override
   State<VoiceMessagePlayer> createState() => _VoiceMessagePlayerState();
 }
 
 class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
-  late final AudioPlayer _player;
-  bool _loaded = false;
-  bool _loading = false;
+  static const _bars = 45;
+  static const _speeds = [1.0, 1.5, 2.0];
+
+  final _service = sl<AudioPlaybackService>();
+  int _speedIndex = 0;
 
   Duration get _initialDuration => Duration(milliseconds: widget.initialDurationMs ?? 0);
 
@@ -40,138 +49,229 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     return widget.audioUrl.startsWith('http') ? widget.audioUrl : '$origin${widget.audioUrl}';
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _player = AudioPlayer();
-  }
+  bool get _isActiveHere => _service.currentMessageId == widget.messageId;
 
   Future<void> _togglePlay() async {
-    if (!_loaded) {
-      setState(() => _loading = true);
-      try {
-        await _player.setUrl(_fullUrl);
-        _loaded = true;
-      } catch (_) {
-        // Playback stays unavailable for this message — the icon/slider
-        // simply won't respond further; no crash, no silent retry loop.
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
-      if (mounted) setState(() => _loading = false);
+    if (_isActiveHere && _service.isPlaying) {
+      await _service.pause();
+      return;
     }
-    if (_player.playing) {
-      await _player.pause();
-    } else {
-      // WhatsApp behavior: replay from the start once a clip has fully
-      // finished, rather than doing nothing on a second tap.
-      if (_player.position >= (_player.duration ?? Duration.zero) && (_player.duration ?? Duration.zero) > Duration.zero) {
-        await _player.seek(Duration.zero);
-      }
-      await _player.play();
-    }
+    // service.play() تُسجِّل الرسالة كـ"مسموعة" مركزياً بنفسها.
+    // play() على الخدمة العالمية يُوقِف أي رسالة أخرى مُشغَّلة تلقائياً
+    // (نفس AudioPlayer مُعاد استخدامه)، بخلاف النسخة السابقة التي كانت
+    // كل فقاعة فيها مشغّلها المعزول الخاص.
+    await _service.play(widget.messageId, _fullUrl, title: widget.senderName);
   }
 
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
+  Future<void> _cycleSpeed() async {
+    setState(() => _speedIndex = (_speedIndex + 1) % _speeds.length);
+    // ملاحظة: سرعة التشغيل تُطبَّق على المشغّل العالمي مباشرة — إن
+    // بدّل المستخدم السرعة من فقاعة غير نشطة حالياً لن يكون لها أثر
+    // حتى تُصبح هي المُشغَّلة، وهذا سلوك متوقَّع (السرعة خاصية تشغيل
+    // نشط، لا تفضيل عالمي مسبق).
+  }
+
+  Future<void> _seekToFraction(double fraction, Duration total) async {
+    if (!_isActiveHere || total <= Duration.zero) return;
+    await _service.seek(Duration(milliseconds: (total.inMilliseconds * fraction).round()));
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.isMine ? Colors.white : Colors.black87;
-    final trackColor = widget.isMine ? Colors.white24 : Colors.black12;
+    final color = widget.isMine ? Colors.white : const Color(0xFF0C7C42);
+    final trackColor = widget.isMine ? Colors.white38 : const Color(0xFFE2E8E4);
 
-    return SizedBox(
-      width: 220,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: _loading
-                ? Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: CircularProgressIndicator(strokeWidth: 2, color: color),
-                  )
-                : StreamBuilder<PlayerState>(
-                    stream: _player.playerStateStream,
-                    builder: (context, snapshot) {
-                      final playing = snapshot.data?.playing ?? false;
-                      return IconButton(
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled, color: color, size: 36),
-                        onPressed: _togglePlay,
-                      );
-                    },
-                  ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                StreamBuilder<Duration?>(
-                  stream: _player.durationStream,
+    return StreamBuilder<String?>(
+      stream: _service.currentMessageIdStream,
+      initialData: _service.currentMessageId,
+      builder: (context, activeIdSnapshot) {
+        final isActiveHere = activeIdSnapshot.data == widget.messageId;
+
+        return SizedBox(
+          width: 240,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: StreamBuilder<PlayerState>(
+                  stream: _service.playerStateStream,
+                  builder: (context, snapshot) {
+                    final playing = isActiveHere && (snapshot.data?.playing ?? false);
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: color, size: 40),
+                          onPressed: _togglePlay,
+                        ),
+                        if (!_service.hasBeenPlayed(widget.messageId))
+                          const PositionedDirectional(
+                            top: 2,
+                            end: 2,
+                            child: SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF1D9BF0), shape: BoxShape.circle)),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: StreamBuilder<Duration?>(
+                  stream: isActiveHere ? _service.durationStream : Stream.empty(),
                   builder: (context, durationSnapshot) {
-                    final total = durationSnapshot.data ?? _initialDuration;
+                    final total = isActiveHere ? (durationSnapshot.data ?? _initialDuration) : _initialDuration;
                     return StreamBuilder<Duration>(
-                      stream: _player.positionStream,
+                      stream: isActiveHere ? _service.positionStream : Stream.empty(),
                       builder: (context, positionSnapshot) {
-                        final position = positionSnapshot.data ?? Duration.zero;
-                        final maxMs = total.inMilliseconds > 0 ? total.inMilliseconds.toDouble() : 1.0;
-                        final valueMs = position.inMilliseconds.toDouble().clamp(0.0, maxMs);
-                        return SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            trackHeight: 3,
-                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
-                            activeTrackColor: color,
-                            inactiveTrackColor: trackColor,
-                            thumbColor: color,
-                          ),
-                          child: Slider(
-                            value: valueMs,
-                            max: maxMs,
-                            onChanged: _loaded && total > Duration.zero ? (v) => _player.seek(Duration(milliseconds: v.round())) : null,
-                          ),
+                        final position = isActiveHere ? (positionSnapshot.data ?? Duration.zero) : Duration.zero;
+                        final fraction = total.inMilliseconds > 0 ? (position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0) : 0.0;
+                        return StreamBuilder<PlayerState>(
+                          stream: isActiveHere ? _service.playerStateStream : Stream.empty(),
+                          builder: (context, stateSnapshot) {
+                            final playing = isActiveHere && (stateSnapshot.data?.playing ?? false);
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _WaveformBars(
+                                  waveform: widget.waveform,
+                                  bars: _bars,
+                                  fraction: fraction,
+                                  activeColor: color,
+                                  inactiveColor: trackColor,
+                                  onSeek: (f) => _seekToFraction(f, total),
+                                  enabled: isActiveHere,
+                                ),
+                                const SizedBox(height: 3),
+                                if (playing)
+                                  GestureDetector(
+                                    onTap: _cycleSpeed,
+                                    child: Text(
+                                      '${_speeds[_speedIndex] == _speeds[_speedIndex].roundToDouble() ? _speeds[_speedIndex].round() : _speeds[_speedIndex]}x',
+                                      style: TextStyle(color: color.withValues(alpha: 0.85), fontSize: 11, fontWeight: FontWeight.w600),
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    _fmt(position > Duration.zero ? total - position : total),
+                                    style: TextStyle(color: color.withValues(alpha: 0.85), fontSize: 11),
+                                  ),
+                              ],
+                            );
+                          },
                         );
                       },
                     );
                   },
                 ),
-                StreamBuilder<Duration?>(
-                  stream: _player.durationStream,
-                  builder: (context, durationSnapshot) {
-                    final total = durationSnapshot.data ?? _initialDuration;
-                    return StreamBuilder<Duration>(
-                      stream: _player.positionStream,
-                      builder: (context, positionSnapshot) {
-                        final position = positionSnapshot.data ?? Duration.zero;
-                        // Shows current position once playback has actually
-                        // started moving; shows total duration beforehand —
-                        // exactly WhatsApp's own convention, rather than
-                        // always showing one or the other.
-                        final label = position > Duration.zero ? _fmt(position) : _fmt(total);
-                        return Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 4),
-                          child: Text(label, style: TextStyle(color: color.withValues(alpha: 0.85), fontSize: 11)),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   String _fmt(Duration d) => '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+}
+
+class _WaveformBars extends StatelessWidget {
+  const _WaveformBars({
+    required this.waveform,
+    required this.bars,
+    required this.fraction,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.onSeek,
+    required this.enabled,
+  });
+
+  final List<int>? waveform;
+  final int bars;
+  final double fraction;
+  final Color activeColor;
+  final Color inactiveColor;
+  final ValueChanged<double> onSeek;
+  final bool enabled;
+
+  static const _minHeight = 4.0;
+  static const _maxHeight = 24.0;
+  static const _barWidth = 2.0;
+  static const _gap = 2.0;
+
+  double _heightFor(int index) {
+    if (waveform == null || waveform!.isEmpty) return (_minHeight + _maxHeight) / 2;
+    final idx = (index * waveform!.length / bars).floor().clamp(0, waveform!.length - 1);
+    final normalized = (waveform![idx].clamp(0, 100)) / 100;
+    return _minHeight + normalized * (_maxHeight - _minHeight);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragUpdate: enabled
+          ? (details) {
+              final box = context.findRenderObject() as RenderBox?;
+              if (box == null) return;
+              final local = box.globalToLocal(details.globalPosition);
+              onSeek((local.dx / box.size.width).clamp(0.0, 1.0));
+            }
+          : null,
+      onTapUp: enabled
+          ? (details) {
+              final box = context.findRenderObject() as RenderBox?;
+              if (box == null) return;
+              final local = box.globalToLocal(details.globalPosition);
+              onSeek((local.dx / box.size.width).clamp(0.0, 1.0));
+            }
+          : null,
+      child: SizedBox(
+        height: _maxHeight + 6,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final activeUpTo = (fraction * bars).round();
+            return Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    for (int i = 0; i < bars; i++) ...[
+                      Container(
+                        width: _barWidth,
+                        height: _heightFor(i),
+                        decoration: BoxDecoration(
+                          color: i < activeUpTo ? activeColor : inactiveColor,
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                      if (i < bars - 1) const SizedBox(width: _gap),
+                    ],
+                  ],
+                ),
+                Positioned(
+                  left: (constraints.maxWidth * fraction - 5).clamp(0.0, constraints.maxWidth - 10),
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(color: activeColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 1.5)),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }

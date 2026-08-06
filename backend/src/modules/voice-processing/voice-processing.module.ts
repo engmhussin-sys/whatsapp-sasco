@@ -7,6 +7,7 @@ import {
 } from './voice-processing.interfaces';
 import { NoopTextToSpeechProvider } from './providers/noop-voice-processing.providers';
 import { WhisperSpeechToTextProvider } from './providers/whisper-speech-to-text.provider';
+import { WaveformExtractorService } from './providers/waveform-extractor.service';
 import { TranslationEngineBridgeProvider } from './providers/translation-engine-bridge.provider';
 import { NoopOcrProvider, NoopImageAnalysisProvider } from './providers/noop-ocr-image.providers';
 import { OCR_PROVIDER, IMAGE_ANALYSIS_PROVIDER } from './ocr-image.interfaces';
@@ -25,6 +26,7 @@ import { TranslationEngineModule } from '../translation-engine/translation-engin
   providers: [
     VoiceProcessingService,
     WhisperSpeechToTextProvider,
+    WaveformExtractorService,
     TranslationEngineBridgeProvider,
     { provide: SPEECH_TO_TEXT_PROVIDER, useExisting: WhisperSpeechToTextProvider },
     { provide: TRANSLATION_PROVIDER, useExisting: TranslationEngineBridgeProvider },
@@ -32,6 +34,6 @@ import { TranslationEngineModule } from '../translation-engine/translation-engin
     { provide: OCR_PROVIDER, useClass: NoopOcrProvider },
     { provide: IMAGE_ANALYSIS_PROVIDER, useClass: NoopImageAnalysisProvider },
   ],
-  exports: [VoiceProcessingService, OCR_PROVIDER, IMAGE_ANALYSIS_PROVIDER],
+  exports: [VoiceProcessingService, WaveformExtractorService, OCR_PROVIDER, IMAGE_ANALYSIS_PROVIDER],
 })
 export class VoiceProcessingModule {}

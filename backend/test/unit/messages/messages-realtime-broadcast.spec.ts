@@ -9,6 +9,8 @@ import { TokenWalletService } from '../../../src/modules/billing-engine/token-wa
 import { UsageEngineService } from '../../../src/modules/billing-engine/usage-engine.service';
 import { ChatGateway } from '../../../src/modules/websocket/chat.gateway';
 import { VoiceProcessingService } from '../../../src/modules/voice-processing/voice-processing.service';
+import { ImageMetaExtractorService } from '../../../src/common/storage/image-meta-extractor.service';
+import { VideoThumbnailExtractorService } from '../../../src/common/storage/video-thumbnail-extractor.service';
 
 /**
  * ROOT CAUSE (full audit, not speculation — grepped the entire mobile
@@ -82,6 +84,8 @@ describe('MessagesService — Realtime broadcast on send (root-cause fix)', () =
         { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
         { provide: ChatGateway, useValue: chatGateway },
         { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
+        { provide: ImageMetaExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
+        { provide: VideoThumbnailExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
       ],
     }).compile();
 
@@ -147,6 +151,8 @@ describe('MessagesService — Realtime broadcast on send (root-cause fix)', () =
         { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
         // ChatGateway deliberately NOT provided at all here.
         { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
+        { provide: ImageMetaExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
+        { provide: VideoThumbnailExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
       ],
     }).compile();
     const serviceWithoutGateway = moduleRef.get(MessagesService);
@@ -192,6 +198,8 @@ describe('MessagesService — Realtime broadcast on send (root-cause fix)', () =
           { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
           { provide: ChatGateway, useValue: chatGateway },
           { provide: VoiceProcessingService, useValue: { processVoiceMessage: jest.fn().mockResolvedValue(undefined) } },
+        { provide: ImageMetaExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
+        { provide: VideoThumbnailExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
         ],
       }).compile();
       const svc = moduleRef.get(MessagesService);

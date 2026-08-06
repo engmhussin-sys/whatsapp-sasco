@@ -25,4 +25,18 @@ class AppColors {
   static const Color textPrimary = Color(0xFF11201A);
   static const Color textSecondary = Color(0xFF5B6B63);
   static const Color divider = Color(0xFFE2E8E4);
+
+  /// CHAT_SPEC.md §1: اسم المرسِل في المحادثات الجماعية "بلون مشتق من
+  /// senderId (نفس المرسِل = نفس اللون دائماً)". لوحة ثابتة بدل توليد
+  /// عشوائي — يضمن تبايناً كافياً مع الخلفية البيضاء لكل قيمة، بخلاف
+  /// hue عشوائي قد ينتج لوناً باهتاً غير مقروء.
+  static const List<Color> senderPalette = [
+    Color(0xFF0C7C42), // brand
+    Color(0xFF1D4ED8), // blue
+    Color(0xFF7C3AED), // violet
+    Color(0xFFC2410C), // burnt orange
+    Color(0xFF0891B2), // teal
+    Color(0xFFBE185D), // magenta
+    Color(0xFF4D7C0F), // olive
+  ];
 }

@@ -10,6 +10,8 @@ import { TokenWalletService } from '../billing-engine/token-wallet.service';
 import { UsageEngineService } from '../billing-engine/usage-engine.service';
 import { ChatGateway } from '../websocket/chat.gateway';
 import { VoiceProcessingService } from '../voice-processing/voice-processing.service';
+import { ImageMetaExtractorService } from '../../common/storage/image-meta-extractor.service';
+import { VideoThumbnailExtractorService } from '../../common/storage/video-thumbnail-extractor.service';
 
 @Injectable()
 export class MessagesService {
@@ -40,6 +42,8 @@ export class MessagesService {
     // real-time delivery is an enhancement layered on top of a
     // REST API that must work on its own regardless.
     private voiceProcessing: VoiceProcessingService,
+    private imageMetaExtractor: ImageMetaExtractorService,
+    private videoThumbnailExtractor: VideoThumbnailExtractorService,
     @Optional() @Inject(forwardRef(() => ChatGateway)) private chatGateway?: ChatGateway,
   ) {}
 
@@ -348,6 +352,15 @@ export class MessagesService {
       folder: `message-attachments/${companyId}`,
     });
 
+    // CHAT_SPEC.md §4/§5/§9: أبعاد ومصغّرة حقيقية — للصور من الملف نفسه،
+    // وللفيديو من إطار مُستخرَج منه (VideoThumbnailExtractorService).
+    let imageMeta: { width: number; height: number; thumbnailBase64: string } | null = null;
+    if (kind === AttachmentKind.IMAGE) {
+      imageMeta = await this.imageMetaExtractor.extract(file.buffer);
+    } else if (kind === AttachmentKind.VIDEO) {
+      imageMeta = await this.videoThumbnailExtractor.extract(file.buffer);
+    }
+
     return this.prisma.messageAttachment.create({
       data: {
         messageId,
@@ -356,6 +369,9 @@ export class MessagesService {
         fileName: file.originalname,
         mimeType: file.mimetype,
         sizeBytes: stored.sizeBytes,
+        width: imageMeta?.width,
+        height: imageMeta?.height,
+        thumbnailBase64: imageMeta?.thumbnailBase64,
       },
     });
   }

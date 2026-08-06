@@ -11,6 +11,8 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CompanyDictionaryService } from '../company-dictionary/company-dictionary.service';
 import { ChatGateway } from '../websocket/chat.gateway';
+import { WaveformExtractorService } from './providers/waveform-extractor.service';
+import * as path from 'path';
 
 /**
  * SYSTEM message templates — canonical, pre-translated strings for
@@ -42,6 +44,7 @@ export class VoiceProcessingService {
     @Inject(TEXT_TO_SPEECH_PROVIDER) private tts: TextToSpeechProvider,
     private prisma: PrismaService,
     private companyDictionary: CompanyDictionaryService,
+    private waveformExtractor: WaveformExtractorService,
     // @Global() on ChatGatewayModule (see chat-gateway.module.ts) makes
     // this resolvable without VoiceProcessingModule needing to import
     // it directly — same pattern already proven for MessagesService.
@@ -96,6 +99,21 @@ export class VoiceProcessingService {
       where: { id: messageId },
       data: { originalText: transcribedText, originalLang: transcribedLang },
     });
+
+    // CHAT_SPEC.md §3/§9: موجة حقيقية من الملف الفعلي — ليست عشوائية.
+    // audioUrl مطلق (LocalStorageProvider: {baseUrl}/uploads/{folder}/
+    // {file}) فنستخلص المسار المحلي بإزالة أصل الرابط. فشل الاستخراج
+    // لا يمنع بقية المعالجة (WaveformExtractorService لا يرمي أبداً،
+    // يُعيد أصفاراً بدلاً من ذلك عند الفشل).
+    try {
+      const localPath = this.localPathFromUrl(message.audioUrl);
+      if (localPath) {
+        const waveform = this.waveformExtractor.extract(localPath);
+        await this.prisma.message.update({ where: { id: messageId }, data: { voiceWaveform: waveform } });
+      }
+    } catch (err) {
+      this.logger.warn(`processVoiceMessage(${messageId}): waveform extraction failed — ${(err as Error).message}`);
+    }
 
     await this.fanOutTranslations(messageId, transcribedText, transcribedLang);
     this.logger.log(`processVoiceMessage(${messageId}): translations fanned out`);
@@ -230,5 +248,17 @@ export class VoiceProcessingService {
     const message = await this.prisma.message.findUnique({ where: { id: messageId } });
     if (!message || !message.originalText || !message.originalLang) return;
     await this.fanOutTranslations(messageId, message.originalText, message.originalLang, { forceRetranslate: true });
+  }
+
+  /** يشتقّ المسار المحلي على القرص من رابط رفع مطلق — عكس ما يبنيه
+   * LocalStorageProvider.save() بالضبط ({baseUrl}/uploads/{folder}/
+   * {file} -> process.cwd()/uploads/{folder}/{file}). يُعيد null إن لم
+   * يحتوِ الرابط جزء "/uploads/" المتوقَّع (رابط خارجي غير محلي مثلاً). */
+  private localPathFromUrl(audioUrl: string): string | null {
+    const marker = '/uploads/';
+    const idx = audioUrl.indexOf(marker);
+    if (idx === -1) return null;
+    const relative = audioUrl.slice(idx + marker.length);
+    return path.join(process.cwd(), 'uploads', relative);
   }
 }

@@ -26,6 +26,9 @@ class MessageAttachmentModel extends MessageAttachmentEntity {
     super.fileName,
     super.mimeType,
     super.sizeBytes,
+    super.width,
+    super.height,
+    super.thumbnailBase64,
   });
 
   factory MessageAttachmentModel.fromJson(Map<String, dynamic> json) => MessageAttachmentModel(
@@ -35,5 +38,8 @@ class MessageAttachmentModel extends MessageAttachmentEntity {
         fileName: json['fileName'] as String?,
         mimeType: json['mimeType'] as String?,
         sizeBytes: json['sizeBytes'] as int?,
+        width: json['width'] as int?,
+        height: json['height'] as int?,
+        thumbnailBase64: json['thumbnailBase64'] as String?,
       );
 }

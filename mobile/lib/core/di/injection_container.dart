@@ -4,6 +4,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:get_it/get_it.dart';
 
 import '../ai/speech_to_text_interface.dart';
+import '../audio/audio_playback_service.dart';
 import '../ai/text_to_speech_interface.dart';
 import '../ai/translation_interface.dart';
 import '../tts/tts_service.dart';
@@ -112,6 +113,9 @@ Future<void> initDependencyInjection() async {
   // ---- Core: external packages -------------------------------------------
   sl.registerLazySingleton(() => const FlutterSecureStorage());
   sl.registerLazySingleton(() => Connectivity());
+  // CHAT_SPEC.md §3: مشغّل صوت واحد لكل التطبيق — يضمن "رسالة واحدة
+  // فقط تعمل" والاستمرارية عند مغادرة شاشة المحادثة.
+  sl.registerLazySingleton(() => AudioPlaybackService());
 
   // ---- Core: storage --------------------------------------------------------
   sl.registerLazySingleton<SecureStorageService>(() => SecureStorageServiceImpl(sl()));

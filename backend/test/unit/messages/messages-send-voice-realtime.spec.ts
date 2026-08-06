@@ -9,6 +9,8 @@ import { TokenWalletService } from '../../../src/modules/billing-engine/token-wa
 import { UsageEngineService } from '../../../src/modules/billing-engine/usage-engine.service';
 import { ChatGateway } from '../../../src/modules/websocket/chat.gateway';
 import { VoiceProcessingService } from '../../../src/modules/voice-processing/voice-processing.service';
+import { ImageMetaExtractorService } from '../../../src/common/storage/image-meta-extractor.service';
+import { VideoThumbnailExtractorService } from '../../../src/common/storage/video-thumbnail-extractor.service';
 
 const flushBackgroundWork = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -68,6 +70,8 @@ describe('MessagesService.sendVoice() — realtime broadcast + transcription tri
         { provide: UsageEngineService, useValue: { recordUsage: jest.fn() } },
         { provide: ChatGateway, useValue: { server: socketServer } },
         { provide: VoiceProcessingService, useValue: voiceProcessing },
+        { provide: ImageMetaExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
+        { provide: VideoThumbnailExtractorService, useValue: { extract: jest.fn().mockResolvedValue(null) } },
       ],
     }).compile();
 

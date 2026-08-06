@@ -8,6 +8,7 @@ import {
   TRANSLATION_PROVIDER,
   TEXT_TO_SPEECH_PROVIDER,
 } from '../../../src/modules/voice-processing/voice-processing.interfaces';
+import { WaveformExtractorService } from '../../../src/modules/voice-processing/providers/waveform-extractor.service';
 
 describe('VoiceProcessingService — Smart Translation Policy', () => {
   let service: VoiceProcessingService;
@@ -43,6 +44,7 @@ describe('VoiceProcessingService — Smart Translation Policy', () => {
         { provide: SPEECH_TO_TEXT_PROVIDER, useValue: { transcribe: jest.fn() } },
         { provide: TRANSLATION_PROVIDER, useValue: translationProvider },
         { provide: TEXT_TO_SPEECH_PROVIDER, useValue: { synthesize: jest.fn() } },
+        { provide: WaveformExtractorService, useValue: { extract: jest.fn().mockReturnValue([]) } },
       ],
     }).compile();
 

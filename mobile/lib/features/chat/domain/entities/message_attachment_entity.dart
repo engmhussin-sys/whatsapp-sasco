@@ -9,6 +9,12 @@ class MessageAttachmentEntity extends Equatable {
   final String? fileName;
   final String? mimeType;
   final int? sizeBytes;
+  /// CHAT_SPEC.md §4/§9: أبعاد حقيقية وصورة مصغّرة مضمّنة — تُملأ فقط
+  /// لمرفقات الصور (ImageMetaExtractorService في الخادم). null لبقية
+  /// الأنواع أو إن فشل الاستخراج.
+  final int? width;
+  final int? height;
+  final String? thumbnailBase64;
 
   const MessageAttachmentEntity({
     required this.id,
@@ -17,6 +23,9 @@ class MessageAttachmentEntity extends Equatable {
     this.fileName,
     this.mimeType,
     this.sizeBytes,
+    this.width,
+    this.height,
+    this.thumbnailBase64,
   });
 
   String get sizeLabel {
@@ -27,5 +36,5 @@ class MessageAttachmentEntity extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, kind, url, fileName, mimeType, sizeBytes];
+  List<Object?> get props => [id, kind, url, fileName, mimeType, sizeBytes, width, height, thumbnailBase64];
 }

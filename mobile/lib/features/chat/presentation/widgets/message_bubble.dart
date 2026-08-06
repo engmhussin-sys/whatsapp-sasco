@@ -8,12 +8,17 @@
 //   النص الأصلي يظهر **فقط** إذا اختلفت لغة المرسل عن لغة القارئ.
 
 import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/design_tokens.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/entities/message_attachment_entity.dart';
+import 'voice_message_player.dart';
+import 'document_attachment_card.dart';
 
 class MessageBubble extends StatelessWidget {
   const MessageBubble({
@@ -27,6 +32,7 @@ class MessageBubble extends StatelessWidget {
     this.showOriginalSetting = true,
     this.isGroupChat = true,
     this.isGroupedWithPrevious = false,
+    this.allConversationImageUrls,
   });
 
   final MessageEntity message;
@@ -58,6 +64,11 @@ class MessageBubble extends StatelessWidget {
   /// المسافة السفلية إلى 2dp، وتُزيل ذيل الفقاعة (زوايا 18dp كاملة).
   final bool isGroupedWithPrevious;
 
+  /// CHAT_SPEC.md §4: تُمرَّر من ChatPage (حيث ChatBloc.state.messages
+  /// متاحة بالكامل) — كل روابط صور المحادثة، لدعم التمرير بين الصور
+  /// داخل العارض. null تعني عرض صورة الرسالة الحالية فقط.
+  final List<String>? allConversationImageUrls;
+
   @override
   Widget build(BuildContext context) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
@@ -76,14 +87,13 @@ class MessageBubble extends StatelessWidget {
     final metaFg = isMine ? Colors.white70 : AppColors.textSecondary;
     final ruleColor = isMine ? Colors.white30 : AppColors.divider;
 
-    return Padding(
-      // CHAT_SPEC.md §1: "المسافة بين رسالتين: 2dp لنفس المرسِل · 8dp
-      // عند تغيّر المرسِل". Gap.md=12 هنا يبقى الافتراضي غير المُجمَّع؛
-      // 2dp فقط عند isGroupedWithPrevious.
-      padding: EdgeInsets.only(bottom: isGroupedWithPrevious ? 2 : Gap.md),
-      child: Column(
-        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
+    // CHAT_SPEC.md §1: الصورة الرمزية الجانبية — تظهر فقط للرسائل
+    // الواردة في محادثة جماعية، وللأولى في كل مجموعة تحديداً (بقية
+    // المجموعة تحصل على مساحة فارغة بنفس العرض لمحاذاة عمودية متسقة).
+    final showAvatarSlot = isGroupChat && !isMine;
+    final bubbleColumn = Column(
+      crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
           if (isGroupChat && !isMine && !isGroupedWithPrevious) _SenderNameLabel(name: message.senderName),
           if (isGroupChat && !isMine && !isGroupedWithPrevious) const SizedBox(height: 2),
           Align(
@@ -100,11 +110,44 @@ class MessageBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ---- CHAT_SPEC.md §3: مشغّل الصوت — اكتشاف حرج:
+                    // كان VoiceMessagePlayer مكتوباً بالكامل لكن يتيماً
+                    // تماماً، لا يُستدعى من أي مكان. الرسالة الصوتية بعد
+                    // نجاح التحويل كانت تُعرض كنص عادي بلا أي إمكانية
+                    // لتشغيل الصوت الأصلي إطلاقاً. ----
+                    if (message.type == MessageType.voice && message.audioUrl != null) ...[
+                      VoiceMessagePlayer(
+                        messageId: message.id,
+                        audioUrl: message.audioUrl!,
+                        isMine: isMine,
+                        initialDurationMs: message.audioDurationMs,
+                        waveform: message.voiceWaveform,
+                        senderName: message.senderName,
+                      ),
+                      if (!isTranscribing && !transcriptionFailed) ...[
+                        const SizedBox(height: Gap.sm),
+                        _DashedRule(color: ruleColor),
+                        const SizedBox(height: Gap.sm),
+                      ],
+                    ],
                     // ---- ٠ — مرفق صورة (المهمة ٧): كان غائبًا كليًا،
                     // وليس مجرد عرض أسود كما وُصِف — لم يوجد أي
                     // Image.network في مسار العرض إطلاقًا. ----
                     for (final attachment in message.attachments.where((a) => a.kind == MessageAttachmentKind.image)) ...[
-                      _RetryableImage(url: attachment.url, metaFg: metaFg),
+                      _RetryableImage(
+                        url: attachment.url,
+                        metaFg: metaFg,
+                        width: attachment.width,
+                        height: attachment.height,
+                        thumbnailBase64: attachment.thumbnailBase64,
+                        allImageUrls: allConversationImageUrls,
+                      ),
+                      const SizedBox(height: Gap.sm),
+                    ],
+                    // ---- CHAT_SPEC.md §5: الملف المرفق — كان غائباً
+                    // كلياً؛ فقط الصور كانت تُعرض من بين كل المرفقات. ----
+                    for (final attachment in message.attachments.where((a) => a.kind != MessageAttachmentKind.image)) ...[
+                      DocumentAttachmentCard(attachment: attachment, isMine: isMine),
                       const SizedBox(height: Gap.sm),
                     ],
                     // ---- A1: حالة فشل صريحة (بدل الدوران الأبدي) ----
@@ -229,7 +272,43 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ],
-      ),
+    );
+
+    return Padding(
+      // CHAT_SPEC.md §1: "المسافة بين رسالتين: 2dp لنفس المرسِل · 8dp
+      // عند تغيّر المرسِل". Gap.md=12 هنا يبقى الافتراضي غير المُجمَّع؛
+      // 2dp فقط عند isGroupedWithPrevious.
+      padding: EdgeInsets.only(bottom: isGroupedWithPrevious ? 2 : Gap.md),
+      child: !showAvatarSlot
+          ? bubbleColumn
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // CHAT_SPEC.md §1: صورة رمزية 26dp للأولى في المجموعة؛
+                // مساحة فارغة بنفس العرض الكلي للبقية كي تبقى الفقاعات
+                // محاذاة عمودياً بدقة على طول المجموعة.
+                SizedBox(
+                  width: 32,
+                  child: isGroupedWithPrevious
+                      ? null
+                      : Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 6),
+                          child: CircleAvatar(
+                            radius: 13,
+                            backgroundColor: AppColors.brandLight,
+                            backgroundImage: message.senderAvatarUrl != null ? NetworkImage(message.senderAvatarUrl!) : null,
+                            child: message.senderAvatarUrl == null
+                                ? Text(
+                                    message.senderName.isNotEmpty ? message.senderName[0] : '?',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.brandDark),
+                                  )
+                                : null,
+                          ),
+                        ),
+                ),
+                Expanded(child: bubbleColumn),
+              ],
+            ),
     );
   }
 
@@ -246,53 +325,174 @@ class MessageBubble extends StatelessWidget {
 }
 
 class _RetryableImage extends StatefulWidget {
-  const _RetryableImage({required this.url, required this.metaFg});
+  const _RetryableImage({
+    required this.url,
+    required this.metaFg,
+    this.width,
+    this.height,
+    this.thumbnailBase64,
+    this.allImageUrls,
+  });
   final String url;
   final Color metaFg;
+  /// CHAT_SPEC.md §4: أبعاد حقيقية من الخادم — تحجز المساحة الصحيحة
+  /// *قبل* اكتمال التحميل، فلا تقفز الفقاعة.
+  final int? width;
+  final int? height;
+  final String? thumbnailBase64;
+  /// CHAT_SPEC.md §4: كل روابط صور المحادثة — يسمح بالتمرير بين
+  /// الصور داخل العارض. null/فارغة تعني عرض هذه الصورة وحدها فقط.
+  final List<String>? allImageUrls;
 
   @override
   State<_RetryableImage> createState() => _RetryableImageState();
 }
 
 class _RetryableImageState extends State<_RetryableImage> {
-  // المهمة ٥ (PROMPT_ROUND3.md): زر إعادة المحاولة صريح — تغيير المفتاح
-  // يجبر Image.network على إعادة المحاولة بدل الاعتماد على ذاكرة تخزين
-  // فاشلة. هذا لا يُصلح السبب الجذري (تخزين Railway المحلي غير الدائم —
-  // انظر توثيق الجولة ٣)، لكنه يمنح المستخدم فرصة حقيقية بعد أي فشل
-  // شبكي عابر لا علاقة له بذلك السبب.
   int _attempt = 0;
+
+  Uint8List? get _thumbnailBytes {
+    if (widget.thumbnailBase64 == null) return null;
+    try {
+      final base64Part = widget.thumbnailBase64!.split(',').last;
+      return base64Decode(base64Part);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 220),
-        child: Image.network(
-          widget.url,
-          key: ValueKey(_attempt),
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) =>
-              progress == null ? child : const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-          errorBuilder: (context, error, stackTrace) => SizedBox(
-            height: 100,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.broken_image_outlined, color: widget.metaFg),
-                  const SizedBox(height: 4),
-                  Text('chat.image_load_failed'.tr(), style: TextStyle(fontSize: FS.caption, color: widget.metaFg)),
-                  const SizedBox(height: 4),
-                  GestureDetector(
-                    onTap: () => setState(() => _attempt++),
-                    child: Text(
-                      'chat.retry'.tr(),
-                      style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, color: widget.metaFg),
+    // CHAT_SPEC.md §4: "عرض 240dp، ارتفاع من نسبة الصورة، min 120 / max 300dp"
+    final aspectRatio = (widget.width != null && widget.height != null && widget.height! > 0)
+        ? widget.width! / widget.height!
+        : 240 / 180;
+    final targetHeight = (240 / aspectRatio).clamp(120.0, 300.0);
+    final thumbBytes = _thumbnailBytes;
+
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) {
+            final urls = (widget.allImageUrls != null && widget.allImageUrls!.isNotEmpty) ? widget.allImageUrls! : [widget.url];
+            final initialIndex = urls.indexOf(widget.url).clamp(0, urls.length - 1);
+            return _FullScreenImageViewer(allImageUrls: urls, initialIndex: initialIndex);
+          },
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15), // CHAT_SPEC.md §4: radius داخلي 15dp
+        child: SizedBox(
+          width: 240,
+          height: targetHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // CHAT_SPEC.md §4/§9: المصغّرة الضبابية تظهر فوراً — لا
+              // مربع رمادي فارغ — ثم تُستبدَل بالصورة الكاملة.
+              if (thumbBytes != null)
+                ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Image.memory(thumbBytes, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                )
+              else
+                Container(color: widget.metaFg.withValues(alpha: 0.08)),
+              Image.network(
+                widget.url,
+                key: ValueKey(_attempt),
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                loadingBuilder: (context, child, progress) => progress == null
+                    ? child
+                    : thumbBytes != null
+                        ? const SizedBox.shrink() // المصغّرة الضبابية تكفي أثناء التحميل
+                        : const Center(child: CircularProgressIndicator()),
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: widget.metaFg.withValues(alpha: 0.08),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.broken_image_outlined, color: widget.metaFg),
+                        const SizedBox(height: 4),
+                        Text('chat.image_load_failed'.tr(), style: TextStyle(fontSize: FS.caption, color: widget.metaFg)),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => setState(() => _attempt++),
+                          child: Text(
+                            'chat.retry'.tr(),
+                            style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, color: widget.metaFg),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// CHAT_SPEC.md §4: "العارض الكامل — نقرة → عارض بخلفية سوداء: تكبير
+/// بالقرص، سحب لأسفل للإغلاق، شريط علوي". نسخة أساسية تُغطّي التكبير
+/// والإغلاق بالسحب؛ الانتقال بين صور المحادثة ومشاركة/حفظ الملف تحتاج
+/// عملاً إضافياً (قائمة صور المحادثة الكاملة، أذونات حفظ الملفات) —
+/// موثَّق بصدق كنطاق متبقٍّ، لا مُدَّعى إكماله.
+/// CHAT_SPEC.md §4: "انتقال أفقي بين صور المحادثة". [allImageUrls] هو
+/// كل روابط صور المحادثة الحالية بترتيبها الزمني، و[initialIndex]
+/// موقع الصورة التي نُقِر عليها ضمنها — تسمح بالتمرير الأفقي بين كل
+/// صور المحادثة دون إغلاق العارض والعودة لفتح صورة أخرى يدوياً.
+class _FullScreenImageViewer extends StatefulWidget {
+  const _FullScreenImageViewer({required this.allImageUrls, required this.initialIndex});
+  final List<String> allImageUrls;
+  final int initialIndex;
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onVerticalDragEnd: (details) {
+        if ((details.primaryVelocity ?? 0) > 200) Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
+        ),
+        body: PageView.builder(
+          controller: _pageController,
+          itemCount: widget.allImageUrls.length,
+          itemBuilder: (context, index) => Center(
+            child: InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              child: Image.network(widget.allImageUrls[index], fit: BoxFit.contain),
             ),
           ),
         ),
