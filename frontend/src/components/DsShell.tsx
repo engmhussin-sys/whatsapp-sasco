@@ -46,7 +46,6 @@ export interface DsShellProps {
   screenTitle: string;
   productName: string;
   logoUrl: string;
-  promo?: DsPromo;
   roles?: DsRole[];
   activeRole?: string;
   userRoleLabel?: string;
@@ -72,7 +71,6 @@ export function DsShell({
   screenTitle,
   productName,
   logoUrl,
-  promo,
   roles,
   activeRole,
   userRoleLabel,
@@ -147,22 +145,10 @@ export function DsShell({
           ))}
         </nav>
 
-        {/* بطاقة الاستهلاك */}
-        {promo && (
-          <div
-            className="mt-3.5 rounded-[14px] border border-white/[.08] p-3.5"
-            style={{ background: 'linear-gradient(140deg, rgba(12,124,66,.28) 0%, rgba(12,124,66,.08) 100%)' }}
-          >
-            <p className="mb-0.5 text-[12.5px] font-medium text-white">{promo.title}</p>
-            <p className="num mb-2.5 text-[11.5px] text-ds-onDarkSecondary">{promo.subtitle}</p>
-            <div className="h-[5px] overflow-hidden rounded-[4px] bg-white/[.12]">
-              <div
-                className="h-full rounded-[4px] bg-gradient-to-l from-ds-secondary to-ds-primary"
-                style={{ width: `${Math.min(100, Math.max(0, promo.percent))}%` }}
-              />
-            </div>
-          </div>
-        )}
+        {/* بطاقة "المقاعد المستخدمة" انتقلت من هنا إلى قسم "صحة النظام"
+            داخل لوحة القيادة الرئيسية — بيانات حقيقية أدق (كانت used
+            مُثبَّتة على صفر هنا)، وموقع أنسب لبطاقة تحليلية وليست عنصر
+            تصفّح دائم الظهور. */}
 
         {/* زر خروج بسيط — بلا اسم مستخدم ولا هوية منصّة، بناءً على طلب
             تبسيط الشريط الجانبي لاسم الشركة فقط. الوظيفة الأساسية

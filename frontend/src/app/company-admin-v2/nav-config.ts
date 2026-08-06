@@ -22,7 +22,7 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     label: '',
     standalone: true,
     items: [
-      { id: 'dashboard', href: '/company-admin-v2/dash', label: 'وردية اليوم' },
+      { id: 'dashboard', href: '/company-admin-v2/dash', label: 'الرئيسية' },
       { id: 'approvals', href: '/company-admin-v2/approvals', label: 'الموافقات والطلبات' },
     ],
   },
@@ -95,7 +95,7 @@ export const companyRoles: DsRole[] = [
 ];
 
 export const companyScreenTitles: Record<string, string> = {
-  '/company-admin-v2/dash': 'وردية اليوم',
+  '/company-admin-v2/dash': 'الرئيسية',
   '/company-admin-v2/approvals': 'الموافقات والطلبات',
   '/company-admin-v2/tasks': 'لوحة المهام',
   '/company-admin-v2/work-orders': 'أوامر العمل',

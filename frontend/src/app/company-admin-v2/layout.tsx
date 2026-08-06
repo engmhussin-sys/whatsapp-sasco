@@ -29,7 +29,6 @@ export default function CompanyAdminV2Layout({ children }: { children: React.Rea
 
   const [logoUrl, setLogoUrl] = useState('/logo-sasco.png');
   const [productName, setProductName] = useState('SASCO');
-  const [seats, setSeats] = useState<{ used: number; limit: number } | null>(null);
   const [pending, setPending] = useState<number>(0);
   const [healthOk, setHealthOk] = useState<boolean | null>(null);
 
@@ -41,9 +40,6 @@ export default function CompanyAdminV2Layout({ children }: { children: React.Rea
       .then((c) => {
         if (c.brandLogoUrl) setLogoUrl(c.brandLogoUrl);
         setProductName(c.name);
-        if (c.subscription?.seatsLimit != null) {
-          setSeats({ used: 0, limit: c.subscription.seatsLimit });
-        }
       })
       .catch(() => {
         // فشل جلب العلامة لا يستحق تعطيل القشرة — الافتراضي كافٍ.
@@ -54,7 +50,6 @@ export default function CompanyAdminV2Layout({ children }: { children: React.Rea
       .companyOverview(companyId)
       .then((o) => {
         setPending(o.approvals.pending + o.fuelRequests.pending);
-        setSeats((prev) => (prev ? { ...prev, used: o.users.active } : { used: o.users.active, limit: 0 }));
         setHealthOk(true);
       })
       .catch(() => setHealthOk(false));
@@ -89,15 +84,6 @@ export default function CompanyAdminV2Layout({ children }: { children: React.Rea
           healthOk == null
             ? undefined
             : { ok: healthOk, label: healthOk ? 'كل الخدمات تعمل' : 'تعذّر الاتصال بالخادم' }
-        }
-        promo={
-          seats && seats.limit > 0
-            ? {
-                title: 'المقاعد المستخدمة',
-                subtitle: `${seats.used.toLocaleString('en-US')} من ${seats.limit.toLocaleString('en-US')} مقعد`,
-                percent: Math.round((seats.used / seats.limit) * 100),
-              }
-            : undefined
         }
       >
         {children}

@@ -6,12 +6,16 @@ import { useAuth } from '@/lib/auth-context';
 import { companiesApi } from '@/lib/api/companies';
 import { reportsApi } from '@/lib/api/reports';
 import { tasksApi, approvalsApi } from '@/lib/api/tasks';
+import { complianceApi, type ComplianceRequirement } from '@/lib/api/visitors-training-compliance';
+import { assetsApi, vehiclesApi, type Asset, type Vehicle } from '@/lib/api/assets';
 import type {
   CompanyDashboardStats,
   CompanyOverviewReport,
   TranslationOverviewReport,
+  BillingOverviewReport,
   TaskItem,
   ApprovalItem,
+  Company,
 } from '@/lib/types';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import {
@@ -71,27 +75,42 @@ export default function CompanyAdminDashV2Page() {
   const companyId = user?.companyId ?? '';
 
   const [stats, setStats] = useState<CompanyDashboardStats | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [overview, setOverview] = useState<CompanyOverviewReport | null>(null);
   const [translation, setTranslation] = useState<TranslationOverviewReport | null>(null);
+  const [billing, setBilling] = useState<BillingOverviewReport | null>(null);
   const [tasks, setTasks] = useState<TaskItem[] | null>(null);
   const [approvals, setApprovals] = useState<ApprovalItem[] | null>(null);
+  const [compliance, setCompliance] = useState<ComplianceRequirement[] | null>(null);
+  const [assets, setAssets] = useState<Asset[] | null>(null);
+  const [vehiclesDue, setVehiclesDue] = useState<Vehicle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!companyId) return;
     Promise.all([
       companiesApi.dashboard(companyId),
+      companiesApi.get(companyId).catch(() => null),
       reportsApi.companyOverview(companyId),
       reportsApi.translationOverview(companyId).catch(() => null),
+      reportsApi.billingOverview(companyId).catch(() => null),
       tasksApi.list(companyId),
       approvalsApi.listMine(companyId),
+      complianceApi.list(companyId).catch(() => []),
+      assetsApi.list(companyId).catch(() => []),
+      vehiclesApi.dueForMaintenance(companyId).catch(() => []),
     ])
-      .then(([s, o, t, tk, ap]) => {
+      .then(([s, c, o, t, b, tk, ap, comp, ast, veh]) => {
         setStats(s);
+        setCompany(c);
         setOverview(o);
         setTranslation(t);
+        setBilling(b);
         setTasks(tk);
         setApprovals(ap);
+        setCompliance(comp);
+        setAssets(ast);
+        setVehiclesDue(veh);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'تعذّر تحميل لوحة الوردية'));
   }, [companyId]);
@@ -138,6 +157,23 @@ export default function CompanyAdminDashV2Page() {
   const attendancePct = stats.totalUsers ? Math.round((overview.users.active / stats.totalUsers) * 100) : 0;
   const decisionsNeeded = overview.approvals.pending + overview.fuelRequests.pending;
 
+  // ── تحليلات صحة النظام — بيانات حقيقية من أنظمة فرعية متعددة ──
+  const seatsLimit = company?.subscription?.seatsLimit ?? null;
+  const seatsUsed = stats.totalUsers;
+  const seatsPct = seatsLimit && seatsLimit > 0 ? Math.round((seatsUsed / seatsLimit) * 100) : null;
+  const complianceList = compliance ?? [];
+  const complianceOverdue = complianceList.filter(
+    (c) => c.status !== 'COMPLETED' && c.dueAt && new Date(c.dueAt).getTime() < Date.now(),
+  );
+  const complianceOpen = complianceList.filter((c) => c.status !== 'COMPLETED');
+  const complianceRate = complianceList.length
+    ? Math.round(((complianceList.length - complianceOpen.length) / complianceList.length) * 100)
+    : null;
+  const assetsList = assets ?? [];
+  const assetsInMaintenance = assetsList.filter((a) => a.status === 'IN_MAINTENANCE');
+  const vehiclesDueList = vehiclesDue ?? [];
+  const invoicesOverdue = billing ? (billing.invoiceTotalsByStatus['OVERDUE']?.count ?? 0) : 0;
+
   // تدفّق مباشر: أحدث المهام حركةً — من نفس القائمة، بلا نقطة نهاية جديدة.
   const feed = [...tasks]
     .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
@@ -150,7 +186,7 @@ export default function CompanyAdminDashV2Page() {
       {/* ── الترويسة ── */}
       <div className="flex items-end gap-4">
         <div>
-          <h1 className="text-[27px] font-semibold tracking-[-.03em] text-ds-text">وردية اليوم</h1>
+          <h1 className="text-[27px] font-semibold tracking-[-.03em] text-ds-text">الرئيسية</h1>
           <p className="num text-[13.5px] text-ds-textSecondary">
             {new Date().toLocaleDateString('en-CA')} · {overview.stations} محطة · {overview.teams} فريق ·{' '}
             {decisionsNeeded} بندًا يحتاج قرارك
@@ -448,6 +484,97 @@ export default function CompanyAdminDashV2Page() {
               </div>
             )}
           </div>
+        </DsCard>
+      </div>
+
+      {/* ── صحة النظام — تحليلات حقيقية من الاشتراك والامتثال والأصول ── */}
+      <div className="grid grid-cols-4 gap-[14px]">
+        {/* المقاعد المستخدمة — انتقلت من الشريط الجانبي، وبقيمة حقيقية
+            هذه المرة (كانت used مُثبَّتة على صفر في مصدرها القديم). */}
+        <DsCard className="p-[18px]">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-ds-primaryLight text-ds-primary">◫</span>
+            <span className="flex-1 text-[13px] font-medium text-ds-text">المقاعد المستخدمة</span>
+          </div>
+          {seatsLimit === null ? (
+            <p className="text-[12px] text-ds-textMuted">لا حدّ مقاعد محدَّد لهذا الاشتراك.</p>
+          ) : (
+            <>
+              <p className="num text-[22px] font-semibold text-ds-text">
+                {seatsUsed.toLocaleString('en-US')} <span className="text-[13px] font-normal text-ds-textMuted">/ {seatsLimit.toLocaleString('en-US')}</span>
+              </p>
+              <div className="mt-2.5 h-[6px] overflow-hidden rounded-dsPill bg-ds-trackBg">
+                <div
+                  className={`h-full rounded-dsPill ${seatsPct !== null && seatsPct >= 90 ? 'bg-ds-danger' : 'bg-ds-primary'}`}
+                  style={{ width: `${Math.min(100, seatsPct ?? 0)}%` }}
+                />
+              </div>
+              <p className="num mt-2 text-[11.5px] text-ds-textMuted">{seatsPct}% من السعة المتاحة</p>
+            </>
+          )}
+        </DsCard>
+
+        {/* الامتثال — نسبة حقيقية من complianceApi، لا رقم ملفَّق */}
+        <DsCard className="p-[18px]">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-ds-successBg text-ds-successText">✓</span>
+            <span className="flex-1 text-[13px] font-medium text-ds-text">الامتثال والسلامة</span>
+          </div>
+          {complianceList.length === 0 ? (
+            <p className="text-[12px] text-ds-textMuted">لا متطلّبات امتثال مُسجَّلة بعد.</p>
+          ) : (
+            <>
+              <p className="num text-[22px] font-semibold text-ds-text">{complianceRate}%</p>
+              <p className="num mt-1 text-[11.5px] text-ds-textSecondary">
+                {complianceList.length - complianceOpen.length} من {complianceList.length} مكتمل
+              </p>
+              {complianceOverdue.length > 0 && (
+                <Link href="/company-admin-v2/compliance" className="mt-2 inline-block text-[11.5px] font-medium text-ds-dangerText hover:underline">
+                  {complianceOverdue.length} متأخر — راجع الآن
+                </Link>
+              )}
+            </>
+          )}
+        </DsCard>
+
+        {/* الأصول والأسطول — صيانة مطلوبة من assetsApi/vehiclesApi */}
+        <DsCard className="p-[18px]">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-ds-warningBg text-ds-warningText">⚙</span>
+            <span className="flex-1 text-[13px] font-medium text-ds-text">الأصول والأسطول</span>
+          </div>
+          <p className="num text-[22px] font-semibold text-ds-text">{assetsList.length.toLocaleString('en-US')}</p>
+          <p className="num mt-1 text-[11.5px] text-ds-textSecondary">
+            {assetsInMaintenance.length} قيد الصيانة الآن
+          </p>
+          {vehiclesDueList.length > 0 && (
+            <Link href="/company-admin-v2/fleet" className="mt-2 inline-block text-[11.5px] font-medium text-ds-warningText hover:underline">
+              {vehiclesDueList.length} مركبة تحتاج صيانة
+            </Link>
+          )}
+        </DsCard>
+
+        {/* الاشتراك والفوترة — من reportsApi.billingOverview */}
+        <DsCard className="p-[18px]">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-ds-secondaryBg text-ds-secondaryText">₪</span>
+            <span className="flex-1 text-[13px] font-medium text-ds-text">الاشتراك</span>
+          </div>
+          {billing?.subscription ? (
+            <>
+              <p className="text-[15px] font-semibold text-ds-text">{billing.subscription.planName}</p>
+              <p className={`num mt-1 text-[11.5px] ${billing.subscription.isActive ? 'text-ds-successText' : 'text-ds-dangerText'}`}>
+                {billing.subscription.isActive ? 'نشط' : 'موقوف'} · ينتهي {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString('en-CA')}
+              </p>
+              {invoicesOverdue > 0 && (
+                <Link href="/company-admin-v2/billing" className="mt-2 inline-block text-[11.5px] font-medium text-ds-dangerText hover:underline">
+                  {invoicesOverdue} فاتورة متأخرة
+                </Link>
+              )}
+            </>
+          ) : (
+            <p className="text-[12px] text-ds-textMuted">لا بيانات اشتراك متاحة.</p>
+          )}
         </DsCard>
       </div>
     </div>
