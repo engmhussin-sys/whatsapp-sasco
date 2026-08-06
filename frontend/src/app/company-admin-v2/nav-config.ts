@@ -11,10 +11,12 @@ import type { DsCommand } from '@/components/DsCommandPalette';
  *     تُشوّش الدور — وُحّدت في «العمال والفرق» مع إبقاء الشاشتين القديمتين
  *     كمسارَين فرعيَّين حتى تُستبدلا.
  *
- * ⚠ «المحادثات» و«الرسائل الجماعية» و«الفوترة» و«الإعدادات» تشير إلى
- * الشاشات القديمة (`/messaging`, `/company-admin/*`) المبنيّة على النظام
- * الأخضر `brand-*` — الانتقال إليها يقفز بالمستخدم بين نظامَي تصميم.
- * أُبقيت الروابط عاملة، لكن نقلها إلى `ds-*` هو السبرنت التالي.
+ * ⚠ «الرسائل الجماعية» و«الفوترة» و«الإعدادات» لا تزال تشير إلى
+ * الشاشات القديمة (`/company-admin/*`) المبنيّة على النظام الأخضر
+ * `brand-*` — الانتقال إليها يقفز بالمستخدم بين نظامَي تصميم.
+ * «المحادثات» هُوجرت إلى `company-admin-v2/messaging` (كانت آخر
+ * شاشة قديمة مُشار إليها هنا حتى اكتُشِف الانحدار البصري عبر لقطة
+ * حقيقية من المستخدم).
  */
 export const companyAdminNavGroups: DsNavGroup[] = [
   {
@@ -61,7 +63,7 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     id: 'communication',
     label: 'التواصل',
     items: [
-      { id: 'chat', href: '/messaging', label: 'المحادثات' },
+      { id: 'chat', href: '/company-admin-v2/messaging', label: 'المحادثات' },
       { id: 'broadcast', href: '/company-admin-v2/broadcast', label: 'البث والإعلانات' },
       { id: 'kb', href: '/company-admin-v2/knowledge-base', label: 'قاعدة المعرفة' },
     ],
@@ -85,7 +87,7 @@ export const companyAdminCommands: DsCommand[] = [
   { id: 'approvals', label: 'الموافقات المعلّقة', href: '/company-admin-v2/approvals', icon: '◐', shortcut: 'G A', keywords: 'approvals موافقات' },
   { id: 'shift', label: 'ملخّص الوردية الآن', href: '/company-admin-v2/dash', icon: '✦', shortcut: 'G S', keywords: 'shift summary وردية' },
   { id: 'people', label: 'العمال والفرق', href: '/company-admin-v2/people', icon: '◫', shortcut: 'G P', keywords: 'people teams عمال' },
-  { id: 'chat', label: 'المحادثات المترجمة', href: '/messaging', icon: '◍', shortcut: 'G C', keywords: 'chat messages محادثات' },
+  { id: 'chat', label: 'المحادثات المترجمة', href: '/company-admin-v2/messaging', icon: '◍', shortcut: 'G C', keywords: 'chat messages محادثات' },
   { id: 'billing', label: 'الفاتورة والاشتراك', href: '/company-admin-v2/billing', icon: '₪', shortcut: 'G B', keywords: 'billing فاتورة' },
 ];
 
@@ -95,6 +97,7 @@ export const companyRoles: DsRole[] = [
 ];
 
 export const companyScreenTitles: Record<string, string> = {
+  '/company-admin-v2/messaging': 'المحادثات',
   '/company-admin-v2/dash': 'الرئيسية',
   '/company-admin-v2/approvals': 'الموافقات والطلبات',
   '/company-admin-v2/tasks': 'لوحة المهام',

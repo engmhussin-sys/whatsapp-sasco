@@ -1,4 +1,5 @@
 import { tokenStore } from './token-store';
+import { translateError } from './error-translations';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
 
@@ -87,7 +88,7 @@ export async function apiFetch<T = unknown>(path: string, options: RequestOption
     } else {
       tokenStore.clear();
       if (typeof window !== 'undefined') window.location.href = '/login';
-      throw new ApiError(401, 'Session expired', null);
+      throw new ApiError(401, 'انتهت صلاحية الجلسة', null);
     }
   }
 
@@ -97,8 +98,10 @@ export async function apiFetch<T = unknown>(path: string, options: RequestOption
   const body = contentType.includes('application/json') ? await res.json().catch(() => null) : await res.text();
 
   if (!res.ok) {
-    const message = (body && typeof body === 'object' && 'message' in body ? (body as any).message : null) ?? res.statusText;
-    throw new ApiError(res.status, Array.isArray(message) ? message.join(', ') : message, body);
+    const rawMessage =
+      (body && typeof body === 'object' && 'message' in body ? (body as any).message : null) ?? res.statusText;
+    const message = Array.isArray(rawMessage) ? rawMessage.join(', ') : rawMessage;
+    throw new ApiError(res.status, translateError(message), body);
   }
 
   return body as T;
