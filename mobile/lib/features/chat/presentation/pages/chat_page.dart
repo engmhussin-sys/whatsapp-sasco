@@ -222,6 +222,17 @@ class _ChatViewState extends State<_ChatView> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (showDateSeparator) _DateSeparator(date: message.createdAt),
+                            // تشخيص المهمة ١ (PROMPT_ROUND3.md): لم أستطع الحصول على قيم
+                            // حيّة (لا Flutter SDK في بيئتي) — هذا يطبعها من تشغيلك الفعلي
+                            // بدلاً من ذلك. احذف هذا السطر بعد التأكّد من النتيجة.
+                            Builder(builder: (_) {
+                              debugPrint(
+                                '[isMine-debug] msg=${message.id} senderId="${message.senderId}" '
+                                'currentUserId="${widget.currentUserId}" '
+                                'equal=${message.senderId == widget.currentUserId}',
+                              );
+                              return const SizedBox.shrink();
+                            }),
                             GestureDetector(
                               onLongPress: message.isDeletedForEveryone ? null : () => _showMessageActions(context, message),
                               child: MessageBubble(

@@ -89,32 +89,7 @@ class MessageBubble extends StatelessWidget {
                     // وليس مجرد عرض أسود كما وُصِف — لم يوجد أي
                     // Image.network في مسار العرض إطلاقًا. ----
                     for (final attachment in message.attachments.where((a) => a.kind == MessageAttachmentKind.image)) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 220),
-                          child: Image.network(
-                            attachment.url,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) => progress == null
-                                ? child
-                                : const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-                            errorBuilder: (context, error, stackTrace) => SizedBox(
-                              height: 100,
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.broken_image_outlined, color: metaFg),
-                                    const SizedBox(height: 4),
-                                    Text('chat.image_load_failed'.tr(), style: TextStyle(fontSize: FS.caption, color: metaFg)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                      _RetryableImage(url: attachment.url, metaFg: metaFg),
                       const SizedBox(height: Gap.sm),
                     ],
                     // ---- A1: حالة فشل صريحة (بدل الدوران الأبدي) ----
@@ -223,6 +198,62 @@ class MessageBubble extends StatelessWidget {
         'am' => 'አማርኛ',
         _ => code.toUpperCase(),
       };
+}
+
+class _RetryableImage extends StatefulWidget {
+  const _RetryableImage({required this.url, required this.metaFg});
+  final String url;
+  final Color metaFg;
+
+  @override
+  State<_RetryableImage> createState() => _RetryableImageState();
+}
+
+class _RetryableImageState extends State<_RetryableImage> {
+  // المهمة ٥ (PROMPT_ROUND3.md): زر إعادة المحاولة صريح — تغيير المفتاح
+  // يجبر Image.network على إعادة المحاولة بدل الاعتماد على ذاكرة تخزين
+  // فاشلة. هذا لا يُصلح السبب الجذري (تخزين Railway المحلي غير الدائم —
+  // انظر توثيق الجولة ٣)، لكنه يمنح المستخدم فرصة حقيقية بعد أي فشل
+  // شبكي عابر لا علاقة له بذلك السبب.
+  int _attempt = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 220),
+        child: Image.network(
+          widget.url,
+          key: ValueKey(_attempt),
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, progress) =>
+              progress == null ? child : const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
+          errorBuilder: (context, error, stackTrace) => SizedBox(
+            height: 100,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.broken_image_outlined, color: widget.metaFg),
+                  const SizedBox(height: 4),
+                  Text('chat.image_load_failed'.tr(), style: TextStyle(fontSize: FS.caption, color: widget.metaFg)),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () => setState(() => _attempt++),
+                    child: Text(
+                      'chat.retry'.tr(),
+                      style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, color: widget.metaFg),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SenderRow extends StatelessWidget {

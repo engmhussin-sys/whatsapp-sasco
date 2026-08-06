@@ -158,7 +158,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                         // always showing one or the other.
                         final label = position > Duration.zero ? _fmt(position) : _fmt(total);
                         return Padding(
-                          padding: const EdgeInsets.only(right: 4),
+                          padding: const EdgeInsetsDirectional.only(end: 4),
                           child: Text(label, style: TextStyle(color: color.withValues(alpha: 0.85), fontSize: 11)),
                         );
                       },

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:go_router/go_router.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/design_tokens.dart';
 import '../../../../shared/widgets/error_view.dart';
 import '../../../../shared/widgets/loading_view.dart';
 import '../../../authentication/domain/entities/user_entity.dart';
@@ -177,7 +179,7 @@ class _ConversationCard extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              radius: 24,
+              radius: 25,
               backgroundColor: AppColors.brandLight,
               child: isGroupLike
                   ? const Icon(Icons.groups_rounded, color: AppColors.brandDark)
@@ -188,7 +190,7 @@ class _ConversationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                   const SizedBox(height: 3),
                   Text(
                     conv.lastMessagePreview ?? 'لا رسائل بعد',
@@ -207,7 +209,7 @@ class _ConversationCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(_relativeTime(conv.updatedAt), style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                Text(_relativeTime(context, conv.updatedAt), style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                 if (conv.unreadCount > 0) ...[
                   const SizedBox(height: 4),
                   Container(
@@ -227,12 +229,22 @@ class _ConversationCard extends StatelessWidget {
     );
   }
 
-  String _relativeTime(DateTime dt) {
+  String _relativeTime(BuildContext context, DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'الآن';
-    if (diff.inHours < 1) return '${diff.inMinutes} د';
-    if (diff.inDays < 1) return '${diff.inHours} س';
-    if (diff.inDays < 7) return '${diff.inDays} يوم';
-    return '${dt.day}/${dt.month}';
+    final lang = context.locale.languageCode;
+    if (diff.inMinutes < 1) return 'chat.time_minutes_ago'.plural(0, context: context);
+    if (diff.inHours < 1) {
+      final mins = diff.inMinutes;
+      return 'chat.time_minutes_ago'.plural(mins, args: [localizedDigits('$mins', lang)], context: context);
+    }
+    if (diff.inDays < 1) {
+      final hrs = diff.inHours;
+      return 'chat.time_hours_ago'.plural(hrs, args: [localizedDigits('$hrs', lang)], context: context);
+    }
+    if (diff.inDays < 7) {
+      final days = diff.inDays;
+      return 'chat.time_days_ago'.plural(days, args: [localizedDigits('$days', lang)], context: context);
+    }
+    return localizedDigits('${dt.day}/${dt.month}', lang);
   }
 }

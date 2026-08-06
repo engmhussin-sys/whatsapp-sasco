@@ -45,7 +45,31 @@
     "retry": "Retry",
     "default_title": "Chat",
     "members": "members",
-    "image_load_failed": "Could not load image"
+    "image_load_failed": "Could not load image",
+    "time_minutes_ago": {
+      "zero": "now",
+      "one": "1 min ago",
+      "two": "2 min ago",
+      "few": "{} min ago",
+      "many": "{} min ago",
+      "other": "{} min ago"
+    },
+    "time_hours_ago": {
+      "zero": "now",
+      "one": "1 hr ago",
+      "two": "2 hr ago",
+      "few": "{} hr ago",
+      "many": "{} hr ago",
+      "other": "{} hr ago"
+    },
+    "time_days_ago": {
+      "zero": "today",
+      "one": "1 day ago",
+      "two": "2 days ago",
+      "few": "{} days ago",
+      "many": "{} days ago",
+      "other": "{} days ago"
+    }
   },
   "tasks": {
     "today": "আজকের কাজ",

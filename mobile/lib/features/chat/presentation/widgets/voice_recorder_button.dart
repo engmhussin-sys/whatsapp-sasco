@@ -61,7 +61,7 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
       children: [
         if (_isRecording)
           Padding(
-            padding: const EdgeInsets.only(left: 8),
+            padding: const EdgeInsetsDirectional.only(start: 8),
             child: Text(
               '${_elapsed.inMinutes}:${(_elapsed.inSeconds % 60).toString().padLeft(2, '0')}',
               style: const TextStyle(color: Colors.red),
