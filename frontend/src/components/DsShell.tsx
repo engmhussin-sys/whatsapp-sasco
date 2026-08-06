@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { DsCommandPalette, type DsCommand } from './DsCommandPalette';
 
@@ -88,23 +88,6 @@ export function DsShell({
   const standaloneGroups = useMemo(() => groups.filter((g) => g.standalone), [groups]);
   const collapsibleGroups = useMemo(() => groups.filter((g) => !g.standalone), [groups]);
 
-  // المجموعة التي تحتوي الشاشة الحالية تُفتح تلقائيًا.
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    for (const g of collapsibleGroups) initial[g.id] = g.items.some((i) => pathname?.startsWith(i.href));
-    return initial;
-  });
-
-  useEffect(() => {
-    setOpenGroups((prev) => {
-      const next = { ...prev };
-      for (const g of collapsibleGroups) {
-        if (g.items.some((i) => pathname?.startsWith(i.href))) next[g.id] = true;
-      }
-      return next;
-    });
-  }, [pathname, collapsibleGroups]);
-
   const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/');
 
   return (
@@ -165,43 +148,28 @@ export function DsShell({
         </button>
 
         {/* التنقّل */}
-        <nav className="flex flex-1 flex-col gap-[3px] overflow-y-auto">
+        <nav className="ds-sidebar-nav flex flex-1 flex-col gap-[3px] overflow-y-auto">
           {standaloneGroups.flatMap((g) =>
             g.items.map((item) => <NavLeaf key={item.id} item={item} active={!!isActive(item.href)} depth={0} />),
           )}
 
-          {collapsibleGroups.map((group) => {
-            const isOpen = openGroups[group.id] ?? false;
-            const holdsCurrent = group.items.some((i) => isActive(i.href));
-            return (
-              <div key={group.id}>
-                <button
-                  onClick={() => setOpenGroups((p) => ({ ...p, [group.id]: !isOpen }))}
-                  aria-expanded={isOpen}
-                  className={`mt-1.5 flex w-full items-center gap-2 rounded-dsField px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-[.1em] transition ${
-                    holdsCurrent ? 'text-[#8FD6AC]' : 'text-ds-onDarkGroupLabel hover:text-ds-onDarkSecondary'
-                  }`}
-                >
-                  <span className="flex-1">{group.label}</span>
-                  <ChevronStart open={isOpen} />
-                </button>
-                {isOpen && (
-                  <div className="ds-fade flex flex-col gap-[2px]">
-                    {group.items.map((item) => (
-                      <NavLeaf key={item.id} item={item} active={!!isActive(item.href)} depth={1} />
-                    ))}
-                  </div>
-                )}
+          {collapsibleGroups.map((group) => (
+            <div key={group.id}>
+              <p className="mt-3.5 px-3 text-[11px] font-medium uppercase tracking-[.1em] text-ds-onDarkGroupLabel">{group.label}</p>
+              <div className="mt-0.5 flex flex-col gap-[2px]">
+                {group.items.map((item) => (
+                  <NavLeaf key={item.id} item={item} active={!!isActive(item.href)} depth={1} />
+                ))}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </nav>
 
         {/* بطاقة الاستهلاك */}
         {promo && (
           <div
             className="mt-3.5 rounded-[14px] border border-white/[.08] p-3.5"
-            style={{ background: 'linear-gradient(140deg, rgba(124,92,255,.24) 0%, rgba(124,92,255,.06) 100%)' }}
+            style={{ background: 'linear-gradient(140deg, rgba(12,124,66,.28) 0%, rgba(12,124,66,.08) 100%)' }}
           >
             <p className="mb-0.5 text-[12.5px] font-medium text-white">{promo.title}</p>
             <p className="num mb-2.5 text-[11.5px] text-ds-onDarkSecondary">{promo.subtitle}</p>
@@ -340,23 +308,3 @@ function NavLeaf({ item, active, depth }: { item: DsNavLeaf; active: boolean; de
   );
 }
 
-/** سهم يشير إلى بداية السطر؛ في RTL يدور إلى -90° عند الفتح. */
-function ChevronStart({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="transition-transform duration-[180ms]"
-      style={{ transform: open ? 'rotate(-90deg)' : 'rotate(0deg)' }}
-    >
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  );
-}

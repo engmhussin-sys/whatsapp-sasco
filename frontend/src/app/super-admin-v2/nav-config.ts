@@ -28,7 +28,6 @@ export const superAdminNavGroups: DsNavGroup[] = [
       { id: 'companies', href: '/super-admin-v2/companies', label: 'الشركات', count: '—' },
       { id: 'co_new', href: '/super-admin-v2/companies/new', label: 'إنشاء شركة جديدة' },
       { id: 'entitlements', href: '/super-admin-v2/entitlements', label: 'الصلاحيات والخدمات' },
-      { id: 'taxonomy', href: '/super-admin-v2/taxonomy', label: 'القطاعات والتسميات' },
       { id: 'branches', href: spec('branches'), label: 'الفروع والمواقع' },
     ],
   },
@@ -45,9 +44,9 @@ export const superAdminNavGroups: DsNavGroup[] = [
     id: 'subscriptions',
     label: 'الاشتراكات',
     items: [
-      { id: 'plans', href: '/super-admin/plans', label: 'الخطط' },
-      { id: 'invoices', href: '/super-admin/subscription', label: 'الفواتير والمدفوعات' },
-      { id: 'coupons', href: '/super-admin/coupons', label: 'الكوبونات' },
+      { id: 'plans', href: '/super-admin-v2/plans', label: 'الخطط' },
+      { id: 'invoices', href: '/super-admin-v2/subscription', label: 'الفواتير والمدفوعات' },
+      { id: 'coupons', href: '/super-admin-v2/coupons', label: 'الكوبونات' },
     ],
   },
   {
@@ -55,9 +54,9 @@ export const superAdminNavGroups: DsNavGroup[] = [
     label: 'المراقبة',
     items: [
       { id: 'analytics', href: spec('analytics'), label: 'التحليلات' },
-      { id: 'ai_usage', href: spec('ai-usage'), label: 'استهلاك الذكاء' },
+      { id: 'ai_usage', href: '/super-admin-v2/ai-usage', label: 'استهلاك الذكاء' },
       { id: 'health', href: '/super-admin-v2/health', label: 'صحة النظام' },
-      { id: 'storage', href: spec('storage'), label: 'التخزين' },
+      { id: 'storage', href: '/super-admin-v2/storage', label: 'التخزين' },
     ],
   },
   {
@@ -66,8 +65,8 @@ export const superAdminNavGroups: DsNavGroup[] = [
     items: [
       { id: 'roles', href: spec('roles'), label: 'الأدوار' },
       { id: 'perms', href: '/super-admin-v2/roles-matrix', label: 'الصلاحيات' },
-      { id: 'audit', href: '/super-admin-v2/audit', label: 'سجل التدقيق' },
-      { id: 'sessions', href: spec('sessions'), label: 'جلسات الدخول' },
+      { id: 'audit', href: '/super-admin-v2/audit-logs', label: 'سجل التدقيق' },
+      { id: 'sessions', href: '/super-admin-v2/sessions', label: 'جلسات الدخول' },
     ],
   },
   {
@@ -86,7 +85,7 @@ export const superAdminNavGroups: DsNavGroup[] = [
     id: 'support',
     label: 'الدعم',
     items: [
-      { id: 'tickets', href: '/super-admin/support', label: 'التذاكر' },
+      { id: 'tickets', href: '/super-admin-v2/support', label: 'التذاكر' },
       { id: 'kb', href: spec('knowledge-base'), label: 'قاعدة المعرفة' },
     ],
   },
@@ -96,11 +95,10 @@ export const superAdminCommands: DsCommand[] = [
   { id: 'new_co', label: 'إضافة شركة جديدة (معالج)', href: '/super-admin-v2/companies/new', icon: '＋', shortcut: 'C N', keywords: 'company new wizard انشاء' },
   { id: 'entitle', label: 'صلاحيات وخدمات شركة', href: '/super-admin-v2/entitlements', icon: '◆', shortcut: 'G E', keywords: 'entitlements modules صلاحيات' },
   { id: 'companies', label: 'الانتقال إلى الشركات', href: '/super-admin-v2/companies', icon: '◫', shortcut: 'G C', keywords: 'companies tenants' },
-  { id: 'invoices', label: 'الفواتير والمدفوعات', href: '/super-admin/subscription', icon: '₪', shortcut: 'G I', keywords: 'invoices billing' },
+  { id: 'invoices', label: 'الفواتير والمدفوعات', href: '/super-admin-v2/subscription', icon: '₪', shortcut: 'G I', keywords: 'invoices billing' },
   { id: 'modules', label: 'متجر الوحدات', href: '/super-admin-v2/modules', icon: '▧', shortcut: 'G M', keywords: 'modules marketplace' },
   { id: 'forms', label: 'منشئ النماذج', href: '/super-admin-v2/forms', icon: '⌗', shortcut: 'F N', keywords: 'forms builder' },
-  { id: 'taxonomy', label: 'هيكل المؤسسة وتسميات القطاع', href: '/super-admin-v2/taxonomy', icon: '◫', shortcut: 'G T', keywords: 'taxonomy labels' },
-  { id: 'audit', label: 'سجل التدقيق', href: '/super-admin-v2/audit', icon: '☰', shortcut: 'G A', keywords: 'audit logs' },
+  { id: 'audit', label: 'سجل التدقيق', href: '/super-admin-v2/audit-logs', icon: '☰', shortcut: 'G A', keywords: 'audit logs' },
 ];
 
 export const platformRoles: DsRole[] = [
@@ -121,4 +119,9 @@ export const superAdminScreenTitles: Record<string, string> = {
   '/super-admin-v2/health': 'صحة النظام',
   '/super-admin-v2/audit': 'سجل التدقيق',
   '/super-admin-v2/roles-matrix': 'الأدوار والصلاحيات',
+  '/super-admin-v2/plans': 'الخطط',
+  '/super-admin-v2/coupons': 'الكوبونات',
+  '/super-admin-v2/support': 'الدعم الفني',
+  '/super-admin-v2/subscription': 'الفواتير والمدفوعات',
+  '/super-admin-v2/sessions': 'جلسات الدخول',
 };

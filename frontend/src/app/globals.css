@@ -110,3 +110,23 @@ body {
   transform-origin: bottom;
   animation: dsGrow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+
+/* الشريط الجانبي الداكن — تمرير رفيع يتوافق مع الخلفية بدل الافتراضي
+   الرمادي المفاجئ الذي يبدو دخيلًا على تصميم داكن مقصود. */
+.ds-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+.ds-sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.ds-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ds-sidebar-nav::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+.ds-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.24);
+}
