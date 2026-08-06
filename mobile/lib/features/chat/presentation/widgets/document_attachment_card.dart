@@ -97,6 +97,23 @@ class _DocumentAttachmentCardState extends State<DocumentAttachmentCard> {
     }
   }
 
+  /// Flutter لا يملك وضع اقتطاع من المنتصف مدمجاً (`TextOverflow.middle`
+  /// غير موجودة إطلاقاً في الإطار — خطأ افترضتُ وجودها به سابقاً، اكتُشِف
+  /// عبر فشل بناء حقيقي). هذا يُنفِّذ الاقتطاع نصياً بنفسه: يُبقي بداية
+  /// الاسم + الامتداد كاملاً ظاهرَين، ويضع "…" بينهما. تقريب بعدد الأحرف
+  /// (لا بعرض البكسل الفعلي) — كافٍ عملياً، و`TextOverflow.ellipsis`
+  /// المُطبَّقة أيضاً على الودجة تبقى كشبكة أمان لو زاد النص عن العرض
+  /// المتاح رغم ذلك (خط عريض جداً أو شاشة ضيقة جداً).
+  String _middleTruncate(String fileName, {int maxChars = 28}) {
+    if (fileName.length <= maxChars) return fileName;
+    final dot = fileName.lastIndexOf('.');
+    final hasExt = dot > 0 && dot < fileName.length - 1 && fileName.length - dot <= 8;
+    final ext = hasExt ? fileName.substring(dot) : '';
+    final base = hasExt ? fileName.substring(0, dot) : fileName;
+    final keep = (maxChars - ext.length - 1).clamp(4, base.length);
+    return '${base.substring(0, keep)}…$ext';
+  }
+
   @override
   Widget build(BuildContext context) {
     final style = _typeStyle;
@@ -142,9 +159,9 @@ class _DocumentAttachmentCardState extends State<DocumentAttachmentCard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    widget.attachment.fileName ?? '—',
+                    _middleTruncate(widget.attachment.fileName ?? '—'),
                     maxLines: 1,
-                    overflow: TextOverflow.middle, // CHAT_SPEC.md §5: الامتداد يبقى ظاهراً
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: fg),
                   ),
                   const SizedBox(height: 2),
