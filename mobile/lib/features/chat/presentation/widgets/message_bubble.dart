@@ -8,7 +8,7 @@
 //   النص الأصلي يظهر **فقط** إذا اختلفت لغة المرسل عن لغة القارئ.
 
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
+import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/design_tokens.dart';
