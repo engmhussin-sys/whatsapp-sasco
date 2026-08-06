@@ -179,7 +179,7 @@ export function DsShell({
                   onClick={() => setOpenGroups((p) => ({ ...p, [group.id]: !isOpen }))}
                   aria-expanded={isOpen}
                   className={`mt-1.5 flex w-full items-center gap-2 rounded-dsField px-3 py-2.5 text-right text-[11px] font-medium uppercase tracking-[.1em] transition ${
-                    holdsCurrent ? 'text-[#C7BEFF]' : 'text-ds-onDarkGroupLabel hover:text-ds-onDarkSecondary'
+                    holdsCurrent ? 'text-[#8FD6AC]' : 'text-ds-onDarkGroupLabel hover:text-ds-onDarkSecondary'
                   }`}
                 >
                   <span className="flex-1">{group.label}</span>
@@ -334,7 +334,7 @@ function NavLeaf({ item, active, depth }: { item: DsNavLeaf; active: boolean; de
       />
       <span className="flex-1">{item.label}</span>
       {item.count && (
-        <span className={`num text-[11px] ${active ? 'text-[#C7BEFF]' : 'text-ds-onDarkGroupLabel'}`}>{item.count}</span>
+        <span className={`num text-[11px] ${active ? 'text-[#8FD6AC]' : 'text-ds-onDarkGroupLabel'}`}>{item.count}</span>
       )}
     </Link>
   );
