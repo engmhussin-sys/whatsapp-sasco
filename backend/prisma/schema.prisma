@@ -277,6 +277,7 @@ model User {
   attendanceRecords AttendanceRecord[]
   assignedAssets    Asset[]
   assignedVehicles  Vehicle[]
+  taskAssignments   TaskAssignment[]
   hostedVisitors           Visitor[]
   certifications           Certification[]
   assignedComplianceItems  ComplianceRequirement[]
@@ -851,10 +852,19 @@ model TaskAssignment {
   taskId     String
   task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId     String
+  // BUG FIX (caught by a REAL Railway build, not caught by my local
+  // Prisma stub — the stub accepts any include shape without
+  // validating real relations, so this class of error is invisible to
+  // my sandbox verification). task-engine.service.ts already assumed
+  // this relation existed (for the dashboard's assignee-name feature)
+  // before it actually did — adding it for real now instead of
+  // reverting the feature.
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignedAt DateTime @default(now())
   dueAt      DateTime?
 
   @@unique([taskId, userId])
+  @@index([userId])
   @@map("task_assignments")
 }
 

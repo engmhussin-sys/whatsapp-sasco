@@ -90,7 +90,7 @@ describe('MessagesService.sendVoice() — realtime broadcast + transcription tri
 
     expect(socketServer.emit).toHaveBeenCalledWith(
       'message:notification',
-      expect.objectContaining({ conversationId, messageId: 'voice-msg-1', preview: '🎤 رسالة صوتية' }),
+      expect.objectContaining({ conversationId, messageId: 'voice-msg-1', preview: 'رسالة صوتية' }),
     );
   });
 
