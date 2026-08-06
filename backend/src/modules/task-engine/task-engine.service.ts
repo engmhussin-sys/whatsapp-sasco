@@ -183,7 +183,7 @@ export class TaskEngineService {
         ...(params.teamId ? { teamId: params.teamId } : {}),
         ...(params.assignedToUserId ? { assignments: { some: { userId: params.assignedToUserId } } } : {}),
       },
-      include: { template: true, assignments: true },
+      include: { template: true, assignments: { include: { user: { select: { id: true, firstName: true, lastName: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
   }

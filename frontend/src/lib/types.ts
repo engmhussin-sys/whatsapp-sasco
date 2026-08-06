@@ -156,6 +156,8 @@ export interface TaskItem {
   template?: TaskTemplate | null;
   dueAt?: string | null;
   createdAt: string;
+  updatedAt: string;
+  assignments?: { id: string; userId: string; user: { id: string; firstName: string; lastName: string } }[];
 }
 
 export interface ApprovalActionItem {

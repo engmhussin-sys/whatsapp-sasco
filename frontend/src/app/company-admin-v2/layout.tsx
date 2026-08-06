@@ -1,37 +1,105 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { DsShell } from '@/components/DsShell';
 import { useAuth } from '@/lib/auth-context';
 import { companiesApi } from '@/lib/api/companies';
-import { companyAdminNavGroups } from './nav-config';
+import { reportsApi } from '@/lib/api/reports';
+import {
+  companyAdminNavGroups,
+  companyAdminCommands,
+  companyScreenTitles,
+  companyRoles,
+} from './nav-config';
 
+/**
+ * قشرة إدارة الشركة.
+ *
+ * كل عنصر في الإطار يُمرَّر من هنا لأنه **تابع للدور** — الترويسة، مسار
+ * التصفّح، بطاقة المقاعد، مبدّل الأدوار، وأوامر ⌘K. النسخة المنشورة كانت
+ * تمرّر `groups` و`logoUrl` و`productName` فقط، فبقيت الترويسة فارغة ولم
+ * تعمل ⌘K ولم يظهر مبدّل الأدوار.
+ */
 export default function CompanyAdminV2Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const pathname = usePathname() ?? '';
+  const companyId = user?.companyId ?? '';
+
   const [logoUrl, setLogoUrl] = useState('/logo-sasco.png');
   const [productName, setProductName] = useState('SASCO');
+  const [seats, setSeats] = useState<{ used: number; limit: number } | null>(null);
+  const [pending, setPending] = useState<number>(0);
+  const [healthOk, setHealthOk] = useState<boolean | null>(null);
 
-  // Sprint 16 — per-company branding. Falls back to SASCO's own
-  // defaults (unchanged pre-Sprint-16 behavior) until this company's
-  // real branding loads, or if they never customized it.
   useEffect(() => {
-    if (!user?.companyId) return;
+    if (!companyId) return;
+
     companiesApi
-      .get(user.companyId)
+      .get(companyId)
       .then((c) => {
         if (c.brandLogoUrl) setLogoUrl(c.brandLogoUrl);
         setProductName(c.name);
+        if (c.subscription?.seatsLimit != null) {
+          setSeats({ used: 0, limit: c.subscription.seatsLimit });
+        }
       })
       .catch(() => {
-        // Branding fetch failing is not worth blocking the shell over —
-        // the SASCO defaults above are a perfectly good fallback.
+        // فشل جلب العلامة لا يستحق تعطيل القشرة — الافتراضي كافٍ.
       });
-  }, [user?.companyId]);
+
+    // العدّادات وحالة الخدمة من الخادم — لا أرقام ثابتة في التنقّل.
+    reportsApi
+      .companyOverview(companyId)
+      .then((o) => {
+        setPending(o.approvals.pending + o.fuelRequests.pending);
+        setSeats((prev) => (prev ? { ...prev, used: o.users.active } : { used: o.users.active, limit: 0 }));
+        setHealthOk(true);
+      })
+      .catch(() => setHealthOk(false));
+  }, [companyId]);
+
+  const groups = companyAdminNavGroups.map((g) =>
+    g.id === 'root'
+      ? {
+          ...g,
+          items: g.items.map((i) =>
+            i.id === 'approvals' ? { ...i, count: pending > 0 ? String(pending) : '' } : i,
+          ),
+        }
+      : g,
+  );
 
   return (
     <ProtectedRoute allowedRoles={['COMPANY_ADMIN']}>
-      <DsShell groups={companyAdminNavGroups} logoUrl={logoUrl} productName={productName}>
+      <DsShell
+        groups={groups}
+        commands={companyAdminCommands}
+        crumbRoot={productName}
+        screenTitle={companyScreenTitles[pathname] ?? 'وردية اليوم'}
+        productName={productName}
+        logoUrl={logoUrl}
+        userRoleLabel="مدير الشركة"
+        roles={companyRoles}
+        activeRole="company"
+        headerCta={{ label: 'تقرير الوردية', href: '/company-admin-v2/dash' }}
+        notificationCount={pending}
+        serviceStatus={
+          healthOk == null
+            ? undefined
+            : { ok: healthOk, label: healthOk ? 'كل الخدمات تعمل' : 'تعذّر الاتصال بالخادم' }
+        }
+        promo={
+          seats && seats.limit > 0
+            ? {
+                title: 'المقاعد المستخدمة',
+                subtitle: `${seats.used.toLocaleString('en-US')} من ${seats.limit.toLocaleString('en-US')} مقعد`,
+                percent: Math.round((seats.used / seats.limit) * 100),
+              }
+            : undefined
+        }
+      >
         {children}
       </DsShell>
     </ProtectedRoute>
