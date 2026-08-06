@@ -69,9 +69,9 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     id: 'settings',
     label: 'الإعدادات',
     items: [
-      { id: 'billing', href: '/company-admin/billing', label: 'الفاتورة والاشتراك' },
+      { id: 'billing', href: '/company-admin-v2/billing', label: 'الفاتورة والاشتراك' },
       { id: 'branding', href: '/company-admin-v2/branding', label: 'العلامة التجارية' },
-      { id: 'settings', href: '/company-admin/settings', label: 'إعدادات الشركة' },
+      { id: 'settings', href: '/company-admin-v2/settings', label: 'إعدادات الشركة' },
     ],
   },
 ];
@@ -83,7 +83,7 @@ export const companyAdminCommands: DsCommand[] = [
   { id: 'shift', label: 'ملخّص الوردية الآن', href: '/company-admin-v2/dash', icon: '✦', shortcut: 'G S', keywords: 'shift summary وردية' },
   { id: 'people', label: 'العمال والفرق', href: '/company-admin-v2/people', icon: '◫', shortcut: 'G P', keywords: 'people teams عمال' },
   { id: 'chat', label: 'المحادثات المترجمة', href: '/messaging', icon: '◍', shortcut: 'G C', keywords: 'chat messages محادثات' },
-  { id: 'billing', label: 'الفاتورة والاشتراك', href: '/company-admin/billing', icon: '₪', shortcut: 'G B', keywords: 'billing فاتورة' },
+  { id: 'billing', label: 'الفاتورة والاشتراك', href: '/company-admin-v2/billing', icon: '₪', shortcut: 'G B', keywords: 'billing فاتورة' },
 ];
 
 export const companyRoles: DsRole[] = [
@@ -108,4 +108,6 @@ export const companyScreenTitles: Record<string, string> = {
   '/company-admin-v2/compliance': 'الامتثال والسلامة',
   '/company-admin-v2/knowledge-base': 'قاعدة المعرفة',
   '/company-admin-v2/branding': 'العلامة التجارية',
+  '/company-admin-v2/billing': 'الفاتورة والاشتراك',
+  '/company-admin-v2/settings': 'إعدادات الشركة',
 };
