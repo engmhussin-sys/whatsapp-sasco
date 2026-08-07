@@ -269,9 +269,25 @@ export class MessagesService {
     senderId: string,
     file: { buffer: Buffer; originalname: string; mimetype: string },
     durationMs?: number,
+    clientMessageId?: string,
   ) {
     await this.conversationsService.assertMembership(companyId, conversationId, senderId);
     await this.conversationsService.assertCanPost(companyId, conversationId, senderId);
+
+    // REVIEW_ROUND7.md §1 gap (confirmed via real screenshots): the same
+    // clientMessageId race this project already fixed for text messages
+    // was never applied here — a duplicate voice upload created two
+    // fully independent Message rows, each with its own independent
+    // transcription attempt, which is exactly why one copy showed a
+    // successful translation while its "twin" showed "transcription
+    // failed": they were never the same row, just the same audio sent
+    // twice. Checked BEFORE uploading the file (not after, unlike
+    // sendText) to avoid wasting a storage write + Whisper call on a
+    // request we're about to discard anyway.
+    if (clientMessageId) {
+      const existing = await this.prisma.message.findUnique({ where: { clientMessageId } });
+      if (existing) return this.findOne(companyId, senderId, existing.id);
+    }
 
     const stored = await this.storage.save(file.buffer, {
       fileName: file.originalname,
@@ -281,36 +297,49 @@ export class MessagesService {
 
     const sender = await this.prisma.user.findUnique({ where: { id: senderId } });
 
-    const message = await this.prisma.$transaction(async (tx: any) => {
-      const created = await tx.message.create({
-        data: {
-          conversationId,
-          senderId,
-          type: MessageType.VOICE,
-          status: MessageStatus.SENT,
-          audioUrl: stored.url,
-          audioDurationMs: durationMs,
-          originalLang: sender?.preferredLanguage ?? 'en',
-          // originalText starts null — populated by the fire-and-forget
-          // transcription below once Whisper returns; the client shows
-          // just the audio player until then, exactly like a text
-          // message shows its original language before translations
-          // land.
-        },
-      });
-
-      const otherMembers = await tx.conversationMember.findMany({
-        where: { conversationId, userId: { not: senderId } },
-        select: { userId: true },
-      });
-      if (otherMembers.length) {
-        await tx.messageReceipt.createMany({
-          data: otherMembers.map((m: { userId: string }) => ({ messageId: created.id, userId: m.userId, status: MessageStatus.SENT })),
+    let message: any;
+    try {
+      message = await this.prisma.$transaction(async (tx: any) => {
+        const created = await tx.message.create({
+          data: {
+            conversationId,
+            senderId,
+            type: MessageType.VOICE,
+            status: MessageStatus.SENT,
+            audioUrl: stored.url,
+            audioDurationMs: durationMs,
+            originalLang: sender?.preferredLanguage ?? 'en',
+            clientMessageId,
+            // originalText starts null — populated by the fire-and-forget
+            // transcription below once Whisper returns; the client shows
+            // just the audio player until then, exactly like a text
+            // message shows its original language before translations
+            // land.
+          },
         });
-      }
 
-      return created;
-    });
+        const otherMembers = await tx.conversationMember.findMany({
+          where: { conversationId, userId: { not: senderId } },
+          select: { userId: true },
+        });
+        if (otherMembers.length) {
+          await tx.messageReceipt.createMany({
+            data: otherMembers.map((m: { userId: string }) => ({ messageId: created.id, userId: m.userId, status: MessageStatus.SENT })),
+          });
+        }
+
+        return created;
+      });
+    } catch (err: any) {
+      // Same race-safe fallback as sendText: a request that lost the
+      // check-above race (near-simultaneous duplicate) hits the unique
+      // constraint here instead of silently creating a second row.
+      if (err?.code === 'P2002' && clientMessageId) {
+        const existing = await this.prisma.message.findUnique({ where: { clientMessageId } });
+        if (existing) return this.findOne(companyId, senderId, existing.id);
+      }
+      throw err;
+    }
 
     // BUG FIX: voice messages had NO broadcast at all — the same root
     // cause already found and fixed for text messages (see sendText's

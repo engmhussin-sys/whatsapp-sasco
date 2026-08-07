@@ -70,6 +70,12 @@ export class MessagesController {
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File,
     @Body('durationMs') durationMs?: string,
+    // BUG FIX (confirmed via real screenshots: one voice message showing
+    // twice — one translated, one "transcription failed"): sendVoice
+    // never got the clientMessageId idempotency protection sendText
+    // received — only the text-message path was fixed, the voice path
+    // was silently left with zero duplicate-send protection.
+    @Body('clientMessageId') clientMessageId?: string,
   ) {
     if (!file) throw new BadRequestException('audio file is required');
     if (!file.mimetype.startsWith('audio/')) {
@@ -81,6 +87,7 @@ export class MessagesController {
       user.sub,
       file,
       durationMs ? parseInt(durationMs, 10) : undefined,
+      clientMessageId,
     );
   }
 

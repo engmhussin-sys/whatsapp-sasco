@@ -17,7 +17,7 @@ abstract class ChatRemoteDataSource {
   });
   Future<List<MessageModel>> getMessages(String companyId, String conversationId, {String? cursor});
   Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId, String? clientMessageId});
-  Future<MessageModel> sendVoiceMessage(String companyId, String conversationId, String audioFilePath, int durationMs);
+  Future<MessageModel> sendVoiceMessage(String companyId, String conversationId, String audioFilePath, int durationMs, {String? clientMessageId});
   /// A1 (real-user review, 2026-08-05): explicit retry when voice
   /// transcription failed — re-triggers the same server-side pipeline.
   Future<void> retryVoiceTranscription(String companyId, String conversationId, String messageId);
@@ -90,8 +90,9 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     String companyId,
     String conversationId,
     String audioFilePath,
-    int durationMs,
-  ) async {
+    int durationMs, {
+    String? clientMessageId,
+  }) async {
     final formData = dio.FormData.fromMap({
       'audio': await dio.MultipartFile.fromFile(
         audioFilePath,
@@ -99,6 +100,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         contentType: MediaType('audio', 'mp4'), // matches backend's `mimetype.startsWith('audio/')` check
       ),
       'durationMs': durationMs.toString(),
+      if (clientMessageId != null) 'clientMessageId': clientMessageId,
     });
     final data = await _client.post<Map<String, dynamic>>(
       ApiConstants.sendVoiceMessage(companyId, conversationId),

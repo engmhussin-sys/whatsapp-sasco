@@ -110,13 +110,14 @@ class ChatRepositoryImpl implements ChatRepository {
     String companyId,
     String conversationId,
     String audioFilePath,
-    int durationMs,
-  ) async {
+    int durationMs, {
+    String? clientMessageId,
+  }) async {
     if (!await _networkInfo.isConnected) {
       return const Left(NetworkFailure('لا يوجد اتصال — أعد المحاولة عند عودة الشبكة'));
     }
     try {
-      final result = await _remote.sendVoiceMessage(companyId, conversationId, audioFilePath, durationMs);
+      final result = await _remote.sendVoiceMessage(companyId, conversationId, audioFilePath, durationMs, clientMessageId: clientMessageId);
       return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));

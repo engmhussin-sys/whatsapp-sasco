@@ -302,12 +302,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onVoiceMessageSent(ChatVoiceMessageSent event, Emitter<ChatState> emit) async {
     emit(state.copyWith(isSending: true));
+    // REVIEW_ROUND7.md §1 gap fix (confirmed via real screenshots: one
+    // voice message showing twice, one translated one "failed") — same
+    // protection as text messages, which the voice path never received.
+    final clientMessageId = const Uuid().v4();
     final result = await _sendVoiceMessage(
       SendVoiceMessageParams(
         companyId: companyId,
         conversationId: conversationId,
         audioFilePath: event.audioFilePath,
         durationMs: event.durationMs,
+        clientMessageId: clientMessageId,
       ),
     );
     result.fold(

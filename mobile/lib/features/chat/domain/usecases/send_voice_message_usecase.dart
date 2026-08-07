@@ -10,14 +10,16 @@ class SendVoiceMessageParams extends Equatable {
   final String conversationId;
   final String audioFilePath;
   final int durationMs;
+  final String? clientMessageId;
   const SendVoiceMessageParams({
     required this.companyId,
     required this.conversationId,
     required this.audioFilePath,
     required this.durationMs,
+    this.clientMessageId,
   });
   @override
-  List<Object?> get props => [companyId, conversationId, audioFilePath, durationMs];
+  List<Object?> get props => [companyId, conversationId, audioFilePath, durationMs, clientMessageId];
 }
 
 class SendVoiceMessageUseCase implements UseCase<MessageEntity, SendVoiceMessageParams> {
@@ -25,6 +27,11 @@ class SendVoiceMessageUseCase implements UseCase<MessageEntity, SendVoiceMessage
   SendVoiceMessageUseCase(this.repository);
 
   @override
-  Future<Either<Failure, MessageEntity>> call(SendVoiceMessageParams params) =>
-      repository.sendVoiceMessage(params.companyId, params.conversationId, params.audioFilePath, params.durationMs);
+  Future<Either<Failure, MessageEntity>> call(SendVoiceMessageParams params) => repository.sendVoiceMessage(
+        params.companyId,
+        params.conversationId,
+        params.audioFilePath,
+        params.durationMs,
+        clientMessageId: params.clientMessageId,
+      );
 }

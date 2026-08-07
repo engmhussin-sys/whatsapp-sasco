@@ -25,8 +25,9 @@ abstract class ChatRepository {
     String companyId,
     String conversationId,
     String audioFilePath,
-    int durationMs,
-  );
+    int durationMs, {
+    String? clientMessageId,
+  });
 
   /// A1 (real-user review, 2026-08-05).
   Future<Either<Failure, void>> retryVoiceTranscription(String companyId, String conversationId, String messageId);
