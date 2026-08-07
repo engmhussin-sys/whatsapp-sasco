@@ -25,6 +25,12 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
   final ChatRepository _chatRepository;
   final String companyId;
   StreamSubscription<Map<String, dynamic>>? _notificationSub;
+  // BUG FIX (confirmed real report: your own conversation list never
+  // reorders after YOU send a message — only after a peer replies).
+  // onNotification deliberately excludes the sender (it drives a real
+  // OS notification elsewhere); this second, notification-free event
+  // reaches the sender too, purely to trigger the same re-fetch.
+  StreamSubscription<Map<String, dynamic>>? _conversationUpdatedSub;
 
   ConversationsBloc({
     required GetConversationsUseCase getConversations,
@@ -37,6 +43,9 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
     on<ConversationsRealtimeUpdateReceived>(_onRequested);
 
     _notificationSub = _chatRepository.onNotification.listen((_) {
+      add(const ConversationsRealtimeUpdateReceived());
+    });
+    _conversationUpdatedSub = _chatRepository.onConversationUpdated.listen((_) {
       add(const ConversationsRealtimeUpdateReceived());
     });
   }
@@ -53,6 +62,7 @@ class ConversationsBloc extends Bloc<ConversationsEvent, ConversationsState> {
   @override
   Future<void> close() {
     _notificationSub?.cancel();
+    _conversationUpdatedSub?.cancel();
     return super.close();
   }
 }

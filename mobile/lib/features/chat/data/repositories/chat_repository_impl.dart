@@ -289,6 +289,9 @@ class ChatRepositoryImpl implements ChatRepository {
   Stream<Map<String, dynamic>> get onNotification => _socket.onNotification;
 
   @override
+  Stream<Map<String, dynamic>> get onConversationUpdated => _socket.onConversationUpdated;
+
+  @override
   Stream<bool> get onConnectionChanged => _socket.onConnectionChanged;
 
   @override

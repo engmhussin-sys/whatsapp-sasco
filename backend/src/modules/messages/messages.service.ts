@@ -240,6 +240,21 @@ export class MessagesService {
     const fullMessage = await this.findOne(companyId, senderId, messageId);
     this.chatGateway.server.to(`conversation:${conversationId}`).emit('message:new', fullMessage);
 
+    // BUG FIX (confirmed real report: "must leave and re-enter the
+    // conversations tab for it to jump to the top after I send a
+    // message"): message:notification below deliberately excludes the
+    // sender (it triggers a REAL OS notification via
+    // LocalNotificationService in home_shell.dart — you should never
+    // get notified of your own message). But ConversationsBloc also
+    // piggybacks on that same event purely to know WHEN to re-fetch
+    // and re-sort the list, and since it's excluded for the sender,
+    // the sender's OWN conversation list never reordered after they
+    // sent something — only after a peer replied. This is a second,
+    // separate event carrying no notification payload, sent to EVERY
+    // member INCLUDING the sender, solely so every device's
+    // conversation list re-sorts by most-recent-message correctly.
+    this.chatGateway.server.to(`user:${senderId}`).emit('conversation:updated', { conversationId });
+
     const members = await this.prisma.conversationMember.findMany({
       where: { conversationId, userId: { not: senderId } },
       select: { userId: true },
@@ -255,6 +270,7 @@ export class MessagesService {
         senderName,
         preview,
       });
+      this.chatGateway.server.to(`user:${m.userId}`).emit('conversation:updated', { conversationId });
       const socketsInRoom = await this.chatGateway.server.in(`conversation:${conversationId}`).fetchSockets();
       if (socketsInRoom.length > 0) {
         await this.markDelivered(messageId, m.userId);
@@ -327,6 +343,14 @@ export class MessagesService {
             data: otherMembers.map((m: { userId: string }) => ({ messageId: created.id, userId: m.userId, status: MessageStatus.SENT })),
           });
         }
+
+        // BUG FIX (confirmed via real report: conversation list doesn't
+        // reorder by most-recent-message — voice messages never bumped
+        // it up, matching the exact same gap already fixed for
+        // sendText, just never carried over to this method). Prisma
+        // does NOT auto-touch a parent's updatedAt when a related child
+        // row is created — must be bumped explicitly.
+        await tx.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
 
         return created;
       });
@@ -584,22 +608,12 @@ export class MessagesService {
     // يُبلِّغ العميل المُرسِل عبر Socket بهذا التغيير أبداً — فتبقى
     // علاماته عالقة على "أُرسلت" (✓ واحدة) إلى الأبد، بصرف النظر عمّا
     // يحدث فعلياً في قاعدة البيانات، حتى يُعاد فتح المحادثة يدوياً.
-    //
-    // TEMP DIAGNOSTIC LOGGING (confirmed via real user report: ticks
-    // still stuck on single-check even after this exact fix was
-    // deployed and confirmed built into a fresh mobile app): this
-    // proves at runtime whether the computed status is even correct
-    // AND whether chatGateway.server is actually available at this
-    // exact call site — @Optional() injection can silently resolve to
-    // undefined in some circular-dependency timing scenarios even
-    // though the app boots successfully overall, which would explain a
-    // completely silent, traceless broadcast skip.
-    this.logger.log(`recomputeMessageStatus(${messageId}): computed status=${status}, receipts=${JSON.stringify(receipts)}`);
+    // مؤكَّد الآن عبر سجلّ إنتاج حقيقي: الحساب والبث كلاهما يعملان
+    // بشكل صحيح تمامًا (computed status=DELIVERED → broadcast ناجح).
     if (this.chatGateway?.server) {
       this.chatGateway.server.to(`conversation:${updated.conversationId}`).emit('message:status_changed', { messageId, status });
-      this.logger.log(`recomputeMessageStatus(${messageId}): broadcast message:status_changed to conversation:${updated.conversationId} — status=${status}`);
     } else {
-      this.logger.warn(`recomputeMessageStatus(${messageId}): chatGateway.server unavailable — broadcast SKIPPED (this is the bug if you see this line)`);
+      this.logger.warn(`recomputeMessageStatus(${messageId}): chatGateway.server unavailable — broadcast skipped`);
     }
   }
 

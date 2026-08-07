@@ -81,6 +81,7 @@ abstract class ChatRepository {
   Stream<MessageEntity> get onMessageReceived;
   Stream<MessageEntity> get onMessageTranslated;
   Stream<Map<String, dynamic>> get onNotification;
+  Stream<Map<String, dynamic>> get onConversationUpdated;
   Stream<bool> get onConnectionChanged;
   Stream<Map<String, dynamic>> get onTypingChanged;
   Stream<String> get onMessagesReadByPeer;

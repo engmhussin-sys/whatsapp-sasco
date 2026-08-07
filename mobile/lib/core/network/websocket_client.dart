@@ -22,6 +22,11 @@ class WebSocketClient {
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
   final _translatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
+  /// BUG FIX: separate from onNotification (which the sender is
+  /// deliberately excluded from, to avoid a real OS notification for
+  /// their own message) — this reaches the sender too, purely to
+  /// trigger a conversation-list re-sort with no notification payload.
+  final _conversationUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
   final _typingController = StreamController<Map<String, dynamic>>.broadcast();
   final _readController = StreamController<Map<String, dynamic>>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
@@ -38,6 +43,7 @@ class WebSocketClient {
   Stream<Map<String, dynamic>> get onNewMessage => _messageController.stream;
   Stream<Map<String, dynamic>> get onMessageTranslated => _translatedController.stream;
   Stream<Map<String, dynamic>> get onNotification => _notificationController.stream;
+  Stream<Map<String, dynamic>> get onConversationUpdated => _conversationUpdatedController.stream;
   Stream<Map<String, dynamic>> get onTyping => _typingController.stream;
   Stream<Map<String, dynamic>> get onMessageRead => _readController.stream;
   Stream<Map<String, dynamic>> get onMessageStatusChanged => _statusChangedController.stream;
@@ -83,6 +89,7 @@ class WebSocketClient {
       ..on('message:new', (data) => _messageController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:translated', (data) => _translatedController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:notification', (data) => _notificationController.add(Map<String, dynamic>.from(data as Map)))
+      ..on('conversation:updated', (data) => _conversationUpdatedController.add(Map<String, dynamic>.from(data as Map)))
       ..on('typing', (data) => _typingController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:read', (data) => _readController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:status_changed', (data) => _statusChangedController.add(Map<String, dynamic>.from(data as Map)));
@@ -146,6 +153,7 @@ class WebSocketClient {
     _messageController.close();
     _translatedController.close();
     _notificationController.close();
+    _conversationUpdatedController.close();
     _typingController.close();
     _readController.close();
     _connectionController.close();

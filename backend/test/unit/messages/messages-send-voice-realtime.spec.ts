@@ -55,6 +55,7 @@ describe('MessagesService.sendVoice() — realtime broadcast + transcription tri
         }),
       },
       messageReceipt: { createMany: jest.fn() },
+      conversation: { update: jest.fn().mockResolvedValue({}) },
       $transaction: jest.fn(async (fn) => fn(prisma)),
     };
 

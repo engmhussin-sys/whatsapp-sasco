@@ -106,11 +106,35 @@ describe('MessagesService — Realtime broadcast on send (root-cause fix)', () =
 
     expect(socketServer.to).toHaveBeenCalledWith('user:user-2');
     expect(socketServer.to).toHaveBeenCalledWith('user:user-3');
-    expect(socketServer.to).not.toHaveBeenCalledWith(`user:${senderId}`);
+    // BUG FIX (updated for the conversation:updated fix): to() now
+    // legitimately targets the sender's own room too, but only to
+    // deliver conversation:updated (silent list re-sort) — never
+    // message:notification (which would be a real, unwanted OS
+    // notification for the sender's own message). Pairs each to() call
+    // with the emit() call that immediately follows it (matches the
+    // source's consistent to(room).emit(event, payload) call pattern)
+    // to check the CORRECT thing: which room each specific EVENT went
+    // to, not just whether the sender's room was touched at all.
+    const toRooms = socketServer.to.mock.calls.map((c: unknown[]) => c[0]);
+    const emitEvents = socketServer.emit.mock.calls.map((c: unknown[]) => c[0]);
+    const notificationRooms = emitEvents.map((event: string, i: number) => (event === 'message:notification' ? toRooms[i] : null)).filter(Boolean);
+    expect(notificationRooms).not.toContain(`user:${senderId}`);
     expect(socketServer.emit).toHaveBeenCalledWith(
       'message:notification',
       expect.objectContaining({ conversationId, messageId: 'msg-1', senderName: 'Sara Worker' }),
     );
+  });
+
+  it('broadcasts conversation:updated to the sender too, so their own conversation list re-sorts after sending', async () => {
+    await service.sendText(companyId, conversationId, senderId, { text: 'مرحبا' } as any);
+    await flushBackgroundWork();
+
+    const toRooms = socketServer.to.mock.calls.map((c: unknown[]) => c[0]);
+    const emitEvents = socketServer.emit.mock.calls.map((c: unknown[]) => c[0]);
+    const updatedRooms = emitEvents.map((event: string, i: number) => (event === 'conversation:updated' ? toRooms[i] : null)).filter(Boolean);
+    expect(updatedRooms).toContain(`user:${senderId}`);
+    expect(updatedRooms).toContain('user:user-2');
+    expect(updatedRooms).toContain('user:user-3');
   });
 
   it('truncates the notification preview for long messages (matches ChatGateway\'s own 80-char rule)', async () => {
