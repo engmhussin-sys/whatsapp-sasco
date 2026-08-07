@@ -188,6 +188,25 @@ class MessageBubble extends StatelessWidget {
                           ],
                         ],
                       ),
+                      // BUG FIX (confirmed via real user report + screenshot):
+                      // this branch never rendered the meta row at all — every
+                      // voice message whose transcription failed permanently
+                      // lost its time/delivery-ticks display, regardless of
+                      // its actual server-side status. Same row every other
+                      // branch shows, minus the listen button (no transcribed
+                      // text exists yet to speak).
+                      const SizedBox(height: Gap.xs),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: _MetaRow(
+                          time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
+                          langCode: myLang,
+                          isMine: isMine,
+                          status: message.status,
+                          metaFg: metaFg,
+                          onRetrySend: onRetrySend,
+                        ),
+                      ),
                     ] else if (isTranscribing) ...[
                       // REVIEW_ROUND5.md §A4: كانت تعتمد كلياً على تحديث
                       // الخادم عبر message:translated — إن تعطَّلت المعالجة
@@ -244,6 +263,21 @@ class MessageBubble extends StatelessWidget {
                             ],
                           );
                         },
+                      ),
+                      // BUG FIX: same gap as transcriptionFailed above — this
+                      // section never showed the meta row either, in EITHER
+                      // sub-state (still transcribing, or timed out).
+                      const SizedBox(height: Gap.xs),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: _MetaRow(
+                          time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
+                          langCode: myLang,
+                          isMine: isMine,
+                          status: message.status,
+                          metaFg: metaFg,
+                          onRetrySend: onRetrySend,
+                        ),
                       ),
                     ] else ...[
                       // REVIEW_ROUND5.md §B1 + PROMPT_ROUND6.md §A-3:
