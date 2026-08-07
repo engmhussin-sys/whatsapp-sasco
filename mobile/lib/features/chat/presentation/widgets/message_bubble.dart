@@ -12,6 +12,7 @@ import 'dart:async';
 import 'dart:ui' show ImageFilter;
 import 'dart:convert';
 import 'dart:typed_data';
+import '../../../../core/diagnostics/event_trace_log.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 
 import '../../../../core/theme/app_colors.dart';
@@ -92,6 +93,17 @@ class MessageBubble extends StatelessWidget {
     // A1: حالة تحويل الصوت — لا تزال قيد المعالجة، أو فشلت صراحةً.
     final isTranscribing = message.type == MessageType.voice && (message.text == null || message.text!.isEmpty);
     final transcriptionFailed = message.text == 'تعذّر تحويل هذه الرسالة الصوتية إلى نص';
+
+    // تشخيص نهائي: يُثبت بدقة هل MessageBubble.build() تستقبل فعلياً
+    // البيانات المُحدَّثة من Bloc، أم نسخة قديمة عالقة في مكان ما بين
+    // state.messages وبين هذه الودجة (dedupedMessages في chat_page.dart).
+    if (message.type == MessageType.voice) {
+      EventTraceLog.log(
+        'MessageBubble.build()',
+        messageId: message.id,
+        extra: 'text=${message.text} isTranscribing=$isTranscribing hashCode=${message.hashCode}',
+      );
+    }
 
     final fg = isMine ? Colors.white : AppColors.textPrimary;
     final metaFg = isMine ? Colors.white70 : AppColors.textSecondary;
