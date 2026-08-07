@@ -507,6 +507,14 @@ model Message {
   type           MessageType   @default(TEXT)
   status         MessageStatus @default(SENT)
 
+  // REVIEW_ROUND7.md §1: تكرار رسائل حقيقي مُبلَّغ عنه (فقاعتان
+  // متطابقتان تماماً بنفس النص والوقت). حارس UI في _sendText() وحده
+  // قابل للكسر (سباق حالة، مسار إرسال بديل لم يُتوقَّع) — قيد فرادة
+  // حقيقي في قاعدة البيانات نفسها هو الدفاع الوحيد المضمون: حتى لو
+  // وصل طلبان REST منفصلان فعلياً لنفس الرسالة، الثاني يفشل بخطأ قيد
+  // فريد بدل إنشاء سجل مكرَّر (انظر messages.service.ts: sendText).
+  clientMessageId String?      @unique
+
   // Original content as authored by sender
   originalText   String?
   originalLang   String?

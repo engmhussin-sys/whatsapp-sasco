@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:uuid/uuid.dart';
 import '../../domain/entities/message_attachment_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -144,8 +145,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> _onTextMessageSent(ChatTextMessageSent event, Emitter<ChatState> emit) async {
     if (event.text.trim().isEmpty) return;
     emit(state.copyWith(isSending: true));
+    // REVIEW_ROUND7.md §1: UUID مُولَّد مرة واحدة هنا (قبل أي طلب شبكة)
+    // ويُرسَل مع الرسالة — الخادم يرفض أي محاولة ثانية بنفس المعرّف
+    // (قيد فرادة حقيقي)، فحتى لو تجاوز استدعاء ثانٍ حارس isSending بأي
+    // طريقة لم تُتوقَّع، لن يُنشأ سجل مكرَّر في قاعدة البيانات.
+    final clientMessageId = const Uuid().v4();
     final result = await _sendTextMessage(
-      SendTextMessageParams(companyId: companyId, conversationId: conversationId, text: event.text.trim(), replyToId: event.replyToId),
+      SendTextMessageParams(
+        companyId: companyId,
+        conversationId: conversationId,
+        text: event.text.trim(),
+        replyToId: event.replyToId,
+        clientMessageId: clientMessageId,
+      ),
     );
     result.fold(
       (failure) => emit(state.copyWith(isSending: false, errorMessage: failure.message)),

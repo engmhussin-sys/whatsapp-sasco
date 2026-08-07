@@ -16,7 +16,7 @@ abstract class ChatRemoteDataSource {
     String? title,
   });
   Future<List<MessageModel>> getMessages(String companyId, String conversationId, {String? cursor});
-  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId});
+  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId, String? clientMessageId});
   Future<MessageModel> sendVoiceMessage(String companyId, String conversationId, String audioFilePath, int durationMs);
   /// A1 (real-user review, 2026-08-05): explicit retry when voice
   /// transcription failed — re-triggers the same server-side pipeline.
@@ -73,10 +73,14 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   }
 
   @override
-  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId}) async {
+  Future<MessageModel> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId, String? clientMessageId}) async {
     final data = await _client.post<Map<String, dynamic>>(
       ApiConstants.sendTextMessage(companyId, conversationId),
-      data: {'text': text, if (replyToId != null) 'replyToId': replyToId},
+      data: {
+        'text': text,
+        if (replyToId != null) 'replyToId': replyToId,
+        if (clientMessageId != null) 'clientMessageId': clientMessageId,
+      },
     );
     return MessageModel.fromJson(data);
   }

@@ -12,6 +12,13 @@ export class SendTextMessageDto {
   @IsOptional()
   @IsString()
   replyToId?: string; // Group 2 (WhatsApp parity): quote/reply-to
+
+  // REVIEW_ROUND7.md §1: UUID مُولَّد في العميل قبل الإرسال — دفاع حقيقي
+  // ضد الإرسال المزدوج عبر قيد فرادة في قاعدة البيانات نفسها، لا مجرد
+  // حارس واجهة قابل للكسر.
+  @IsOptional()
+  @IsString()
+  clientMessageId?: string;
 }
 
 export class DeleteMessageDto {

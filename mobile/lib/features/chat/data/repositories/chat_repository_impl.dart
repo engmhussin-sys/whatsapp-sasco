@@ -72,7 +72,7 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId}) async {
+  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId, String? clientMessageId}) async {
     // REFERENCE IMPLEMENTATION for the offline-queue pattern (see
     // core/storage/offline_queue.dart doc comment): if there's no
     // connectivity, the write is queued instead of failing outright.
@@ -80,16 +80,23 @@ class ChatRepositoryImpl implements ChatRepository {
     // confirmed" case in its UI state — this only guarantees the write
     // isn't silently lost.
     if (!await _networkInfo.isConnected) {
+      // REVIEW_ROUND7.md §1: هذا المسار كان يفتقد clientMessageId أيضاً
+      // — لو أُعيدت محاولة إرسال طابور بلا اتصال أكثر من مرة لأي سبب،
+      // لا حماية من تكرار حقيقي هنا كذلك.
       await _offlineQueue.enqueue(
         method: 'POST',
         path: ApiConstants.sendTextMessage(companyId, conversationId),
-        body: {'text': text, if (replyToId != null) 'replyToId': replyToId},
+        body: {
+          'text': text,
+          if (replyToId != null) 'replyToId': replyToId,
+          if (clientMessageId != null) 'clientMessageId': clientMessageId,
+        },
       );
       return const Left(NetworkFailure('لا يوجد اتصال — تم حفظ الرسالة وستُرسَل تلقائيًا عند عودة الاتصال'));
     }
 
     try {
-      final result = await _remote.sendTextMessage(companyId, conversationId, text, replyToId: replyToId);
+      final result = await _remote.sendTextMessage(companyId, conversationId, text, replyToId: replyToId, clientMessageId: clientMessageId);
       return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));

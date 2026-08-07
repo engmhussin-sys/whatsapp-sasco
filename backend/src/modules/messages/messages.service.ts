@@ -157,33 +157,53 @@ export class MessagesService {
     // client that knows better (e.g. a language picker) always wins.
     const originalLang = dto.originalLang ?? this.languageDetector.detect(dto.text).languageCode;
 
-    const message = await this.prisma.$transaction(async (tx: any) => {
-      const created = await tx.message.create({
-        data: {
-          conversationId,
-          senderId,
-          type: MessageType.TEXT,
-          status: MessageStatus.SENT,
-          originalText: dto.text,
-          originalLang,
-          replyToId: dto.replyToId,
-        },
-      });
-
-      const otherMembers = await tx.conversationMember.findMany({
-        where: { conversationId, userId: { not: senderId } },
-        select: { userId: true },
-      });
-      if (otherMembers.length) {
-        await tx.messageReceipt.createMany({
-          data: otherMembers.map((m: { userId: string }) => ({ messageId: created.id, userId: m.userId, status: MessageStatus.SENT })),
+    // REVIEW_ROUND7.md §1: إن كانت clientMessageId مُمرَّرة وقد سبق
+    // إنشاء رسالة بها فعلاً (طلب REST مُكرَّر وصل الخادم حقاً — نقرة
+    // مزدوجة تجاوزت حارس الواجهة، أو إعادة محاولة تلقائية بعد timeout
+    // ظاهري كان النجاح الفعلي قد وصل)، أعِد الرسالة الموجودة بدل محاولة
+    // الإنشاء. Optimistic-create-then-catch (لا check-then-act) لأن هذا
+    // النمط الوحيد الآمن فعلياً ضد سباق حقيقي بين طلبين متزامنين تقريباً.
+    let message: any;
+    try {
+      message = await this.prisma.$transaction(async (tx: any) => {
+        const created = await tx.message.create({
+          data: {
+            conversationId,
+            senderId,
+            type: MessageType.TEXT,
+            status: MessageStatus.SENT,
+            originalText: dto.text,
+            originalLang,
+            replyToId: dto.replyToId,
+            clientMessageId: dto.clientMessageId,
+          },
         });
+
+        const otherMembers = await tx.conversationMember.findMany({
+          where: { conversationId, userId: { not: senderId } },
+          select: { userId: true },
+        });
+        if (otherMembers.length) {
+          await tx.messageReceipt.createMany({
+            data: otherMembers.map((m: { userId: string }) => ({ messageId: created.id, userId: m.userId, status: MessageStatus.SENT })),
+          });
+        }
+
+        await tx.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
+
+        return created;
+      });
+    } catch (err: any) {
+      // Prisma P2002 = unique constraint violation. Only clientMessageId
+      // is unique-constrained on this model, so this specifically means
+      // "a message with this clientMessageId already exists" — the
+      // duplicate-send race this whole mechanism exists to catch.
+      if (err?.code === 'P2002' && dto.clientMessageId) {
+        const existing = await this.prisma.message.findUnique({ where: { clientMessageId: dto.clientMessageId } });
+        if (existing) return this.findOne(companyId, senderId, existing.id);
       }
-
-      await tx.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
-
-      return created;
-    });
+      throw err;
+    }
 
     // BUG FIX (confirmed via real production logs — measured 1.3s to
     // 2.5s per message, vs. 40-80ms without translation): this used to

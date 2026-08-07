@@ -76,8 +76,13 @@ class MessageBubble extends StatelessWidget {
     final l10n = MaterialLocalizations.of(context);
 
     final displayText = message.displayText(myLang);
-    final isTranslated = message.isTranslatedFor(myLang);
-    final translationMissing = message.translationMissingFor(myLang);
+    // REVIEW_ROUND7.md §2: "رسائلي لا تُترجم لي أبداً" — كانت الشارة
+    // وصفّ النص الأصلي يُحسَبان بصرف النظر عن isMine، فرسالة كتبتُها أنا
+    // بالإنجليزية (بينما لغتي عربية) كانت تُعرَض كأن الترجمة فشلت، رغم
+    // أنني كتبتُها بنفسي وأفهمها تماماً. شرط !isMine سابق لكل منطق
+    // الترجمة، لا استثناء واحد.
+    final isTranslated = !isMine && message.isTranslatedFor(myLang);
+    final translationMissing = !isMine && message.translationMissingFor(myLang);
     final showOriginal = isTranslated && showOriginalSetting;
 
     // A1: حالة تحويل الصوت — لا تزال قيد المعالجة، أو فشلت صراحةً.

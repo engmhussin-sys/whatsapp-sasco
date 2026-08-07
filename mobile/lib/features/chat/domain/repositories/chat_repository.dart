@@ -19,7 +19,7 @@ abstract class ChatRepository {
 
   Future<Either<Failure, List<MessageEntity>>> getMessages(String companyId, String conversationId, {String? cursor});
 
-  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId});
+  Future<Either<Failure, MessageEntity>> sendTextMessage(String companyId, String conversationId, String text, {String? replyToId, String? clientMessageId});
 
   Future<Either<Failure, MessageEntity>> sendVoiceMessage(
     String companyId,
