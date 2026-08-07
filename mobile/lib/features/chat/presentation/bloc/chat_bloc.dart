@@ -22,6 +22,32 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final SendVoiceMessageUseCase _sendVoiceMessage;
   final MarkReadUseCase _markRead;
 
+  // BUG FIX (confirmed via real user report: duplicate persists after
+  // my first "sequential" fix): sequential() applied per-event-TYPE
+  // only serializes events of that SAME type against each other —
+  // package:bloc gives each `on<T>()` its own independent processing
+  // queue, so ChatTextMessageSent (direct REST-response append) and
+  // ChatMessageReceived (near-simultaneous socket echo of that exact
+  // message) — being DIFFERENT event types — could still interleave:
+  // the socket handler's `alreadyPresent` check could run against
+  // `state.messages` before the REST handler's emit() has landed,
+  // pass the check, and append a genuine second in-memory copy. A
+  // real mutex serializes EVERY handler that reads-then-mutates
+  // messages, regardless of which event type triggered it — this is
+  // the only construct that actually closes the cross-type race.
+  Future<void> _messagesLock = Future.value();
+  Future<T> _withMessagesLock<T>(Future<T> Function() action) {
+    final completer = Completer<T>();
+    _messagesLock = _messagesLock.then((_) async {
+      try {
+        completer.complete(await action());
+      } catch (e) {
+        completer.completeError(e);
+      }
+    });
+    return completer.future;
+  }
+
   StreamSubscription<MessageEntity>? _messageSub;
   StreamSubscription<MessageEntity>? _translatedSub;
   StreamSubscription<(String, MessageDeliveryStatus)>? _statusChangedSub;
@@ -201,14 +227,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         clientMessageId: clientMessageId,
       ),
     );
-    result.fold(
-      (failure) => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
-      (message) {
-        // The server also echoes this back over the socket to everyone in
-        // the room (including us) — de-dupe by id in _onMessageReceived so
-        // it isn't appended twice.
+    await result.fold(
+      (failure) async => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
+      (message) => _withMessagesLock(() async {
+        // BUG FIX: this direct append (from the REST response) races
+        // against _onMessageReceived's socket-echo de-dupe check for
+        // the SAME message — both being different Bloc event types
+        // means package:bloc's own per-type sequencing can't protect
+        // this. The shared mutex (_withMessagesLock) now does.
         emit(state.copyWith(isSending: false, messages: [...state.messages, message], clearReplyTarget: true));
-      },
+      }),
     );
   }
 
@@ -348,9 +376,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         clientMessageId: clientMessageId,
       ),
     );
-    result.fold(
-      (failure) => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
-      (message) => emit(state.copyWith(isSending: false, messages: [...state.messages, message])),
+    await result.fold(
+      (failure) async => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
+      (message) => _withMessagesLock(() async {
+        emit(state.copyWith(isSending: false, messages: [...state.messages, message]));
+      }),
     );
   }
 
@@ -362,29 +392,35 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     _repository.sendTypingIndicator(conversationId, event.isTyping);
   }
 
-  void _onMessageReceived(ChatMessageReceived event, Emitter<ChatState> emit) {
-    final alreadyPresent = state.messages.any((m) => m.id == event.message.id);
-    if (alreadyPresent) return;
-    emit(state.copyWith(messages: [...state.messages, event.message]));
-    add(const ChatMarkReadRequested());
+  Future<void> _onMessageReceived(ChatMessageReceived event, Emitter<ChatState> emit) {
+    return _withMessagesLock(() async {
+      final alreadyPresent = state.messages.any((m) => m.id == event.message.id);
+      if (alreadyPresent) return;
+      emit(state.copyWith(messages: [...state.messages, event.message]));
+      add(const ChatMarkReadRequested());
+    });
   }
 
-  void _onMessageTranslated(ChatMessageTranslated event, Emitter<ChatState> emit) {
-    final index = state.messages.indexWhere((m) => m.id == event.message.id);
-    if (index == -1) return; // message already scrolled out of the loaded window, or history was since refreshed — nothing to update
-    final updated = [...state.messages];
-    updated[index] = event.message;
-    emit(state.copyWith(messages: updated));
+  Future<void> _onMessageTranslated(ChatMessageTranslated event, Emitter<ChatState> emit) {
+    return _withMessagesLock(() async {
+      final index = state.messages.indexWhere((m) => m.id == event.message.id);
+      if (index == -1) return; // message already scrolled out of the loaded window, or history was since refreshed — nothing to update
+      final updated = [...state.messages];
+      updated[index] = event.message;
+      emit(state.copyWith(messages: updated));
+    });
   }
 
   /// REVIEW_ROUND7.md §4: يحدّث علامة التسليم لرسالة واحدة بمعرّفها،
   /// دون إعادة جلب المحادثة بأكملها.
-  void _onMessageStatusChanged(ChatMessageStatusChanged event, Emitter<ChatState> emit) {
-    final index = state.messages.indexWhere((m) => m.id == event.messageId);
-    if (index == -1) return;
-    final updated = [...state.messages];
-    updated[index] = updated[index].copyWith(status: event.status);
-    emit(state.copyWith(messages: updated));
+  Future<void> _onMessageStatusChanged(ChatMessageStatusChanged event, Emitter<ChatState> emit) {
+    return _withMessagesLock(() async {
+      final index = state.messages.indexWhere((m) => m.id == event.messageId);
+      if (index == -1) return;
+      final updated = [...state.messages];
+      updated[index] = updated[index].copyWith(status: event.status);
+      emit(state.copyWith(messages: updated));
+    });
   }
 
   void _onPeerTypingReceived(ChatPeerTypingReceived event, Emitter<ChatState> emit) {
@@ -428,11 +464,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       kind: event.kind,
       caption: event.caption,
     );
-    result.fold(
-      (failure) => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
-      // Same de-dupe note as _onTextMessageSent: the socket also echoes
-      // this back; _onMessageReceived below is id-based so no duplicate.
-      (message) => emit(state.copyWith(isSending: false, messages: [...state.messages, message])),
+    await result.fold(
+      (failure) async => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
+      // Same race the mutex protects against in _onTextMessageSent: the
+      // socket also echoes this back near-instantly.
+      (message) => _withMessagesLock(() async {
+        emit(state.copyWith(isSending: false, messages: [...state.messages, message]));
+      }),
     );
   }
 

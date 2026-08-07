@@ -162,6 +162,21 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
   Widget build(BuildContext context) {
     if (_phase == _RecordPhase.idle) {
       return GestureDetector(
+        // BUG FIX (confirmed real report: "لا يستجيب نهائياً"): the
+        // interaction model changed from a simple tap (old button) to
+        // long-press-only in this exact session — a person tapping
+        // normally out of habit would trigger nothing at all, which
+        // looks identical to "completely unresponsive". A plain tap now
+        // starts recording directly in locked mode (manual send/delete
+        // buttons, no need to hold), so the button works regardless of
+        // which gesture the person uses; long-press still gives the
+        // full slide-to-cancel/lock experience on top of that.
+        onTap: () async {
+          await _startRecording();
+          if (mounted && _phase == _RecordPhase.recording) {
+            setState(() => _phase = _RecordPhase.locked);
+          }
+        },
         onLongPressStart: _onLongPressStart,
         onLongPressMoveUpdate: _onLongPressMoveUpdate,
         onLongPressEnd: _onLongPressEnd,
