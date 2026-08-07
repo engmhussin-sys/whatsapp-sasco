@@ -17,11 +17,33 @@ import '../bloc/settings_cubit.dart';
 /// project (documented in main.dart), and a switch that toggles nothing
 /// is worse than no switch at all.
 class ProfilePage extends StatelessWidget {
-  final UserEntity user;
-  const ProfilePage({super.key, required this.user});
+  // BUG FIX (confirmed via real screenshots: language settings screen
+  // showed Urdu selected, but this profile screen — visited moments
+  // later, same session — still showed "AR" as the current language).
+  // Root cause: this was a StatelessWidget receiving `user` as a fixed
+  // constructor parameter, built ONCE by app_router.dart's
+  // StatefulShellRoute (which preserves each tab's widget tree across
+  // visits instead of rebuilding it). Even after AuthLanguageChanged
+  // successfully updated AuthBloc's live state, this screen kept
+  // showing the stale snapshot from whenever it was first built. Now
+  // wrapped in BlocBuilder<AuthBloc, AuthState> below so it re-renders
+  // with the live user the moment the language change succeeds — no
+  // navigation/restart required to see it reflected.
+  final UserEntity initialUser;
+  const ProfilePage({super.key, required UserEntity user}) : initialUser = user;
 
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      buildWhen: (previous, current) => previous.user != current.user,
+      builder: (context, authState) {
+        final user = authState.user ?? initialUser;
+        return _buildScaffold(context, user);
+      },
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, UserEntity user) {
     return Scaffold(
       backgroundColor: AppColors.surfaceLight,
       body: CustomScrollView(
