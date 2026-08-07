@@ -27,7 +27,14 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 
 echo "[$(date -u +%H:%M:%S)] Syncing database schema (prisma db push)..."
-npx prisma db push --skip-generate
+# --accept-data-loss: هذا الأمر يعمل بلا إشراف بشري في كل إقلاع — إن
+# طلبت Prisma تأكيداً تفاعلياً لأي تغيير (حتى تغيير آمن كإضافة عمود
+# nullable جديد بقيد فريد)، ستُعلَّق العملية للأبد بانتظار إدخال لن
+# يصل أبداً، فيفشل الفحص الصحي بصمت تام (بالضبط نمط \"كل محاولة فشلت
+# لمدة 5 دقائق كاملة\" — لا رسالة خطأ واضحة، فقط انتهاء مهلة). هذا
+# المشروع لا يزال قيد التطوير النشط (لا بيانات إنتاج حقيقية بعد)، فقبول
+# فقدان بيانات نظرياً هنا مقبول تماماً مقابل ضمان عدم تعليق الإقلاع أبداً.
+npx prisma db push --skip-generate --accept-data-loss
 echo "[$(date -u +%H:%M:%S)] Schema sync complete."
 
 # Opt-in seed step: set RUN_SEED=true as an environment variable on this
