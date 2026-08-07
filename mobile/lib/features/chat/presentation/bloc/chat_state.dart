@@ -11,6 +11,22 @@ class ChatState extends Equatable {
   final bool isRetranslating;
   final MessageEntity? replyTarget;
   final String? errorMessage;
+  // BUG FIX (confirmed real, root cause after repeated deep
+  // investigation of translation/delivery-status updates not showing
+  // live — only after leave+re-enter, i.e. only with a FRESH ChatBloc
+  // instance): package:bloc's emit() silently does nothing if the new
+  // state is Equatable-equal to the CURRENT state — this is intentional
+  // upstream behavior to skip redundant rebuilds. If two genuinely
+  // different MessageEntity lists were ever considered equal by
+  // Equatable's deep comparison for ANY reason, every subsequent
+  // legitimate update would be silently swallowed for the rest of that
+  // Bloc's life — exactly matching "works with a new Bloc, stuck with
+  // the current one." Rather than hunt for the exact equality quirk,
+  // this counter guarantees state != previousState is ALWAYS true after
+  // any copyWith(), so Bloc can never mistake a real update for a
+  // no-op — closing off this entire class of silent-update-loss bug
+  // regardless of its precise cause.
+  final int _version;
 
   const ChatState({
     this.status = ChatStatus.initial,
@@ -21,7 +37,8 @@ class ChatState extends Equatable {
     this.isRetranslating = false,
     this.replyTarget,
     this.errorMessage,
-  });
+    int version = 0,
+  }) : _version = version;
 
   ChatState copyWith({
     ChatStatus? status,
@@ -43,10 +60,11 @@ class ChatState extends Equatable {
       isRetranslating: isRetranslating ?? this.isRetranslating,
       replyTarget: clearReplyTarget ? null : (replyTarget ?? this.replyTarget),
       errorMessage: errorMessage,
+      version: _version + 1,
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, messages, isSending, isPeerTyping, isSocketConnected, isRetranslating, replyTarget, errorMessage];
+      [status, messages, isSending, isPeerTyping, isSocketConnected, isRetranslating, replyTarget, errorMessage, _version];
 }
