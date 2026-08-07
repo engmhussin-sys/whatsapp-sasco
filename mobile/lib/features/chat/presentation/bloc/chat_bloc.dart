@@ -189,15 +189,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onReconnectedRefresh(ChatReconnectedRefreshRequested event, Emitter<ChatState> emit) async {
     final result = await _getMessages(GetMessagesParams(companyId: companyId, conversationId: conversationId));
-    result.fold(
-      (_) {}, // best-effort — the socket subscription above still works going forward regardless
-      (messages) {
+    await result.fold(
+      (_) async {}, // best-effort — the socket subscription above still works going forward regardless
+      (messages) => _withMessagesLock(() async {
         final merged = [...messages.reversed];
-        // Keep any newer, not-yet-persisted-looking local state intact
-        // is unnecessary here since this always fetches the authoritative
-        // full history — a plain replace is correct and simplest.
         emit(state.copyWith(messages: merged));
-      },
+      }),
     );
   }
 

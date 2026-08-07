@@ -295,20 +295,10 @@ class _ChatViewState extends State<_ChatView> {
                             state.messages[index - 1].senderId == message.senderId &&
                             message.createdAt.difference(state.messages[index - 1].createdAt).inSeconds.abs() < 60;
                         return Column(
+                          key: ValueKey('msg-row-${message.id}'),
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (showDateSeparator) _DateSeparator(date: message.createdAt, langCode: widget.myLang),
-                            // تشخيص المهمة ١ (PROMPT_ROUND3.md): لم أستطع الحصول على قيم
-                            // حيّة (لا Flutter SDK في بيئتي) — هذا يطبعها من تشغيلك الفعلي
-                            // بدلاً من ذلك. احذف هذا السطر بعد التأكّد من النتيجة.
-                            Builder(builder: (_) {
-                              debugPrint(
-                                '[isMine-debug] msg=${message.id} senderId="${message.senderId}" '
-                                'currentUserId="${widget.currentUserId}" '
-                                'equal=${message.senderId == widget.currentUserId}',
-                              );
-                              return const SizedBox.shrink();
-                            }),
                             // CHAT_SPEC.md §8: "الرد على رسالة: سحب أفقي
                             // على الفقاعة → اقتباس داخل الفقاعة الجديدة".
                             // Dismissible توفّر الحركة البصرية التدريجية
