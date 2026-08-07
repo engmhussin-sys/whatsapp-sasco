@@ -51,7 +51,38 @@ class WebSocketClient {
 
   bool get isConnected => _socket?.connected ?? false;
 
+  bool _isConnecting = false;
+
   Future<void> connect() async {
+    // BUG FIX (confirmed real): connect() is called from THREE
+    // independent sources — HomeShell's initial connect,
+    // onConnectError's retry, and the 20s watchdog — with no guard
+    // against them overlapping. Each call disposes() the current
+    // _socket and creates a brand new one with its own freshly
+    // registered .on() listeners. Two near-simultaneous calls (a very
+    // realistic scenario: a real connection failure fires
+    // onConnectError, and the watchdog independently notices
+    // !isConnected around the same time) can interleave across the
+    // first await: both dispose what the other just created, both
+    // build their own new socket, and only the LAST assignment to
+    // _socket survives as the shared field — but the FIRST call may
+    // have already invoked .connect() on the socket instance that then
+    // got silently orphaned (garbage collected) by the second call's
+    // dispose(), while nothing ever calls .connect() again on the
+    // surviving instance if the first call's flow reaches _socket!.connect()
+    // AFTER the second call already replaced _socket. This reentrancy
+    // guard makes connect() effectively atomic — a call already in
+    // progress is trusted to finish; overlapping callers just return.
+    if (_isConnecting) return;
+    _isConnecting = true;
+    try {
+      await _connectInternal();
+    } finally {
+      _isConnecting = false;
+    }
+  }
+
+  Future<void> _connectInternal() async {
     final token = await _secureStorage.getAccessToken();
     if (token == null) return;
 
