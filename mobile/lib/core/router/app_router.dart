@@ -1,5 +1,8 @@
 import 'package:go_router/go_router.dart';
 import '../di/injection_container.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../features/company_languages/presentation/bloc/company_languages_cubit.dart';
+import '../../features/company_languages/presentation/pages/company_language_settings_page.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 import '../../features/authentication/domain/entities/user_entity.dart';
 import '../../features/authentication/presentation/pages/forgot_password_page.dart';
@@ -163,6 +166,13 @@ GoRouter buildAppRouter() {
             GoRoute(path: RouteNames.home, builder: (context, state) => HomePage(user: authBloc.state.user!)),
             GoRoute(path: RouteNames.profile, builder: (context, state) => ProfilePage(user: authBloc.state.user!)),
             GoRoute(path: RouteNames.languageSettings, builder: (context, state) => const LanguageSettingsPage()),
+            GoRoute(
+              path: RouteNames.companyLanguages,
+              builder: (context, state) => BlocProvider(
+                create: (_) => CompanyLanguagesCubit(sl(), authBloc.state.user!.companyId ?? ''),
+                child: CompanyLanguageSettingsPage(companyId: authBloc.state.user!.companyId ?? ''),
+              ),
+            ),
 
             GoRoute(path: RouteNames.approvals, builder: (context, state) => ApprovalsListPage(currentUser: authBloc.state.user!)),
 

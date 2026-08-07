@@ -80,6 +80,21 @@ class ProfilePage extends StatelessWidget {
                     onTap: () => context.push(RouteNames.languageSettings),
                   ),
                 ),
+                // إدارة لغات الشركة — مقصورة على مدير الشركة (ومدير
+                // المنصة إن كان مرتبطاً بشركة فعلية). نفس بوابة الصلاحية
+                // المُستخدَمة في chat_page.dart لطلبات الانضمام.
+                if (user.systemRole == SystemRole.companyAdmin ||
+                    (user.systemRole == SystemRole.superAdmin && user.companyId != null)) ...[
+                  const SizedBox(height: 8),
+                  _Card(
+                    child: _Row(
+                      icon: Icons.language_rounded,
+                      title: 'لغات الشركة المُفعَّلة',
+                      trailing: const Icon(Icons.chevron_left_rounded, color: AppColors.textSecondary),
+                      onTap: () => context.push(RouteNames.companyLanguages),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
 
                 _SectionLabel('الحضور'),

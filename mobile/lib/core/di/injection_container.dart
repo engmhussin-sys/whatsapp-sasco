@@ -32,6 +32,9 @@ import '../../features/authentication/domain/usecases/logout_usecase.dart';
 import '../../features/authentication/domain/usecases/update_preferred_language_usecase.dart';
 import '../../features/authentication/domain/usecases/request_password_reset_usecase.dart';
 import '../../features/authentication/domain/usecases/reset_password_usecase.dart';
+import '../../features/company_languages/data/datasources/company_languages_remote_data_source.dart';
+import '../../features/company_languages/data/repositories/company_languages_repository_impl.dart';
+import '../../features/company_languages/domain/repositories/company_languages_repository.dart';
 import '../../features/authentication/presentation/bloc/auth_bloc.dart';
 
 // Chat
@@ -153,6 +156,10 @@ Future<void> initDependencyInjection() async {
   sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
   sl.registerLazySingleton(() => RequestPasswordResetUseCase(sl()));
   sl.registerLazySingleton(() => ResetPasswordUseCase(sl()));
+
+  // ==== Feature: Company Languages (admin-only) =================================
+  sl.registerLazySingleton<CompanyLanguagesRemoteDataSource>(() => CompanyLanguagesRemoteDataSourceImpl(sl()));
+  sl.registerLazySingleton<CompanyLanguagesRepository>(() => CompanyLanguagesRepositoryImpl(sl(), sl()));
   sl.registerLazySingleton(() => UpdatePreferredLanguageUseCase(sl()));
   // Singleton: AuthBloc's status drives the whole app's router redirect
   // logic (see core/router/app_router.dart), so exactly one instance

@@ -32,6 +32,7 @@ class RouteNames {
 
   static const profile = '/profile';
   static const languageSettings = '/profile/language';
+  static const companyLanguages = '/profile/company-languages';
 
   static const safety = '/safety';
   static const safetyHazardReport = '/safety/hazard-report';

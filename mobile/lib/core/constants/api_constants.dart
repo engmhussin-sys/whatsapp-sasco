@@ -80,4 +80,11 @@ class ApiConstants {
   static String stationById(String companyId, String id) => '/companies/$companyId/stations/$id';
   static String updateTankLevel(String companyId, String tankId) =>
       '/companies/$companyId/stations/tanks/$tankId/level';
+
+  // إدارة لغات الشركة (COMPANY_ADMIN/SUPER_ADMIN فقط) — راجع
+  // backend/src/modules/languages/languages.controller.ts
+  static const String allLanguages = '/languages';
+  static String companyLanguages(String companyId) => '/companies/$companyId/languages';
+  static String companyLanguageByCode(String companyId, String langCode) => '/companies/$companyId/languages/$langCode';
+      '/companies/$companyId/stations/tanks/$tankId/level';
 }
