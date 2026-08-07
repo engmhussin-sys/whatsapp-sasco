@@ -36,6 +36,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   // messages, regardless of which event type triggered it — this is
   // the only construct that actually closes the cross-type race.
   Future<void> _messagesLock = Future.value();
+  // BUG FIX (confirmed real, root cause of "must leave and re-enter for
+  // status/translation to update"): a genuine race between the REST
+  // response that first adds a just-sent message to state.messages, and
+  // the Socket broadcast of its delivery-status change — Socket.IO,
+  // being an already-open persistent connection, can genuinely arrive
+  // and get processed BEFORE the HTTP response for the very request
+  // that triggered it. When that happens, _onMessageStatusChanged found
+  // no matching id (index == -1) and silently discarded the update
+  // forever — the message then landed moments later with its original
+  // SENT status, never corrected until a fresh REST reload (leave +
+  // re-enter) pulled the true up-to-date status from the database.
+  // Any status update that can't find its target message is now
+  // queued here instead of dropped, and applied the moment the message
+  // actually appears (in _onTextMessageSent, _onVoiceMessageSent,
+  // _onMessageReceived, and _onSendAttachmentRequested).
+  final Map<String, MessageDeliveryStatus> _pendingStatusUpdates = {};
+  // نفس السباق بالضبط، لكن للترجمة — الرسالة المُترجَمة الكاملة (وليست
+  // قيمة واحدة) تُخزَّن بانتظار وصول النسخة الأصلية لهذه القائمة.
+  final Map<String, MessageEntity> _pendingTranslations = {};
   Future<T> _withMessagesLock<T>(Future<T> Function() action) {
     final completer = Completer<T>();
     _messagesLock = _messagesLock.then((_) async {
@@ -50,7 +69,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   StreamSubscription<MessageEntity>? _messageSub;
   StreamSubscription<MessageEntity>? _translatedSub;
-  StreamSubscription<MessageEntity>? _translatedRawSub;
   StreamSubscription<(String, MessageDeliveryStatus)>? _statusChangedSub;
   StreamSubscription<Map<String, dynamic>>? _typingSub;
   StreamSubscription<bool>? _connectionSub;
@@ -94,7 +112,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatMessageReceived>(_onMessageReceived, transformer: _seq());
     on<ChatMessageTranslated>(_onMessageTranslated, transformer: _seq());
     on<ChatMessageStatusChanged>(_onMessageStatusChanged, transformer: _seq());
-    on<ChatDebugLiveEventReceived>((event, emit) => emit(state.copyWith(debugLastLiveEvent: '${DateTime.now().toIso8601String().substring(11, 19)} ${event.description}')));
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
     on<ChatRetranslateRequested>(_onRetranslateRequested);
     on<ChatRetryVoiceTranscriptionRequested>(_onRetryVoiceTranscriptionRequested);
@@ -124,7 +141,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await _connectionSub?.cancel();
     await _messageSub?.cancel();
     await _translatedSub?.cancel();
-    await _translatedRawSub?.cancel();
     await _statusChangedSub?.cancel();
     await _typingSub?.cancel();
 
@@ -167,16 +183,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         .where((m) => m.conversationId == conversationId)
         .listen((m) => add(ChatMessageTranslated(m)));
 
-    // تشخيص مؤقت: حدث خام منفصل تمامًا عن _onMessageTranslated نفسها،
-    // يُثبت وصول الحدث للـSocket بصرف النظر عن أي منطق معالجة لاحق.
-    _translatedRawSub = _repository.onMessageTranslated.listen((m) {
-      add(ChatDebugLiveEventReceived('translated: msg=${m.id} conv=${m.conversationId} (current=$conversationId)'));
-    });
-
     // REVIEW_ROUND7.md §4: بلا هذا الاشتراك، تغيّر الحالة الفعلي في
     // قاعدة البيانات (SENT→DELIVERED→READ) لا يصل هذه الشاشة إطلاقاً.
     _statusChangedSub = _repository.onMessageStatusChanged.listen((event) {
-      add(ChatDebugLiveEventReceived('status_changed: msg=${event.$1} status=${event.$2}'));
       add(ChatMessageStatusChanged(event.$1, event.$2));
     });
 
@@ -187,11 +196,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final result = await _getMessages(GetMessagesParams(companyId: companyId, conversationId: conversationId));
     result.fold(
       (failure) => emit(state.copyWith(status: ChatStatus.failure, errorMessage: failure.message)),
-      (messages) => emit(state.copyWith(
-        status: ChatStatus.success,
-        // API returns newest-first; render oldest-first for a standard chat UI.
-        messages: messages.reversed.toList(),
-      )),
+      (messages) {
+        _pendingStatusUpdates.clear();
+        _pendingTranslations.clear();
+        emit(state.copyWith(
+          status: ChatStatus.success,
+          // API returns newest-first; render oldest-first for a standard chat UI.
+          messages: messages.reversed.toList(),
+        ));
+      },
     );
 
     add(const ChatMarkReadRequested());
@@ -202,6 +215,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await result.fold(
       (_) async {}, // best-effort — the socket subscription above still works going forward regardless
       (messages) => _withMessagesLock(() async {
+        _pendingStatusUpdates.clear();
+        _pendingTranslations.clear();
         final merged = [...messages.reversed];
         emit(state.copyWith(messages: merged));
       }),
@@ -213,7 +228,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await _connectionSub?.cancel();
     await _messageSub?.cancel();
     await _translatedSub?.cancel();
-    await _translatedRawSub?.cancel();
     await _statusChangedSub?.cancel();
     await _typingSub?.cancel();
   }
@@ -243,7 +257,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         // the SAME message — both being different Bloc event types
         // means package:bloc's own per-type sequencing can't protect
         // this. The shared mutex (_withMessagesLock) now does.
-        emit(state.copyWith(isSending: false, messages: [...state.messages, message], clearReplyTarget: true));
+        emit(state.copyWith(isSending: false, messages: [...state.messages, _applyPendingStatus(message)], clearReplyTarget: true));
       }),
     );
   }
@@ -387,7 +401,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await result.fold(
       (failure) async => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
       (message) => _withMessagesLock(() async {
-        emit(state.copyWith(isSending: false, messages: [...state.messages, message]));
+        emit(state.copyWith(isSending: false, messages: [...state.messages, _applyPendingStatus(message)]));
       }),
     );
   }
@@ -404,7 +418,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return _withMessagesLock(() async {
       final alreadyPresent = state.messages.any((m) => m.id == event.message.id);
       if (alreadyPresent) return;
-      emit(state.copyWith(messages: [...state.messages, event.message]));
+      emit(state.copyWith(messages: [...state.messages, _applyPendingStatus(event.message)]));
       add(const ChatMarkReadRequested());
     });
   }
@@ -412,7 +426,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> _onMessageTranslated(ChatMessageTranslated event, Emitter<ChatState> emit) {
     return _withMessagesLock(() async {
       final index = state.messages.indexWhere((m) => m.id == event.message.id);
-      if (index == -1) return; // message already scrolled out of the loaded window, or history was since refreshed — nothing to update
+      if (index == -1) {
+        // نفس سباق REST/Socket الموثَّق في _onMessageStatusChanged —
+        // البث وصل قبل أن تُضاف الرسالة أصلاً لهذه القائمة.
+        _pendingTranslations[event.message.id] = event.message;
+        return;
+      }
       final updated = [...state.messages];
       updated[index] = event.message;
       emit(state.copyWith(messages: updated));
@@ -424,11 +443,26 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> _onMessageStatusChanged(ChatMessageStatusChanged event, Emitter<ChatState> emit) {
     return _withMessagesLock(() async {
       final index = state.messages.indexWhere((m) => m.id == event.messageId);
-      if (index == -1) return;
+      if (index == -1) {
+        // الرسالة لم تصل بعد لهذه القائمة (سباق REST/Socket) — يُطبَّق
+        // فور ظهورها بدل تجاهله للأبد.
+        _pendingStatusUpdates[event.messageId] = event.status;
+        return;
+      }
       final updated = [...state.messages];
       updated[index] = updated[index].copyWith(status: event.status);
       emit(state.copyWith(messages: updated));
     });
+  }
+
+  /// يُطبِّق أي ترجمة و/أو تحديث حالة كانا بانتظار وصول هذه الرسالة
+  /// تحديدًا — يُستدعى من كل نقطة تُضيف رسالة جديدة لـ state.messages
+  /// لأول مرة. الترجمة (إن وُجدت) تُطبَّق أولاً (الرسالة الكاملة الأحدث)
+  /// ثم تحديث الحالة فوقها، بما أن الاثنين قد يصلا معاً بسباق منفصل.
+  MessageEntity _applyPendingStatus(MessageEntity message) {
+    final translated = _pendingTranslations.remove(message.id) ?? message;
+    final pendingStatus = _pendingStatusUpdates.remove(message.id);
+    return pendingStatus == null ? translated : translated.copyWith(status: pendingStatus);
   }
 
   void _onPeerTypingReceived(ChatPeerTypingReceived event, Emitter<ChatState> emit) {
@@ -477,7 +511,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       // Same race the mutex protects against in _onTextMessageSent: the
       // socket also echoes this back near-instantly.
       (message) => _withMessagesLock(() async {
-        emit(state.copyWith(isSending: false, messages: [...state.messages, message]));
+        emit(state.copyWith(isSending: false, messages: [...state.messages, _applyPendingStatus(message)]));
       }),
     );
   }
@@ -486,7 +520,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> close() async {
     _messageSub?.cancel();
     _translatedSub?.cancel();
-    _translatedRawSub?.cancel();
     _statusChangedSub?.cancel();
     _typingSub?.cancel();
     _connectionSub?.cancel();
