@@ -66,6 +66,23 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> _onStarted(ChatStarted event, Emitter<ChatState> emit) async {
     emit(state.copyWith(status: ChatStatus.loading));
 
+    // BUG FIX (confirmed real gap): _onStarted can run more than once on
+    // the SAME bloc instance — the "retry" button on a failed initial
+    // fetch (chat_page.dart) dispatches ChatStarted again without ever
+    // disposing this bloc first. Every subscription below was being
+    // re-assigned WITHOUT cancelling its prior value, so a retry left
+    // the OLD subscription still alive and listening forever alongside
+    // the new one — every socket event after that fired the matching
+    // handler twice (message:new, message:translated, etc.) from two
+    // fully independent, permanently-leaked subscriptions. Cancelling
+    // first makes every (re-)start idempotent regardless of how many
+    // times it's dispatched.
+    await _connectionSub?.cancel();
+    await _messageSub?.cancel();
+    await _translatedSub?.cancel();
+    await _statusChangedSub?.cancel();
+    await _typingSub?.cancel();
+
     // Join the Socket.io room for this conversation FIRST so no message
     // sent by the peer in the gap between history-fetch and subscription
     // is missed.

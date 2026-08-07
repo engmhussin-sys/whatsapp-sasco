@@ -22,6 +22,6 @@ class FuelRequestModel extends FuelRequestEntity {
         requestedQuantity: (json['requestedQuantity'] as num).toDouble(),
         notes: json['notes'] as String?,
         status: fuelRequestStatusFromString(json['status'] as String),
-        createdAt: DateTime.parse(json['createdAt'] as String),
+        createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       );
 }

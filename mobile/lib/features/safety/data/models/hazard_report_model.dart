@@ -40,6 +40,6 @@ class HazardReportModel extends HazardReportEntity {
         note: json['note'] as String?,
         photoUrl: json['photoUrl'] as String?,
         status: _statusFromApi(json['status'] as String? ?? 'OPEN'),
-        createdAt: DateTime.parse(json['createdAt'] as String),
+        createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       );
 }

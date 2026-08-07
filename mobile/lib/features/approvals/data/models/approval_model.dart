@@ -27,7 +27,7 @@ class ApprovalModel extends ApprovalEntity {
         actorId: map['actorId'] as String,
         action: map['action'] as String,
         comment: map['comment'] as String?,
-        createdAt: DateTime.parse(map['createdAt'] as String),
+        createdAt: DateTime.parse(map['createdAt'] as String).toLocal(),
       );
     }).toList();
 

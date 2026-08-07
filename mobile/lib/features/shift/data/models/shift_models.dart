@@ -26,7 +26,7 @@ class ShiftLogModel extends ShiftLogEntity {
         shiftId: json['shiftId'] as String,
         shiftName: (json['shift'] as Map<String, dynamic>?)?['name'] as String?,
         status: json['status'] == 'CLOSED' ? ShiftLogStatus.closed : ShiftLogStatus.open,
-        startedAt: DateTime.parse(json['startedAt'] as String),
-        endedAt: json['endedAt'] != null ? DateTime.parse(json['endedAt'] as String) : null,
+        startedAt: DateTime.parse(json['startedAt'] as String).toLocal(),
+        endedAt: json['endedAt'] != null ? DateTime.parse(json['endedAt'] as String).toLocal() : null,
       );
 }

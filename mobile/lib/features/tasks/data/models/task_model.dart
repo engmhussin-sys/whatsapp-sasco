@@ -33,8 +33,8 @@ class TaskModel extends TaskEntity {
       description: json['description'] as String?,
       status: taskStatusFromString(json['status'] as String),
       templateFields: fields,
-      dueAt: json['dueAt'] != null ? DateTime.parse(json['dueAt'] as String) : null,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      dueAt: json['dueAt'] != null ? DateTime.parse(json['dueAt'] as String).toLocal() : null,
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
     );
   }
 }

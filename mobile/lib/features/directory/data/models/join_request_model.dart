@@ -16,7 +16,7 @@ class JoinRequestModel extends JoinRequestEntity {
       requesterId: json['requesterId'] as String,
       requesterName: '${requester['firstName'] ?? ''} ${requester['lastName'] ?? ''}'.trim(),
       requesterAvatarUrl: requester['avatarUrl'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
     );
   }
 }

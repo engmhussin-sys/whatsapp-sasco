@@ -40,7 +40,17 @@ class MessageModel extends MessageEntity {
       audioUrl: json['audioUrl'] as String?,
       audioDurationMs: json['audioDurationMs'] as int?,
       voiceWaveform: (json['voiceWaveform'] as List<dynamic>?)?.map((v) => (v as num).toInt()).toList(),
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      // BUG FIX (confirmed via real screenshot: phone showed 4:50 AM,
+      // messages showed 1:50 AM — exactly Saudi Arabia's UTC+3 offset).
+      // The server correctly sends UTC timestamps (Prisma DateTime +
+      // Z-suffixed ISO 8601), and DateTime.parse() correctly produces a
+      // UTC DateTime — but nothing ever converted it to the device's
+      // local timezone before display. TimeOfDay.fromDateTime() reads
+      // hour/minute directly off whatever DateTime it's given, with NO
+      // implicit timezone conversion. Fixed at the parsing boundary
+      // (here) rather than at every display call site, so every future
+      // use of these fields is correct automatically.
+      createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       originalLang: json['originalLang'] as String? ?? 'ar',
       translations: {
         for (final t in (json['translations'] as List<dynamic>? ?? const []))
@@ -63,7 +73,7 @@ class MessageModel extends MessageEntity {
         for (final r in (json['reactions'] as List<dynamic>? ?? const []))
           (r as Map<String, dynamic>)['userId'] as String: r['emoji'] as String,
       },
-      editedAt: json['editedAt'] != null ? DateTime.parse(json['editedAt'] as String) : null,
+      editedAt: json['editedAt'] != null ? DateTime.parse(json['editedAt'] as String).toLocal() : null,
     );
   }
 

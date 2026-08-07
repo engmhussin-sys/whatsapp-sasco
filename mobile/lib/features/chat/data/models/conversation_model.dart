@@ -52,7 +52,7 @@ class ConversationModel extends ConversationEntity {
       lastMessagePreview: preview,
       lastMessageOriginalLang: lastOriginalLang,
       lastMessageTranslations: lastTranslations,
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String).toLocal(),
       unreadCount: json['unreadCount'] as int? ?? 0,
     );
   }

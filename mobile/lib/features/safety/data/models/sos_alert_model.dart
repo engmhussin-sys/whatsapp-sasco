@@ -5,7 +5,7 @@ class SosAlertModel extends SosAlertEntity {
 
   factory SosAlertModel.fromJson(Map<String, dynamic> json) => SosAlertModel(
         id: json['id'] as String,
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        resolvedAt: json['resolvedAt'] != null ? DateTime.parse(json['resolvedAt'] as String) : null,
+        createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+        resolvedAt: json['resolvedAt'] != null ? DateTime.parse(json['resolvedAt'] as String).toLocal() : null,
       );
 }
