@@ -60,7 +60,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
     // play() على الخدمة العالمية يُوقِف أي رسالة أخرى مُشغَّلة تلقائياً
     // (نفس AudioPlayer مُعاد استخدامه)، بخلاف النسخة السابقة التي كانت
     // كل فقاعة فيها مشغّلها المعزول الخاص.
-    await _service.play(widget.messageId, _fullUrl, title: widget.senderName);
+    await _service.play(widget.messageId, _fullUrl, title: widget.senderName, waveform: widget.waveform);
   }
 
   Future<void> _cycleSpeed() async {
@@ -79,7 +79,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   @override
   Widget build(BuildContext context) {
     final color = widget.isMine ? Colors.white : const Color(0xFF0C7C42);
-    final trackColor = widget.isMine ? Colors.white38 : const Color(0xFFE2E8E4);
+    final trackColor = widget.isMine ? Colors.white60 : const Color(0xFFCBD5D1);
 
     return StreamBuilder<String?>(
       stream: _service.currentMessageIdStream,
@@ -99,23 +99,37 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                   stream: _service.playerStateStream,
                   builder: (context, snapshot) {
                     final playing = isActiveHere && (snapshot.data?.playing ?? false);
+                    // REVIEW_ROUND5.md §A5: زر بلا خلفية إطلاقاً سابقاً —
+                    // دائرة 40dp: أبيض لرسائلي، أخضر فاتح للواردة، لون
+                    // الأيقونة معاكس دائماً لضمان تباين كافٍ.
+                    final bgColor = widget.isMine ? Colors.white : const Color(0xFFE6F4EC);
+                    final iconColor = widget.isMine ? const Color(0xFF0C7C42) : const Color(0xFF0C7C42);
                     return Stack(
                       alignment: Alignment.center,
                       children: [
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: color, size: 40),
-                          onPressed: _togglePlay,
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: iconColor, size: 24),
+                            onPressed: _togglePlay,
+                          ),
                         ),
+                        // REVIEW_ROUND5.md §A3: كانت زرقاء (0xFF1D9BF0) —
+                        // لا يوجد أزرق في لوحة التصميم إطلاقاً. أخضر
+                        // العلامة التجارية، 6dp (كانت 10dp)، على حافة
+                        // الزر مباشرة.
                         if (!_service.hasBeenPlayed(widget.messageId))
                           const PositionedDirectional(
-                            top: 2,
-                            end: 2,
+                            top: 0,
+                            end: 0,
                             child: SizedBox(
-                              width: 10,
-                              height: 10,
-                              child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF1D9BF0), shape: BoxShape.circle)),
+                              width: 6,
+                              height: 6,
+                              child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF0C7C42), shape: BoxShape.circle)),
                             ),
                           ),
                       ],
@@ -144,6 +158,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                               children: [
                                 _WaveformBars(
                                   waveform: widget.waveform,
+                                  messageId: widget.messageId,
                                   bars: _bars,
                                   fraction: fraction,
                                   activeColor: color,
@@ -187,6 +202,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 class _WaveformBars extends StatelessWidget {
   const _WaveformBars({
     required this.waveform,
+    required this.messageId,
     required this.bars,
     required this.fraction,
     required this.activeColor,
@@ -196,6 +212,7 @@ class _WaveformBars extends StatelessWidget {
   });
 
   final List<int>? waveform;
+  final String messageId;
   final int bars;
   final double fraction;
   final Color activeColor;
@@ -208,15 +225,36 @@ class _WaveformBars extends StatelessWidget {
   static const _barWidth = 2.0;
   static const _gap = 2.0;
 
-  double _heightFor(int index) {
-    if (waveform == null || waveform!.isEmpty) return (_minHeight + _maxHeight) / 2;
-    final idx = (index * waveform!.length / bars).floor().clamp(0, waveform!.length - 1);
-    final normalized = (waveform![idx].clamp(0, 100)) / 100;
+  /// REVIEW_ROUND5.md §A1: الموجة الحقيقية من الخادم لم تصل بعد لهذه
+  /// الرسالة (null/فارغة — إما نشر لم يكتمل، أو رسالة أُرسلت قبل ربط
+  /// WaveformExtractorService). حل احتياطي مؤقت مقبول بنص المراجعة
+  /// نفسه: اشتقاق **حتمي** من messageId (ثابت لنفس الرسالة عبر كل
+  /// إعادة بناء، وليس عشوائياً حقيقياً) — أفضل من خط مصمت واحد الارتفاع،
+  /// وليس اختلاقاً لأن المراجعة اقترحت هذا النمط تحديداً كحل مؤقت.
+  List<int> _fallbackWaveform() {
+    final seed = messageId.codeUnits.fold<int>(7, (acc, c) => (acc * 31 + c) & 0x7fffffff);
+    var x = seed == 0 ? 1 : seed;
+    return List.generate(bars, (i) {
+      // مولّد بسيط حتمي (xorshift) بذرته معرّف الرسالة — نفس الرسالة
+      // تُعطي نفس الشكل دائماً، رسائل مختلفة تُعطي أشكالاً مختلفة.
+      x ^= x << 13;
+      x &= 0x7fffffff;
+      x ^= x >> 17;
+      x ^= x << 5;
+      x &= 0x7fffffff;
+      return 25 + (x % 75); // 25-99 نطاق واقعي لسعة صوت بشري، ليس صفراً مسطحاً
+    });
+  }
+
+  double _heightFor(int index, List<int> source) {
+    final idx = (index * source.length / bars).floor().clamp(0, source.length - 1);
+    final normalized = (source[idx].clamp(0, 100)) / 100;
     return _minHeight + normalized * (_maxHeight - _minHeight);
   }
 
   @override
   Widget build(BuildContext context) {
+    final source = (waveform != null && waveform!.isNotEmpty) ? waveform! : _fallbackWaveform();
     return GestureDetector(
       onHorizontalDragUpdate: enabled
           ? (details) {
@@ -249,8 +287,10 @@ class _WaveformBars extends StatelessWidget {
                     for (int i = 0; i < bars; i++) ...[
                       Container(
                         width: _barWidth,
-                        height: _heightFor(i),
+                        height: _heightFor(i, source),
                         decoration: BoxDecoration(
+                          // REVIEW_ROUND5.md §A2: تباين أقوى للجزء المتبقي
+                          // — كان white38 خافتاً جداً على فقاعة خضراء.
                           color: i < activeUpTo ? activeColor : inactiveColor,
                           borderRadius: BorderRadius.circular(1),
                         ),

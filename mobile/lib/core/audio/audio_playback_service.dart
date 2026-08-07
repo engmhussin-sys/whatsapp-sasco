@@ -16,6 +16,8 @@ class AudioPlaybackService {
   final _currentMessageIdController = StreamController<String?>.broadcast();
   String? _currentMessageId;
   String? _currentTitle;
+  List<int>? _currentWaveform;
+  List<int>? get currentWaveform => _currentWaveform;
 
   /// CHAT_SPEC.md §3: "نقطة غير مسموع... تختفي بعد أول استماع". مركزية
   /// هنا بدل حالة محلية لكل VoiceMessagePlayer — تلك كانت تُنسى عند
@@ -38,11 +40,12 @@ class AudioPlaybackService {
   /// يُشغِّل رسالة صوتية بمعرّف [messageId] — إن كانت رسالة مختلفة عن
   /// المُشغَّلة حالياً، يُوقِف الحالية أولاً تلقائياً (نفس المشغّل).
   /// [title] يُستخدَم في الشريط المصغّر (اسم المرسِل عادة).
-  Future<void> play(String messageId, String url, {String? title}) async {
+  Future<void> play(String messageId, String url, {String? title, List<int>? waveform}) async {
     if (_currentMessageId != messageId) {
       await _player.setUrl(url);
       _currentMessageId = messageId;
       _currentTitle = title;
+      _currentWaveform = waveform;
       _currentMessageIdController.add(messageId);
     }
     _playedMessageIds.add(messageId);

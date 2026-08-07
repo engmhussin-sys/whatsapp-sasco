@@ -66,6 +66,11 @@ class _ChatViewState extends State<_ChatView> {
   final _tts = sl<TtsService>();
   final _audioService = sl<AudioPlaybackService>();
   int _previousMessageCount = 0;
+  // REVIEW_ROUND5.md §C1: "هذه القناة للقراءة فقط" كانت تُعرض كـSnackBar
+  // أحمر عائم عام (نفس مسار كل الأخطاء) — يطفو فوق شريط الكتابة ويغطيه
+  // جزئياً، وبالإنجليزية أحياناً قبل وصول الترجمة. حالة دائمة مخصَّصة
+  // تستبدل شريط الكتابة بالكامل، لا Snackbar مؤقت.
+  bool _isChannelReadOnly = false;
 
   @override
   void initState() {
@@ -150,6 +155,12 @@ class _ChatViewState extends State<_ChatView> {
     return BlocListener<ChatBloc, ChatState>(
       listenWhen: (previous, current) => current.errorMessage != null && current.errorMessage != previous.errorMessage,
       listener: (context, state) {
+        // القناة للقراءة فقط: حالة عادية متوقَّعة (دور المستخدم)، ليست
+        // خطأ عابراً — تُعرض كشريط دائم يستبدل الإدخال، لا Snackbar أحمر.
+        if (state.errorMessage == 'errors.channel_read_only'.tr()) {
+          setState(() => _isChannelReadOnly = true);
+          return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(state.errorMessage!), backgroundColor: AppColors.danger),
         );
@@ -174,7 +185,10 @@ class _ChatViewState extends State<_ChatView> {
                 // لأعضاء المحادثة بعد؛ بُنية بيانات جديدة تحتاج جولة
                 // عمل منفصلة، وليست مجرد إصلاح عرض.
                 Text(
-                  localizedDigits('${widget.conversation!.members.length} ${'chat.members'.tr()}', widget.myLang),
+                  'chat.members_count'.plural(
+                    widget.conversation!.members.length,
+                    args: [localizedDigits('${widget.conversation!.members.length}', widget.myLang)],
+                  ),
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
             ],
@@ -396,7 +410,24 @@ class _ChatViewState extends State<_ChatView> {
           ),
           SafeArea(
             top: false,
-            child: Padding(
+            child: _isChannelReadOnly
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    color: AppColors.divider,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.textSecondary),
+                        const SizedBox(width: Gap.sm),
+                        Expanded(
+                          child: Text(
+                            'errors.channel_read_only'.tr(),
+                            style: const TextStyle(fontSize: FS.caption, color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 children: [

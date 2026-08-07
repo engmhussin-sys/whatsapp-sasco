@@ -69,6 +69,14 @@
       "few": "{} days ago",
       "many": "{} days ago",
       "other": "{} days ago"
+    },
+    "members_count": {
+      "zero": "no members",
+      "one": "1 member",
+      "two": "2 members",
+      "few": "{} members",
+      "many": "{} members",
+      "other": "{} members"
     }
   },
   "tasks": {

@@ -8,6 +8,7 @@
 //   النص الأصلي يظهر **فقط** إذا اختلفت لغة المرسل عن لغة القارئ.
 
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 import 'dart:convert';
 import 'dart:typed_data';
@@ -179,61 +180,95 @@ class MessageBubble extends StatelessWidget {
                         ],
                       ),
                     ] else if (isTranscribing) ...[
-                      // ---- لا تزال قيد المعالجة ----
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 11,
-                            height: 11,
-                            child: CircularProgressIndicator(strokeWidth: 1.5, color: isMine ? Colors.white70 : AppColors.textSecondary),
-                          ),
-                          const SizedBox(width: Gap.xs),
-                          Text(
-                            'chat.transcribing'.tr(),
-                            style: TextStyle(fontSize: FS.caption, color: isMine ? Colors.white70 : AppColors.textSecondary, fontStyle: FontStyle.italic),
-                          ),
-                        ],
+                      // REVIEW_ROUND5.md §A4: كانت تعتمد كلياً على تحديث
+                      // الخادم عبر message:translated — إن تعطَّلت المعالجة
+                      // الخلفية بصمت أو استغرقت وقتاً غير محدود، تبقى
+                      // الحالة "جارٍ التحويل" للأبد بلا أي مخرج. مهلة ٣٠
+                      // ثانية من العميل نفسه تُحوِّلها محلياً لحالة فشل
+                      // صريحة (نفس عرض transcriptionFailed أعلاه) — مُقيَّدة
+                      // بمعرّف الرسالة كـ key كي لا يُعاد ضبط المؤقّت خطأً
+                      // عند أي إعادة بناء غير متعلقة بهذه الفقاعة تحديداً.
+                      _TranscriptionTimeoutGate(
+                        key: ValueKey('transcribe-timeout-${message.id}'),
+                        builder: (context, timedOut) {
+                          if (timedOut) {
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.error_outline_rounded, size: 14, color: isMine ? Colors.white70 : AppColors.accent),
+                                const SizedBox(width: Gap.xs),
+                                Text(
+                                  'chat.transcription_failed'.tr(),
+                                  style: TextStyle(fontSize: FS.caption, color: isMine ? Colors.white70 : AppColors.accent),
+                                ),
+                                if (onRetryTranscription != null) ...[
+                                  const SizedBox(width: Gap.sm),
+                                  GestureDetector(
+                                    onTap: onRetryTranscription,
+                                    child: Text(
+                                      'chat.retry'.tr(),
+                                      style: TextStyle(
+                                        fontSize: FS.caption,
+                                        fontWeight: FontWeight.w700,
+                                        decoration: TextDecoration.underline,
+                                        color: isMine ? Colors.white : AppColors.brand,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
+                          }
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 11,
+                                height: 11,
+                                child: CircularProgressIndicator(strokeWidth: 1.5, color: isMine ? Colors.white70 : AppColors.textSecondary),
+                              ),
+                              const SizedBox(width: Gap.xs),
+                              Text(
+                                'chat.transcribing'.tr(),
+                                style: TextStyle(fontSize: FS.caption, color: isMine ? Colors.white70 : AppColors.textSecondary, fontStyle: FontStyle.italic),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ] else ...[
-                      // ١ — الترجمة + الصفّ السفلي (وقت + علامة تسليم)
-                      // مُدمَجان: CHAT_SPEC.md §1 — واتساب يُدخل الميتا في
-                      // نفس سطر النص إن اتسع، فلا يُهدر سطراً كاملاً في
-                      // الرسائل القصيرة. Stack + مسافة شفافة بعرض الميتا
-                      // في نهاية النص + الميتا الحقيقية مثبَّتة بالزاوية.
-                      Stack(
+                      // REVIEW_ROUND5.md §B1: الوقت+العلامة كانا مُدمَجين
+                      // بنهاية النص عبر WidgetSpan، لكن زر "استمع" ظلّ
+                      // صفّاً منفصلاً كاملاً أسفل كل المحتوى — لم تكن
+                      // تقنية WidgetSpan تحسب له مساحة أصلاً (عرضها ثابت
+                      // للوقت+العلامة فقط). تبسيط مقصود: نص عادي، ثم صفّ
+                      // واحد موثوق [استمع … الوقت+العلامة] بدل الاعتماد
+                      // على حساب عرض متغيّر داخل WidgetSpan معقّد.
+                      Text(
+                        displayText,
+                        style: TextStyle(
+                          fontFamily: fontFamilyFor(myLang),
+                          fontSize: FS.message,
+                          fontWeight: FontWeight.w600,
+                          height: 1.55,
+                          color: fg,
+                        ),
+                      ),
+                      const SizedBox(height: Gap.xs),
+                      Row(
                         children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: displayText,
-                                  style: TextStyle(
-                                    fontFamily: fontFamilyFor(myLang),
-                                    fontSize: FS.message,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.55,
-                                    color: fg,
-                                  ),
-                                ),
-                                WidgetSpan(
-                                  alignment: PlaceholderAlignment.middle,
-                                  child: SizedBox(width: _metaRowWidth(isMine)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PositionedDirectional(
-                            end: 0,
-                            bottom: 0,
-                            child: _MetaRow(
-                              time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
-                              langCode: myLang,
-                              isMine: isMine,
-                              status: message.status,
-                              metaFg: metaFg,
-                              onRetrySend: onRetrySend,
-                            ),
+                          if (onListen != null && !isTranscribing)
+                            _ListenButton(label: 'chat.listen'.tr(), onTap: onListen!, isMine: isMine)
+                          else
+                            const SizedBox.shrink(),
+                          const Spacer(),
+                          _MetaRow(
+                            time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
+                            langCode: myLang,
+                            isMine: isMine,
+                            status: message.status,
+                            metaFg: metaFg,
+                            onRetrySend: onRetrySend,
                           ),
                         ],
                       ),
@@ -259,12 +294,6 @@ class MessageBubble extends StatelessWidget {
                         const SizedBox(height: Gap.sm),
                         _MissingTranslationChip(label: 'chat.translation_failed'.tr(), isMine: isMine),
                       ],
-                    ],
-
-                    // ٤ — استمع (متاح دائمًا إن وُجد نص فعلي، بصرف النظر عن حالة التحويل)
-                    if (onListen != null && !isTranscribing) ...[
-                      const SizedBox(height: Gap.sm),
-                      _ListenButton(label: 'chat.listen'.tr(), onTap: onListen!, isMine: isMine),
                     ],
                   ],
                 ),
@@ -506,15 +535,45 @@ class _SenderNameLabel extends StatelessWidget {
 
   final String name;
 
-  /// CHAT_SPEC.md §1: لون ثابت مشتقّ من هوية المرسل (الاسم هنا بدل
-  /// senderId لعدم تمرير المعرّف الخام لهذه الودجة الصغيرة — الاسم
-  /// كافٍ إحصائياً لتفادي تصادم بصري داخل نفس المحادثة الصغيرة).
   int get _colorIndex => name.codeUnits.fold(0, (sum, c) => sum + c) % AppColors.senderPalette.length;
 
   @override
   Widget build(BuildContext context) {
     return Text(name, style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w700, color: AppColors.senderPalette[_colorIndex]));
   }
+}
+
+/// REVIEW_ROUND5.md §A4: مؤقّت ٣٠ ثانية محلي — إن لم يصل تحديث من
+/// الخادم (originalText يصبح غير فارغ) خلال هذه المهلة، يُصدر
+/// `timedOut: true` فيعرض المستدعي حالة فشل صريحة بدل انتظار أبدي.
+class _TranscriptionTimeoutGate extends StatefulWidget {
+  const _TranscriptionTimeoutGate({super.key, required this.builder});
+  final Widget Function(BuildContext context, bool timedOut) builder;
+
+  @override
+  State<_TranscriptionTimeoutGate> createState() => _TranscriptionTimeoutGateState();
+}
+
+class _TranscriptionTimeoutGateState extends State<_TranscriptionTimeoutGate> {
+  bool _timedOut = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 30), () {
+      if (mounted) setState(() => _timedOut = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _timedOut);
 }
 
 /// CHAT_SPEC.md §1: الصفّ السفلي — الوقت + علامة تسليم (لرسائلي فقط).
@@ -585,10 +644,6 @@ class _DeliveryIcon extends StatelessWidget {
     }
   }
 }
-
-/// عرض تقريبي لصفّ الميتا (وقت + علامة اختيارية) — يُستخدَم كمسافة
-/// شفافة في نهاية النص الرئيسي حتى لا يتراكب معها في السطر الأخير.
-double _metaRowWidth(bool isMine) => isMine ? 58 : 42;
 
 /// الفاصل المتقطّع — ليس خطاً متصلاً وليس مسافة فارغة.
 /// هذا التفصيل يميّز الترجمة عن الأصل بصرياً؛ لا تستبدله بـ Divider.
