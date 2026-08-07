@@ -59,6 +59,11 @@ class AudioPlaybackService {
   /// مختلفة عن المُشغَّلة حالياً.
   Future<void> resume() => _player.play();
 
+  /// REVIEW_ROUND7.md §7-أ: سرعة التشغيل (1.0/1.5/2.0) — كانت الودجة
+  /// القديمة تُبدِّل _speedIndex محلياً بلا استدعاء AudioPlayer.setSpeed
+  /// الفعلية إطلاقاً، فالنص يتغيّر لكن سرعة الصوت الحقيقية لا تتغيّر أبداً.
+  Future<void> setSpeed(double speed) => _player.setSpeed(speed);
+
   Future<void> seek(Duration position) => _player.seek(position);
 
   Future<void> stop() async {

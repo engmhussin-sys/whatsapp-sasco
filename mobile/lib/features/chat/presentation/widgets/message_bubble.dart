@@ -127,7 +127,7 @@ class MessageBubble extends StatelessWidget {
                         audioUrl: message.audioUrl!,
                         isMine: isMine,
                         initialDurationMs: message.audioDurationMs,
-                        waveform: message.voiceWaveform,
+                        amplitudes: message.voiceAmplitudes,
                         senderName: message.senderName,
                       ),
                       if (!isTranscribing && !transcriptionFailed) ...[

@@ -2,7 +2,7 @@ import '../../domain/entities/message_entity.dart';
 import 'message_attachment_model.dart';
 
 class MessageModel extends MessageEntity {
-  const MessageModel({
+  MessageModel({
     required super.id,
     required super.conversationId,
     required super.senderId,

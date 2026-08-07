@@ -43,6 +43,12 @@ class MessageEntity extends Equatable {
   /// الاستخراج. لا تُختلَق موجة عشوائية إن كانت null/فارغة — الواجهة
   /// تعرض خطًا متساوي الارتفاع بدلاً من موجة كاذبة.
   final List<int>? voiceWaveform;
+  /// REVIEW_ROUND7.md §7-ج: "احسبها مرة واحدة عند تحميل الرسالة واحفظها
+  /// في الكيان — لا داخل build()". محسوبة هنا في قائمة تهيئة المُنشئ
+  /// (تُستدعى مرة واحدة فقط عند إنشاء الكائن، وليس في كل إعادة رسم)،
+  /// 45 قيمة بالضبط بين 0.0 و1.0، من voiceWaveform الحقيقية إن توفّرت
+  /// وإلا اشتقاق حتمي من id (ثابت لنفس الرسالة، ليس Random()).
+  final List<double> voiceAmplitudes;
   final DateTime createdAt;
   final List<MessageAttachmentEntity> attachments;
   final ReplyPreview? replyTo;
@@ -70,7 +76,7 @@ class MessageEntity extends Equatable {
   /// on-device; this field is pass-through storage only.
   final Map<String, String> translations;
 
-  const MessageEntity({
+  MessageEntity({
     required this.id,
     required this.conversationId,
     required this.senderId,
@@ -90,7 +96,29 @@ class MessageEntity extends Equatable {
     this.isDeletedForEveryone = false,
     this.reactions = const {},
     this.editedAt,
-  });
+  }) : voiceAmplitudes = _computeAmplitudes(voiceWaveform, id);
+
+  /// اشتقاق 45 قيمة (0.0-1.0) — من voiceWaveform الحقيقية إن توفّرت
+  /// (تُحوَّل مباشرة من نطاق 0-100)، وإلا مولّد xorshift حتمي بذرته id
+  /// (نفس الرسالة تُعطي نفس الشكل دائماً عبر كل إعادة بناء — لا Random()).
+  static List<double> _computeAmplitudes(List<int>? waveform, String id) {
+    if (waveform != null && waveform.isNotEmpty) {
+      return List.generate(45, (i) {
+        final idx = (i * waveform.length / 45).floor().clamp(0, waveform.length - 1);
+        return (waveform[idx].clamp(0, 100)) / 100;
+      });
+    }
+    final seed = id.codeUnits.fold<int>(7, (acc, c) => (acc * 31 + c) & 0x7fffffff);
+    var x = seed == 0 ? 1 : seed;
+    return List.generate(45, (i) {
+      x ^= x << 13;
+      x &= 0x7fffffff;
+      x ^= x >> 17;
+      x ^= x << 5;
+      x &= 0x7fffffff;
+      return 0.15 + ((x % 1000) / 1000) * 0.85;
+    });
+  }
 
   /// The text the CURRENT user should see: their language's translation if
   /// one exists, otherwise the original as-written text. This is the ONLY
