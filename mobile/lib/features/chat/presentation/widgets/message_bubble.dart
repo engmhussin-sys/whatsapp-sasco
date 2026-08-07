@@ -29,6 +29,7 @@ class MessageBubble extends StatelessWidget {
     required this.isMine,
     this.onListen,
     this.onRetryTranscription,
+    this.onRetryTranslation,
     this.onRetrySend,
     this.showOriginalSetting = true,
     this.isGroupChat = true,
@@ -48,6 +49,9 @@ class MessageBubble extends StatelessWidget {
 
   /// A1 (مراجعة ٥ أغسطس) — إعادة محاولة تحويل صوتي فشل.
   final VoidCallback? onRetryTranscription;
+  /// REVIEW_ROUND7.md §6: زر "إعادة الترجمة" على شارة فشل الترجمة —
+  /// كانت الشارة بلا أي إجراء عديمة الفائدة.
+  final VoidCallback? onRetryTranslation;
 
   /// CHAT_SPEC.md §1: علامة الفشل قابلة للنقر لإعادة الإرسال — لا وظيفة
   /// حتى يُبنى نمط الإرسال المتفائل الكامل (انظر message_entity.dart).
@@ -280,7 +284,7 @@ class MessageBubble extends StatelessWidget {
                       // ٣ — ترجمة مفقودة: نبلّغ ولا نصمت
                       if (translationMissing) ...[
                         const SizedBox(height: Gap.sm),
-                        _MissingTranslationChip(label: 'chat.translation_failed'.tr(), isMine: isMine),
+                        _MissingTranslationChip(label: 'chat.translation_failed'.tr(), isMine: isMine, onRetry: onRetryTranslation),
                       ],
 
                       // ٤ — الصفّ السفلي: دائماً آخر عنصر، بصرف النظر عن
@@ -721,13 +725,15 @@ class _ListenButton extends StatelessWidget {
 }
 
 class _MissingTranslationChip extends StatelessWidget {
-  const _MissingTranslationChip({required this.label, required this.isMine});
+  const _MissingTranslationChip({required this.label, required this.isMine, this.onRetry});
 
   final String label;
   final bool isMine;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final fg = isMine ? Colors.white : AppColors.accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 5),
       decoration: BoxDecoration(
@@ -737,9 +743,19 @@ class _MissingTranslationChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.translate_rounded, size: 13, color: isMine ? Colors.white : AppColors.accent),
+          Icon(Icons.translate_rounded, size: 13, color: fg),
           const SizedBox(width: 5),
-          Text(label, style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w600, color: isMine ? Colors.white : AppColors.accent)),
+          Text(label, style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w600, color: fg)),
+          if (onRetry != null) ...[
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: onRetry,
+              child: Text(
+                'chat.retry'.tr(),
+                style: TextStyle(fontSize: FS.caption, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, color: fg),
+              ),
+            ),
+          ],
         ],
       ),
     );

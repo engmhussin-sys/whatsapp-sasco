@@ -77,7 +77,9 @@
       "few": "{} members",
       "many": "{} members",
       "other": "{} members"
-    }
+    },
+    "slide_to_cancel": "‹ বাতিল করতে স্লাইড করুন",
+    "release_to_cancel": "বাতিল করতে ছেড়ে দিন"
   },
   "tasks": {
     "today": "আজকের কাজ",

@@ -77,7 +77,9 @@
       "few": "{} members",
       "many": "{} members",
       "other": "{} members"
-    }
+    },
+    "slide_to_cancel": "‹ रद्द करने के लिए स्लाइड करें",
+    "release_to_cancel": "रद्द करने के लिए छोड़ें"
   },
   "tasks": {
     "today": "आज के काम",

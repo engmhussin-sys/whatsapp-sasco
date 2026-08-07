@@ -77,7 +77,9 @@
       "few": "{} members",
       "many": "{} members",
       "other": "{} members"
-    }
+    },
+    "slide_to_cancel": "‹ I-slide para kanselahin",
+    "release_to_cancel": "Bitawan para kanselahin"
   },
   "tasks": {
     "today": "Gawain ngayon",

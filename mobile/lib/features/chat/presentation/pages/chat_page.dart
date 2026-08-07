@@ -71,6 +71,13 @@ class _ChatViewState extends State<_ChatView> {
   // جزئياً، وبالإنجليزية أحياناً قبل وصول الترجمة. حالة دائمة مخصَّصة
   // تستبدل شريط الكتابة بالكامل، لا Snackbar مؤقت.
   bool _isChannelReadOnly = false;
+  bool _isRecordingVoice = false;
+  // GlobalKey ضروري هنا تحديداً — الودجة تنتقل بين أب Expanded وآخر
+  // بلا Expanded حسب _isRecordingVoice؛ بلا GlobalKey سيُدمِّر Flutter
+  // الـState القديمة وينشئ واحدة جديدة عند كل تبديل (idle دائماً من
+  // جديد)، فيفقد التسجيل الجاري فور بدئه. GlobalKey يحفظ نفس الـState
+  // بصرف النظر عن تغيّر الآباء المحيطين بها في الشجرة.
+  final GlobalKey _voiceRecorderKey = GlobalKey();
 
   @override
   void initState() {
@@ -337,6 +344,7 @@ class _ChatViewState extends State<_ChatView> {
                                   allConversationImageUrls: allImageUrls,
                                   onListen: () => _tts.speak(message.displayText(widget.myLang), languageCode: widget.myLang),
                                   onRetryTranscription: () => context.read<ChatBloc>().add(ChatRetryVoiceTranscriptionRequested(message.id)),
+                                  onRetryTranslation: () => context.read<ChatBloc>().add(ChatRetranslateRequested(widget.myLang)),
                                 ),
                               ),
                             ),
@@ -431,38 +439,58 @@ class _ChatViewState extends State<_ChatView> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.attach_file_rounded, color: AppColors.textSecondary),
-                    onPressed: _pickAttachment,
-                  ),
-                  VoiceRecorderButton(
-                    onRecorded: (path, durationMs) {
-                      // نفس حارس النص أعلاه — دفاع في العمق ضد إرسال مزدوج.
-                      if (context.read<ChatBloc>().state.isSending) return;
-                      context.read<ChatBloc>().add(ChatVoiceMessageSent(audioFilePath: path, durationMs: durationMs));
-                    },
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      decoration: const InputDecoration(hintText: 'اكتب رسالة...', border: OutlineInputBorder()),
-                      onChanged: (v) => context.read<ChatBloc>().add(ChatTypingIndicatorChanged(v.isNotEmpty)),
-                      onSubmitted: (_) => _sendText(),
+                  if (!_isRecordingVoice)
+                    IconButton(
+                      icon: const Icon(Icons.attach_file_rounded, color: AppColors.textSecondary),
+                      onPressed: _pickAttachment,
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  BlocBuilder<ChatBloc, ChatState>(
-                    buildWhen: (p, c) => p.isSending != c.isSending,
-                    builder: (context, state) => IconButton(
-                      icon: state.isSending
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Transform.flip(
-                              flipX: Directionality.of(context) == TextDirection.rtl,
-                              child: const Icon(Icons.send, color: AppColors.brand),
-                            ),
-                      onPressed: state.isSending ? null : _sendText,
+                  // مثيل واحد ثابت دائماً في الشجرة — لا فرعان منفصلان.
+                  // التبديل بين "أيقونة صغيرة" و"شريط كامل العرض" يحدث
+                  // *داخل* VoiceRecorderButton.build() نفسها بحسب حالتها
+                  // الداخلية، لا عبر إعادة إنشائها من الخارج (ذلك كان
+                  // يُدمِّر حالة التسجيل الجارية فور بدئها).
+                  _isRecordingVoice
+                      ? Expanded(
+                          child: VoiceRecorderButton(
+                            key: _voiceRecorderKey,
+                            onRecordingChanged: (recording) => setState(() => _isRecordingVoice = recording),
+                            onRecorded: (path, durationMs) {
+                              if (context.read<ChatBloc>().state.isSending) return;
+                              context.read<ChatBloc>().add(ChatVoiceMessageSent(audioFilePath: path, durationMs: durationMs));
+                            },
+                          ),
+                        )
+                      : VoiceRecorderButton(
+                          key: _voiceRecorderKey,
+                          onRecordingChanged: (recording) => setState(() => _isRecordingVoice = recording),
+                          onRecorded: (path, durationMs) {
+                            if (context.read<ChatBloc>().state.isSending) return;
+                            context.read<ChatBloc>().add(ChatVoiceMessageSent(audioFilePath: path, durationMs: durationMs));
+                          },
+                        ),
+                  if (!_isRecordingVoice) ...[
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        decoration: const InputDecoration(hintText: 'اكتب رسالة...', border: OutlineInputBorder()),
+                        onChanged: (v) => context.read<ChatBloc>().add(ChatTypingIndicatorChanged(v.isNotEmpty)),
+                        onSubmitted: (_) => _sendText(),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    BlocBuilder<ChatBloc, ChatState>(
+                      buildWhen: (p, c) => p.isSending != c.isSending,
+                      builder: (context, state) => IconButton(
+                        icon: state.isSending
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : Transform.flip(
+                                flipX: Directionality.of(context) == TextDirection.rtl,
+                                child: const Icon(Icons.send, color: AppColors.brand),
+                              ),
+                        onPressed: state.isSending ? null : _sendText,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

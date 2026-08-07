@@ -77,7 +77,9 @@
       "few": "{} members",
       "many": "{} members",
       "other": "{} members"
-    }
+    },
+    "slide_to_cancel": "‹ Slide to cancel",
+    "release_to_cancel": "Release to cancel"
   },
   "tasks": {
     "today": "Today’s tasks",
