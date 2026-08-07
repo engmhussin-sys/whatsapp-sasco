@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:uuid/uuid.dart';
+import '../../../../core/diagnostics/event_trace_log.dart';
 import '../../domain/entities/message_attachment_entity.dart';
 import '../../domain/entities/message_entity.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -195,11 +196,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // below replaces the matching entry in place rather than appending.
     _translatedSub = _repository.onMessageTranslated
         .where((m) => m.conversationId == conversationId)
-        .listen((m) => add(ChatMessageTranslated(m)));
+        .listen((m) {
+      EventTraceLog.log('ReceiverSocketReceived(message:translated)', messageId: m.id, conversationId: m.conversationId, extra: 'text=${m.text?.substring(0, m.text!.length.clamp(0, 20))}');
+      add(ChatMessageTranslated(m));
+    });
 
     // REVIEW_ROUND7.md §4: بلا هذا الاشتراك، تغيّر الحالة الفعلي في
     // قاعدة البيانات (SENT→DELIVERED→READ) لا يصل هذه الشاشة إطلاقاً.
     _statusChangedSub = _repository.onMessageStatusChanged.listen((event) {
+      EventTraceLog.log('ReceiverSocketReceived(message:status_changed)', messageId: event.$1, extra: 'status=${event.$2}');
       add(ChatMessageStatusChanged(event.$1, event.$2));
     });
 
@@ -399,6 +404,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   Future<void> _onVoiceMessageSent(ChatVoiceMessageSent event, Emitter<ChatState> emit) async {
     emit(state.copyWith(isSending: true));
+    EventTraceLog.log('UploadStarted(voice)', conversationId: conversationId);
     // REVIEW_ROUND7.md §1 gap fix (confirmed via real screenshots: one
     // voice message showing twice, one translated one "failed") — same
     // protection as text messages, which the voice path never received.
@@ -413,8 +419,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       ),
     );
     await result.fold(
-      (failure) async => emit(state.copyWith(isSending: false, errorMessage: failure.message)),
+      (failure) async {
+        EventTraceLog.log('UploadFinished(voice) — FAILED', extra: failure.message);
+        emit(state.copyWith(isSending: false, errorMessage: failure.message));
+      },
       (message) => _withMessagesLock(() async {
+        EventTraceLog.log('UploadFinished(voice) — MessageInserted', messageId: message.id, conversationId: message.conversationId);
         emit(state.copyWith(isSending: false, messages: [...state.messages, _applyPendingStatus(message)]));
       }),
     );
@@ -443,12 +453,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       if (index == -1) {
         // نفس سباق REST/Socket الموثَّق في _onMessageStatusChanged —
         // البث وصل قبل أن تُضاف الرسالة أصلاً لهذه القائمة.
+        EventTraceLog.log('BlocEventReceived(translated) — NOT FOUND, queued', messageId: event.message.id, extra: 'currentMessagesCount=${state.messages.length}');
         _pendingTranslations[event.message.id] = event.message;
         return;
       }
       final updated = [...state.messages];
       updated[index] = event.message;
-      emit(state.copyWith(messages: updated));
+      final newState = state.copyWith(messages: updated);
+      EventTraceLog.log(
+        'BlocEmit(translated)',
+        messageId: event.message.id,
+        extra: 'oldStateHash=${state.hashCode} newStateHash=${newState.hashCode} equal=${state == newState}',
+      );
+      emit(newState);
     });
   }
 
@@ -460,12 +477,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       if (index == -1) {
         // الرسالة لم تصل بعد لهذه القائمة (سباق REST/Socket) — يُطبَّق
         // فور ظهورها بدل تجاهله للأبد.
+        EventTraceLog.log('BlocEventReceived(status_changed) — NOT FOUND, queued', messageId: event.messageId, extra: 'status=${event.status} currentMessagesCount=${state.messages.length}');
         _pendingStatusUpdates[event.messageId] = event.status;
         return;
       }
       final updated = [...state.messages];
       updated[index] = updated[index].copyWith(status: event.status);
-      emit(state.copyWith(messages: updated));
+      final newState = state.copyWith(messages: updated);
+      EventTraceLog.log(
+        'BlocEmit(status_changed)',
+        messageId: event.messageId,
+        extra: 'status=${event.status} oldStateHash=${state.hashCode} newStateHash=${newState.hashCode} equal=${state == newState}',
+      );
+      emit(newState);
     });
   }
 

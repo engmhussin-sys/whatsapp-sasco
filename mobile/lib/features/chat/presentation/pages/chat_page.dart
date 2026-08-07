@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/audio/audio_playback_service.dart';
+import '../../../../core/diagnostics/event_trace_log.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -202,6 +204,37 @@ class _ChatViewState extends State<_ChatView> {
           ),
         ),
         actions: [
+          // تشخيص مؤقت: عرض التتبّع الزمني الكامل لكل حدث حيّ وصل لهذه
+          // الشاشة، بطوابع زمنية دقيقة — دليل مباشر بدل الفرضيات.
+          IconButton(
+            icon: const Icon(Icons.bug_report_outlined),
+            tooltip: 'سجلّ التشخيص',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: const Text('سجلّ الأحداث الحيّة'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    height: 400,
+                    child: SingleChildScrollView(
+                      child: SelectableText(EventTraceLog.dump(), style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: EventTraceLog.dump()));
+                        ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('نُسِخ السجلّ')));
+                      },
+                      child: const Text('نسخ'),
+                    ),
+                    TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('إغلاق')),
+                  ],
+                ),
+              );
+            },
+          ),
           // Admin/lead-only — same role gate as CreateGroupPage/newGroup
           // route. Not gated on conversation TYPE (ChatState doesn't
           // currently carry that) — tapping this on a non-group
@@ -256,6 +289,7 @@ class _ChatViewState extends State<_ChatView> {
                 _previousMessageCount = state.messages.length;
               },
               builder: (context, state) {
+                EventTraceLog.log('WidgetRebuild', conversationId: context.read<ChatBloc>().conversationId, extra: 'messagesCount=${state.messages.length} stateHash=${state.hashCode}');
                 if (state.status == ChatStatus.loading || state.status == ChatStatus.initial) {
                   return const LoadingView();
                 }
