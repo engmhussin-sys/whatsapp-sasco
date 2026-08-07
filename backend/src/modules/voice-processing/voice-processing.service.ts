@@ -73,7 +73,16 @@ export class VoiceProcessingService {
     let transcribedLang: string;
 
     try {
-      const transcription = await this.stt.transcribe({ audioUrl: message.audioUrl, mimeType: 'audio/webm' });
+      // BUG FIX (confirmed real, root cause of intermittent transcription
+      // failures): mimeType was hardcoded to 'audio/webm' regardless of
+      // the actual uploaded file's format. The mobile recorder was
+      // rebuilt in a later round to record AAC audio in an .m4a
+      // container (audio/mp4) — this hardcoded value was never updated
+      // to match, so every transcription request declared the wrong
+      // format to the Whisper API. Derived from the stored file's real
+      // extension instead, so it always matches what was actually sent.
+      const mimeType = this.mimeTypeFromUrl(message.audioUrl);
+      const transcription = await this.stt.transcribe({ audioUrl: message.audioUrl, mimeType });
       this.logger.log(`processVoiceMessage(${messageId}): transcription received, persisting`);
       transcribedText = transcription.text;
       transcribedLang = transcription.languageCode;
@@ -260,5 +269,27 @@ export class VoiceProcessingService {
     if (idx === -1) return null;
     const relative = audioUrl.slice(idx + marker.length);
     return path.join(process.cwd(), 'uploads', relative);
+  }
+
+  /** يُشتَق من امتداد الملف الفعلي المُخزَّن بدل الافتراض الثابت الخاطئ.
+   * m4a هو الافتراضي الحالي (مسجِّل الموبايل يستخدم AAC/m4a)، مع تغطية
+   * الصيغ الأخرى المحتملة تاريخياً أو من مصادر رفع بديلة مستقبلية. */
+  private mimeTypeFromUrl(audioUrl: string): string {
+    const ext = audioUrl.split('.').pop()?.toLowerCase().split('?')[0];
+    switch (ext) {
+      case 'webm':
+        return 'audio/webm';
+      case 'wav':
+        return 'audio/wav';
+      case 'mp3':
+        return 'audio/mpeg';
+      case 'ogg':
+        return 'audio/ogg';
+      case 'm4a':
+      case 'mp4':
+      case 'aac':
+      default:
+        return 'audio/mp4';
+    }
   }
 }

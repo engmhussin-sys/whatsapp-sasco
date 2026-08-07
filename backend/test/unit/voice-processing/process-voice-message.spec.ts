@@ -95,6 +95,28 @@ describe('VoiceProcessingService.processVoiceMessage() — end-to-end orchestrat
     });
   });
 
+  it('BUG FIX regression test: derives mimeType from the real file extension (.m4a → audio/mp4), not a hardcoded audio/webm — the confirmed root cause of intermittent transcription failures after the mobile recorder was rebuilt to output AAC/.m4a', async () => {
+    prisma.message.findUnique
+      .mockResolvedValueOnce({ id: messageId, audioUrl: 'https://cdn/voice-messages/co1/clip.m4a', conversationId, conversation: conversationInclude })
+      .mockResolvedValueOnce({ id: messageId, conversationId, conversation: conversationInclude })
+      .mockResolvedValueOnce({
+        id: messageId,
+        conversationId,
+        conversation: { id: conversationId, companyId },
+        sender: {},
+        attachments: [],
+        receipts: [],
+        translations: [],
+        reactions: [],
+      });
+    stt.transcribe.mockResolvedValue({ text: 'مرحبا', languageCode: 'ar', confidence: 0.9 });
+    translationProvider.translateBatch.mockResolvedValue([]);
+
+    await service.processVoiceMessage(messageId);
+
+    expect(stt.transcribe).toHaveBeenCalledWith({ audioUrl: 'https://cdn/voice-messages/co1/clip.m4a', mimeType: 'audio/mp4' });
+  });
+
   it('broadcasts message:translated to the conversation room once transcription+translation complete', async () => {
     prisma.message.findUnique
       .mockResolvedValueOnce({ id: messageId, audioUrl: 'https://cdn/clip.webm', conversationId, conversation: conversationInclude })
