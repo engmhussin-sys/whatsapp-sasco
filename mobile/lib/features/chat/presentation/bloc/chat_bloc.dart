@@ -42,19 +42,35 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         _sendVoiceMessage = sendVoiceMessage,
         _markRead = markRead,
         super(const ChatState()) {
+    // BUG FIX (confirmed via real user report: duplicate messages
+    // visible only WHILE inside the conversation, vanishing to a
+    // single copy the moment you leave and re-enter — proving the
+    // duplicate was purely in-memory, never a second database row).
+    // package:bloc's default EventTransformer processes events
+    // CONCURRENTLY, not sequentially — if two ChatMessageReceived
+    // events for the SAME message arrive close together (a duplicate
+    // socket listener, or even just the normal REST-echo-then-socket
+    // path under bad timing), the second handler could start running
+    // — and read the still-stale `state.messages` — before the first
+    // handler's emit() has actually landed, so the id-based de-dupe
+    // check in both passes and both append the message. _seq() forces
+    // strict one-at-a-time processing: emit() from event N always
+    // completes before event N+1's handler even starts, closing this
+    // race regardless of how many listeners exist upstream. Applied to
+    // every handler that reads-then-mutates state.messages.
     on<ChatStarted>(_onStarted);
     on<ChatEnded>(_onEnded);
-    on<ChatTextMessageSent>(_onTextMessageSent);
-    on<ChatVoiceMessageSent>(_onVoiceMessageSent);
+    on<ChatTextMessageSent>(_onTextMessageSent, transformer: _seq());
+    on<ChatVoiceMessageSent>(_onVoiceMessageSent, transformer: _seq());
     on<ChatMarkReadRequested>(_onMarkReadRequested);
     on<ChatTypingIndicatorChanged>(_onTypingIndicatorChanged);
-    on<ChatMessageReceived>(_onMessageReceived);
-    on<ChatMessageTranslated>(_onMessageTranslated);
-    on<ChatMessageStatusChanged>(_onMessageStatusChanged);
+    on<ChatMessageReceived>(_onMessageReceived, transformer: _seq());
+    on<ChatMessageTranslated>(_onMessageTranslated, transformer: _seq());
+    on<ChatMessageStatusChanged>(_onMessageStatusChanged, transformer: _seq());
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
     on<ChatRetranslateRequested>(_onRetranslateRequested);
     on<ChatRetryVoiceTranscriptionRequested>(_onRetryVoiceTranscriptionRequested);
-    on<ChatSendAttachmentRequested>(_onSendAttachmentRequested);
+    on<ChatSendAttachmentRequested>(_onSendAttachmentRequested, transformer: _seq());
     on<ChatDeleteMessageRequested>(_onDeleteMessageRequested);
     on<ChatLocalDeleteRequested>(_onLocalDeleteRequested);
     on<ChatReplyTargetChanged>(_onReplyTargetChanged);
@@ -430,3 +446,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return super.close();
   }
 }
+
+/// إعادة تنفيذ محلية بلا تبعية خارجية لـ `sequential()` من حزمة
+/// bloc_concurrency (وهي نفسها سطر واحد فقط) — يضمن معالجة كل حدث
+/// بالكامل (بما فيها emit()) قبل بدء معالجة الحدث التالي من نفس
+/// النوع، بدل السلوك الافتراضي المتزامن (concurrent) في package:bloc.
+EventTransformer<E> _seq<E>() => (events, mapper) => events.asyncExpand(mapper);

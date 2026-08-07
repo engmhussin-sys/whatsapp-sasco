@@ -79,7 +79,9 @@
       "other": "{} members"
     },
     "slide_to_cancel": "‹ বাতিল করতে স্লাইড করুন",
-    "release_to_cancel": "বাতিল করতে ছেড়ে দিন"
+    "release_to_cancel": "বাতিল করতে ছেড়ে দিন",
+    "mic_permission_denied": "ভয়েস বার্তা পাঠাতে মাইক্রোফোন অ্যাক্সেসের অনুমতি দিন",
+    "recording_start_failed": "রেকর্ডিং শুরু করা যায়নি — আবার চেষ্টা করুন"
   },
   "tasks": {
     "today": "আজকের কাজ",

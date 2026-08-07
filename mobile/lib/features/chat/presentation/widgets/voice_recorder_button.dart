@@ -48,8 +48,24 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
   final List<double> _liveAmplitudes = [];
 
   Future<void> _startRecording() async {
-    if (!await _recorder.hasPermission()) return;
-    final dir = await getTemporaryDirectory();
+    // BUG FIX (confirmed real report: "لا يستجيب نهائياً" on long-press):
+    // a denied/not-yet-granted microphone permission made this return
+    // completely silently — no snackbar, no dialog, nothing — which
+    // looks EXACTLY like the button doing nothing at all. hasPermission()
+    // itself triggers the OS permission prompt on first use; if the
+    // person denies it (or denied it previously), this now tells them
+    // clearly instead of failing invisibly.
+    final granted = await _recorder.hasPermission();
+    if (!granted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('chat.mic_permission_denied'.tr()), backgroundColor: AppColors.danger),
+        );
+      }
+      return;
+    }
+    try {
+      final dir = await getTemporaryDirectory();
     final path = '${dir.path}/${const Uuid().v4()}.m4a';
     await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
     _currentPath = path;
@@ -78,6 +94,16 @@ class _VoiceRecorderButtonState extends State<VoiceRecorderButton> {
 
     setState(() => _phase = _RecordPhase.recording);
     widget.onRecordingChanged?.call(true);
+    } catch (e) {
+      // فشل بدء التسجيل لأي سبب تقني آخر (تعذّر الوصول للميكروفون
+      // فعلياً رغم منح الإذن، مساحة تخزين ممتلئة، إلخ) — كان يفشل
+      // بصمت تام سابقاً بلا try/catch على الإطلاق حول هذه الدالة.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('chat.recording_start_failed'.tr()), backgroundColor: AppColors.danger),
+        );
+      }
+    }
   }
 
   Future<void> _finishRecording({required bool send}) async {

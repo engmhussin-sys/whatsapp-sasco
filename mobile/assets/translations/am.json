@@ -79,7 +79,9 @@
       "other": "{} members"
     },
     "slide_to_cancel": "‹ ለመሰረዝ ያንሸራትቱ",
-    "release_to_cancel": "ለመሰረዝ ይልቀቁ"
+    "release_to_cancel": "ለመሰረዝ ይልቀቁ",
+    "mic_permission_denied": "የድምጽ መልእክት ለመላክ የማይክሮፎን መዳረሻ ይፍቀዱ",
+    "recording_start_failed": "መቅዳት መጀመር አልተቻለም — እንደገና ይሞክሩ"
   },
   "tasks": {
     "today": "የዛሬ ተግባራት",

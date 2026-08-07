@@ -79,7 +79,9 @@
       "other": "{} members"
     },
     "slide_to_cancel": "‹ Slide to cancel",
-    "release_to_cancel": "Release to cancel"
+    "release_to_cancel": "Release to cancel",
+    "mic_permission_denied": "Microphone access is required — enable it in device settings to send voice messages",
+    "recording_start_failed": "Could not start recording — try again"
   },
   "tasks": {
     "today": "Today’s tasks",

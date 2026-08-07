@@ -79,7 +79,9 @@
       "other": "{} members"
     },
     "slide_to_cancel": "‹ منسوخ کرنے کے لیے سلائیڈ کریں",
-    "release_to_cancel": "منسوخ کرنے کے لیے چھوڑیں"
+    "release_to_cancel": "منسوخ کرنے کے لیے چھوڑیں",
+    "mic_permission_denied": "صوتی پیغام بھیجنے کے لیے مائیکروفون تک رسائی کی اجازت دیں",
+    "recording_start_failed": "ریکارڈنگ شروع نہیں ہو سکی — دوبارہ کوشش کریں"
   },
   "tasks": {
     "today": "آج کے کام",
