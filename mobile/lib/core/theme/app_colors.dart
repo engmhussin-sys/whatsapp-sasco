@@ -39,4 +39,16 @@ class AppColors {
     Color(0xFFBE185D), // magenta
     Color(0xFF4D7C0F), // olive
   ];
+
+  /// موجة الصوت — تباين الجزء غير المشغَّل للرسائل الواردة (فقاعة بيضاء).
+  static const Color waveformTrackLight = Color(0xFFCBD5D1);
+
+  /// أيقونة نوع الملف Word في بطاقة المرفق.
+  static const Color wordBlue = Color(0xFF1D4ED8);
+
+  /// PROMPT_ROUND6.md: أزرق واتساب لعلامة "قُرئت" — استثناء وحيد مقصود
+  /// عن نظام الألوان لأنه معيار تعرّف عالمي، وليس اختياراً تصميمياً حراً.
+  /// نُقل لثابت هنا (بدل استثناء خاص في design_system_test.dart) كي
+  /// يبقى الاختبار بسيطاً وصارماً بلا استثناءات مبعثرة.
+  static const Color whatsappReadTick = Color(0xFF53BDEB);
 }

@@ -22,6 +22,13 @@ class ConversationEntity extends Equatable {
   final String? title;
   final List<ConversationMemberEntity> members;
   final String? lastMessagePreview;
+  /// PROMPT_ROUND6.md §C-1: كانت آخر رسالة تُعرض كنصها الأصلي دائماً
+  /// (originalText مباشرة) بصرف النظر عن لغة القارئ — الخادم يُرسِل
+  /// translations كاملة أصلاً لآخر رسالة (conversations.service.ts:
+  /// messages: { take:1, include: { translations: true } }) لكن
+  /// الموبايل كان يتجاهلها تماماً. هذان الحقلان يحملانها الآن.
+  final String? lastMessageOriginalLang;
+  final Map<String, String> lastMessageTranslations;
   final DateTime updatedAt;
   final int unreadCount;
 
@@ -31,6 +38,8 @@ class ConversationEntity extends Equatable {
     this.title,
     required this.members,
     this.lastMessagePreview,
+    this.lastMessageOriginalLang,
+    this.lastMessageTranslations = const {},
     required this.updatedAt,
     this.unreadCount = 0,
   });
@@ -42,6 +51,16 @@ class ConversationEntity extends Equatable {
     return other.first.fullName;
   }
 
+  /// نفس منطق MessageEntity.displayText(myLang) بالضبط — آخر رسالة يجب
+  /// أن تمرّ على نفس منطق الترجمة الذي تمرّ عليه أي رسالة داخل المحادثة
+  /// نفسها، لا عرض النص الأصلي مباشرة بصرف النظر عن لغة القارئ.
+  String lastMessageDisplayText(String myLang) {
+    if (lastMessagePreview == null) return '';
+    if (lastMessageOriginalLang == null || myLang == lastMessageOriginalLang) return lastMessagePreview!;
+    return lastMessageTranslations[myLang] ?? lastMessagePreview!;
+  }
+
   @override
-  List<Object?> get props => [id, type, title, members, lastMessagePreview, updatedAt, unreadCount];
+  List<Object?> get props =>
+      [id, type, title, members, lastMessagePreview, lastMessageOriginalLang, lastMessageTranslations, updatedAt, unreadCount];
 }

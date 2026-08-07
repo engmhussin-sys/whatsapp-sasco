@@ -639,10 +639,10 @@ class _DeliveryIcon extends StatelessWidget {
       case MessageDeliveryStatus.delivered:
         return Icon(Icons.done_all, size: 14, color: metaFg);
       case MessageDeliveryStatus.read:
-        // CHAT_SPEC.md §1: أزرق واتساب الحرفي — استثناء وحيد مقصود عن
-        // AppColors لأنه معيار تعرّف عالمي (نفس اللون الذي يعرفه كل
-        // مستخدم واتساب لـ"قُرئت")، وليس اختياراً تصميمياً حراً.
-        return const Icon(Icons.done_all, size: 14, color: Color(0xFF53BDEB));
+        // PROMPT_ROUND6.md: أزرق واتساب الحرفي — استثناء وحيد مقصود عن
+        // نظام الألوان الحر لأنه معيار تعرّف عالمي، الآن ثابت مُسمّى
+        // (AppColors.whatsappReadTick) بدل استثناء خاص في الاختبار.
+        return const Icon(Icons.done_all, size: 14, color: AppColors.whatsappReadTick);
       case MessageDeliveryStatus.failed:
         return const Icon(Icons.error_outline, size: 13, color: AppColors.danger);
     }

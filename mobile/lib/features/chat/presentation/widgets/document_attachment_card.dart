@@ -42,7 +42,7 @@ class _DocumentAttachmentCardState extends State<DocumentAttachmentCard> {
         return (icon: Icons.picture_as_pdf, tint: AppColors.danger);
       case 'doc':
       case 'docx':
-        return (icon: Icons.description, tint: const Color(0xFF1D4ED8));
+        return (icon: Icons.description, tint: AppColors.wordBlue);
       case 'xls':
       case 'xlsx':
       case 'csv':

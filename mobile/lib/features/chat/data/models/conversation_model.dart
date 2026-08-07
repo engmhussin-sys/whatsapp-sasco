@@ -7,6 +7,8 @@ class ConversationModel extends ConversationEntity {
     super.title,
     required super.members,
     super.lastMessagePreview,
+    super.lastMessageOriginalLang,
+    super.lastMessageTranslations,
     required super.updatedAt,
     super.unreadCount,
   });
@@ -23,9 +25,23 @@ class ConversationModel extends ConversationEntity {
 
     final messages = json['messages'] as List<dynamic>?;
     String? preview;
+    String? lastOriginalLang;
+    final lastTranslations = <String, String>{};
     if (messages != null && messages.isNotEmpty) {
       final last = messages.first as Map<String, dynamic>;
-      preview = last['type'] == 'VOICE' ? 'رسالة صوتية' : (last['originalText'] as String?);
+      if (last['type'] == 'VOICE') {
+        preview = 'رسالة صوتية';
+      } else {
+        preview = last['originalText'] as String?;
+        lastOriginalLang = last['originalLang'] as String?;
+        final rawTranslations = last['translations'] as List<dynamic>?;
+        if (rawTranslations != null) {
+          for (final t in rawTranslations) {
+            final map = t as Map<String, dynamic>;
+            lastTranslations[map['langCode'] as String] = map['translatedText'] as String;
+          }
+        }
+      }
     }
 
     return ConversationModel(
@@ -34,6 +50,8 @@ class ConversationModel extends ConversationEntity {
       title: json['title'] as String?,
       members: members,
       lastMessagePreview: preview,
+      lastMessageOriginalLang: lastOriginalLang,
+      lastMessageTranslations: lastTranslations,
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       unreadCount: json['unreadCount'] as int? ?? 0,
     );

@@ -82,6 +82,7 @@ class ConversationListPage extends StatelessWidget {
                           child: _ConversationCard(
                             conv: conv,
                             currentUserId: currentUser.id,
+                            myLang: currentUser.preferredLanguage,
                             onTap: () => context.push(RouteNames.chatPath(conv.id), extra: conv),
                           ),
                         );
@@ -154,8 +155,9 @@ class ConversationListPage extends StatelessWidget {
 class _ConversationCard extends StatelessWidget {
   final ConversationEntity conv;
   final String currentUserId;
+  final String myLang;
   final VoidCallback onTap;
-  const _ConversationCard({required this.conv, required this.currentUserId, required this.onTap});
+  const _ConversationCard({required this.conv, required this.currentUserId, required this.myLang, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -190,17 +192,13 @@ class _ConversationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                   const SizedBox(height: 3),
                   Text(
-                    conv.lastMessagePreview ?? 'لا رسائل بعد',
+                    conv.lastMessagePreview != null ? conv.lastMessageDisplayText(myLang) : 'لا رسائل بعد',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: conv.unreadCount > 0 ? AppColors.textPrimary : AppColors.textSecondary,
-                      fontWeight: conv.unreadCount > 0 ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w400),
                   ),
                 ],
               ),
@@ -209,7 +207,10 @@ class _ConversationCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(_relativeTime(context, conv.updatedAt), style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                Text(
+                  conv.lastMessagePreview != null ? _relativeTime(context, conv.updatedAt) : '',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                ),
                 if (conv.unreadCount > 0) ...[
                   const SizedBox(height: 4),
                   Container(

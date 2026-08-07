@@ -3,6 +3,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/audio/audio_playback_service.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// CHAT_SPEC.md §3 — مشغّل الرسالة الصوتية بالكامل حسب مواصفة واتساب:
 /// موجة ٤٥ عموداً من بيانات صوتية حقيقية، مؤشر سحب، مدة تعرض الزمن
@@ -78,8 +79,8 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.isMine ? Colors.white : const Color(0xFF0C7C42);
-    final trackColor = widget.isMine ? Colors.white60 : const Color(0xFFCBD5D1);
+    final color = widget.isMine ? Colors.white : AppColors.brand;
+    final trackColor = widget.isMine ? Colors.white60 : AppColors.waveformTrackLight;
 
     return StreamBuilder<String?>(
       stream: _service.currentMessageIdStream,
@@ -102,8 +103,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                     // REVIEW_ROUND5.md §A5: زر بلا خلفية إطلاقاً سابقاً —
                     // دائرة 40dp: أبيض لرسائلي، أخضر فاتح للواردة، لون
                     // الأيقونة معاكس دائماً لضمان تباين كافٍ.
-                    final bgColor = widget.isMine ? Colors.white : const Color(0xFFE6F4EC);
-                    final iconColor = widget.isMine ? const Color(0xFF0C7C42) : const Color(0xFF0C7C42);
+                    final bgColor = widget.isMine ? Colors.white : AppColors.brandLight;
+                    // PROMPT_ROUND6.md §B-3: أيقونة AppColors.brand لكلتا الحالتين دائماً.
+                    const iconColor = AppColors.brand;
                     return Stack(
                       alignment: Alignment.center,
                       children: [
@@ -129,7 +131,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
                             child: SizedBox(
                               width: 6,
                               height: 6,
-                              child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF0C7C42), shape: BoxShape.circle)),
+                              child: DecoratedBox(decoration: BoxDecoration(color: AppColors.brand, shape: BoxShape.circle)),
                             ),
                           ),
                       ],
