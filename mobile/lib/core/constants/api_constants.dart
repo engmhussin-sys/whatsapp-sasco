@@ -86,5 +86,4 @@ class ApiConstants {
   static const String allLanguages = '/languages';
   static String companyLanguages(String companyId) => '/companies/$companyId/languages';
   static String companyLanguageByCode(String companyId, String langCode) => '/companies/$companyId/languages/$langCode';
-      '/companies/$companyId/stations/tanks/$tankId/level';
 }
