@@ -12,6 +12,29 @@ import '../../../authentication/domain/entities/user_entity.dart';
 import '../bloc/conversations_bloc.dart';
 import '../../domain/entities/conversation_entity.dart' show ConversationEntity, ConversationType;
 
+/// BUG FIX (confirmed real, deep root cause after extensive investigation):
+/// context.push() had zero double-tap protection. A fast double-tap on a
+/// conversation row (very common on touch screens, especially with any
+/// UI jank) pushed TWO separate ChatPage instances onto the navigation
+/// stack, each with its OWN completely independent ChatBloc — each
+/// independently fetching history and independently listening to the
+/// same socket events. The person only SEES the top page, but pressing
+/// back doesn't return to the conversation list — it reveals the FIRST
+/// (stale) ChatPage instance underneath, with its own slightly-different
+/// message list. This is exactly why "leaving and re-entering" (back to
+/// the list, then tapping in fresh) always fixed it: that path finally
+/// creates a genuinely single, clean ChatBloc. This guard rejects any
+/// second navigation attempt within 800ms of the first.
+DateTime? _lastConversationNavigationAt;
+bool _shouldAllowConversationNavigation() {
+  final now = DateTime.now();
+  if (_lastConversationNavigationAt != null && now.difference(_lastConversationNavigationAt!) < const Duration(milliseconds: 800)) {
+    return false;
+  }
+  _lastConversationNavigationAt = now;
+  return true;
+}
+
 /// Design-system rebuild to match profile_page.dart's language exactly:
 /// gradient header, white cards with divider border (no shadow, radius
 /// 16), AppColors tokens only. Replaces the previous bare-ListTile
@@ -83,7 +106,10 @@ class ConversationListPage extends StatelessWidget {
                             conv: conv,
                             currentUserId: currentUser.id,
                             myLang: currentUser.preferredLanguage,
-                            onTap: () => context.push(RouteNames.chatPath(conv.id), extra: conv),
+                            onTap: () {
+                              if (!_shouldAllowConversationNavigation()) return;
+                              context.push(RouteNames.chatPath(conv.id), extra: conv);
+                            },
                           ),
                         );
                       },
