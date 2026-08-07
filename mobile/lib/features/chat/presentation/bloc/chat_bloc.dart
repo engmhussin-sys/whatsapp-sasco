@@ -59,7 +59,21 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final completer = Completer<T>();
     _messagesLock = _messagesLock.then((_) async {
       try {
-        completer.complete(await action());
+        // BUG FIX (confirmed real user report: live translation/status
+        // updates stopped working specifically after the duplicate-
+        // message fixes were deployed, requiring leave+re-enter — a
+        // brand new ChatBloc, hence a brand new, unpoisoned lock — to
+        // work again for a while). This is the exact signature of a
+        // "poisoned mutex": if any single action chained onto
+        // _messagesLock ever hung indefinitely for ANY reason (even one
+        // not yet pinpointed), every subsequent call — text/voice send,
+        // translation, delivery status, new messages — would queue
+        // behind it and never run for the rest of THIS ChatBloc's
+        // lifetime, with zero visible error. A bounded timeout here
+        // closes off that entire class of bug: a single hung action now
+        // fails after 10s instead of freezing everything after it
+        // forever, and the lock itself keeps moving regardless.
+        completer.complete(await action().timeout(const Duration(seconds: 10)));
       } catch (e) {
         completer.completeError(e);
       }
