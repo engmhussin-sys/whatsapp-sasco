@@ -372,7 +372,7 @@ describe('MessagesService.deleteMessage() — Group 2 "Delete for everyone"', ()
 
   beforeEach(async () => {
     prisma = {
-      message: { findFirst: jest.fn(), update: jest.fn() },
+      message: { findFirst: jest.fn(), update: jest.fn().mockResolvedValue({ conversationId: 'conv-1' }) },
       conversation: { findFirst: jest.fn() },
     };
 
@@ -518,7 +518,7 @@ describe('MessagesService.editMessage() — Group 3', () => {
 
   beforeEach(async () => {
     prisma = {
-      message: { findFirst: jest.fn(), update: jest.fn() },
+      message: { findFirst: jest.fn(), update: jest.fn().mockResolvedValue({ conversationId: 'conv-1' }) },
       conversation: { findFirst: jest.fn() },
       messageTranslation: { deleteMany: jest.fn() },
     };
@@ -652,7 +652,7 @@ describe('MessagesService — delivery status aggregation (sender-visible ticks)
   beforeEach(async () => {
     prisma = {
       messageReceipt: { updateMany: jest.fn(), findMany: jest.fn() },
-      message: { findFirst: jest.fn(), update: jest.fn() },
+      message: { findFirst: jest.fn(), update: jest.fn().mockResolvedValue({ conversationId: 'conv-1' }) },
       conversationMember: { update: jest.fn() },
     };
     conversations = { assertMembership: jest.fn() };
@@ -683,7 +683,7 @@ describe('MessagesService — delivery status aggregation (sender-visible ticks)
 
       await service.markDelivered('msg-1', userId);
 
-      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'DELIVERED' } });
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'DELIVERED' }, select: { conversationId: true } });
     });
   });
 
@@ -694,7 +694,7 @@ describe('MessagesService — delivery status aggregation (sender-visible ticks)
 
       await service.markDelivered('msg-1', userId);
 
-      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'SENT' } });
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'SENT' }, select: { conversationId: true } });
     });
 
     it('is DELIVERED if every recipient has it but not everyone has read it yet', async () => {
@@ -703,7 +703,7 @@ describe('MessagesService — delivery status aggregation (sender-visible ticks)
 
       await service.markDelivered('msg-1', userId);
 
-      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'DELIVERED' } });
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'DELIVERED' }, select: { conversationId: true } });
     });
 
     it('is READ only once EVERY recipient has read it', async () => {
@@ -712,7 +712,7 @@ describe('MessagesService — delivery status aggregation (sender-visible ticks)
 
       await service.markDelivered('msg-1', userId);
 
-      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'READ' } });
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'msg-1' }, data: { status: 'READ' }, select: { conversationId: true } });
     });
 
     it('does nothing if the message has no receipts at all (edge case, should not crash)', async () => {
@@ -739,8 +739,8 @@ describe('MessagesService — delivery status aggregation (sender-visible ticks)
       await service.markRead(companyId, conversationId, userId);
 
       expect(prisma.message.update).toHaveBeenCalledTimes(2);
-      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'm1' }, data: { status: 'READ' } });
-      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'm2' }, data: { status: 'READ' } });
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'm1' }, data: { status: 'READ' }, select: { conversationId: true } });
+      expect(prisma.message.update).toHaveBeenCalledWith({ where: { id: 'm2' }, data: { status: 'READ' }, select: { conversationId: true } });
     });
   });
 });

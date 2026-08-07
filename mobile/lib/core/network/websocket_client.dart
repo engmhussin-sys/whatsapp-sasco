@@ -25,6 +25,10 @@ class WebSocketClient {
   final _typingController = StreamController<Map<String, dynamic>>.broadcast();
   final _readController = StreamController<Map<String, dynamic>>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
+  /// REVIEW_ROUND7.md §4: بث حالة رسالة (SENT/DELIVERED/READ) — كان
+  /// غائباً كلياً من العميل والخادم معاً، فعلامات التسليم للمُرسِل لا
+  /// تتقدّم أبداً بعد الإرسال الأولي.
+  final _statusChangedController = StreamController<Map<String, dynamic>>.broadcast();
 
   bool _didRetryWithFreshToken = false;
   Timer? _watchdog;
@@ -36,6 +40,7 @@ class WebSocketClient {
   Stream<Map<String, dynamic>> get onNotification => _notificationController.stream;
   Stream<Map<String, dynamic>> get onTyping => _typingController.stream;
   Stream<Map<String, dynamic>> get onMessageRead => _readController.stream;
+  Stream<Map<String, dynamic>> get onMessageStatusChanged => _statusChangedController.stream;
   Stream<bool> get onConnectionChanged => _connectionController.stream;
 
   bool get isConnected => _socket?.connected ?? false;
@@ -79,7 +84,8 @@ class WebSocketClient {
       ..on('message:translated', (data) => _translatedController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:notification', (data) => _notificationController.add(Map<String, dynamic>.from(data as Map)))
       ..on('typing', (data) => _typingController.add(Map<String, dynamic>.from(data as Map)))
-      ..on('message:read', (data) => _readController.add(Map<String, dynamic>.from(data as Map)));
+      ..on('message:read', (data) => _readController.add(Map<String, dynamic>.from(data as Map)))
+      ..on('message:status_changed', (data) => _statusChangedController.add(Map<String, dynamic>.from(data as Map)));
 
     _socket!.connect();
 

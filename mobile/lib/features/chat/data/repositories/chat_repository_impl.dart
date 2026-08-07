@@ -295,4 +295,15 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Stream<String> get onMessagesReadByPeer => _socket.onMessageRead.map((e) => e['userId'] as String);
+
+  @override
+  Stream<(String messageId, MessageDeliveryStatus status)> get onMessageStatusChanged => _socket.onMessageStatusChanged.map((e) {
+        final raw = e['status'] as String;
+        final status = raw == 'READ'
+            ? MessageDeliveryStatus.read
+            : raw == 'DELIVERED'
+                ? MessageDeliveryStatus.delivered
+                : MessageDeliveryStatus.sent;
+        return (e['messageId'] as String, status);
+      });
 }

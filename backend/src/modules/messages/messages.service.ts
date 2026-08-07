@@ -523,7 +523,16 @@ export class MessagesService {
       }
     }
 
-    await this.prisma.message.update({ where: { id: messageId }, data: { status } });
+    const updated = await this.prisma.message.update({ where: { id: messageId }, data: { status }, select: { conversationId: true } });
+
+    // REVIEW_ROUND7.md §4: هذا التحديث كان يصل قاعدة البيانات بنجاح
+    // (Message.status يتغيّر فعلياً SENT→DELIVERED→READ) لكن لا شيء كان
+    // يُبلِّغ العميل المُرسِل عبر Socket بهذا التغيير أبداً — فتبقى
+    // علاماته عالقة على "أُرسلت" (✓ واحدة) إلى الأبد، بصرف النظر عمّا
+    // يحدث فعلياً في قاعدة البيانات، حتى يُعاد فتح المحادثة يدوياً.
+    if (this.chatGateway?.server) {
+      this.chatGateway.server.to(`conversation:${updated.conversationId}`).emit('message:status_changed', { messageId, status });
+    }
   }
 
   /**

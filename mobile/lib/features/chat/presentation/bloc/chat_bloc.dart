@@ -24,6 +24,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   StreamSubscription<MessageEntity>? _messageSub;
   StreamSubscription<MessageEntity>? _translatedSub;
+  StreamSubscription<(String, MessageDeliveryStatus)>? _statusChangedSub;
   StreamSubscription<Map<String, dynamic>>? _typingSub;
   StreamSubscription<bool>? _connectionSub;
 
@@ -49,6 +50,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatTypingIndicatorChanged>(_onTypingIndicatorChanged);
     on<ChatMessageReceived>(_onMessageReceived);
     on<ChatMessageTranslated>(_onMessageTranslated);
+    on<ChatMessageStatusChanged>(_onMessageStatusChanged);
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
     on<ChatRetranslateRequested>(_onRetranslateRequested);
     on<ChatRetryVoiceTranscriptionRequested>(_onRetryVoiceTranscriptionRequested);
@@ -103,6 +105,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         .where((m) => m.conversationId == conversationId)
         .listen((m) => add(ChatMessageTranslated(m)));
 
+    // REVIEW_ROUND7.md §4: بلا هذا الاشتراك، تغيّر الحالة الفعلي في
+    // قاعدة البيانات (SENT→DELIVERED→READ) لا يصل هذه الشاشة إطلاقاً.
+    _statusChangedSub = _repository.onMessageStatusChanged.listen((event) {
+      add(ChatMessageStatusChanged(event.$1, event.$2));
+    });
+
     _typingSub = _repository.onTypingChanged.listen((data) {
       add(ChatPeerTypingReceived(data['isTyping'] as bool? ?? false));
     });
@@ -139,6 +147,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await _connectionSub?.cancel();
     await _messageSub?.cancel();
     await _translatedSub?.cancel();
+    await _statusChangedSub?.cancel();
     await _typingSub?.cancel();
   }
 
@@ -330,6 +339,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(state.copyWith(messages: updated));
   }
 
+  /// REVIEW_ROUND7.md §4: يحدّث علامة التسليم لرسالة واحدة بمعرّفها،
+  /// دون إعادة جلب المحادثة بأكملها.
+  void _onMessageStatusChanged(ChatMessageStatusChanged event, Emitter<ChatState> emit) {
+    final index = state.messages.indexWhere((m) => m.id == event.messageId);
+    if (index == -1) return;
+    final updated = [...state.messages];
+    updated[index] = updated[index].copyWith(status: event.status);
+    emit(state.copyWith(messages: updated));
+  }
+
   void _onPeerTypingReceived(ChatPeerTypingReceived event, Emitter<ChatState> emit) {
     emit(state.copyWith(isPeerTyping: event.isTyping));
   }
@@ -383,6 +402,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> close() async {
     _messageSub?.cancel();
     _translatedSub?.cancel();
+    _statusChangedSub?.cancel();
     _typingSub?.cancel();
     _connectionSub?.cancel();
     return super.close();

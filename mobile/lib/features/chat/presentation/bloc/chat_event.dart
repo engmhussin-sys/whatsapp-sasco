@@ -64,6 +64,16 @@ class ChatMessageTranslated extends ChatEvent {
   List<Object?> get props => [message];
 }
 
+/// REVIEW_ROUND7.md §4: Internal — dispatched when a message's delivery
+/// status changes (SENT/DELIVERED/READ) via message:status_changed.
+class ChatMessageStatusChanged extends ChatEvent {
+  final String messageId;
+  final MessageDeliveryStatus status;
+  const ChatMessageStatusChanged(this.messageId, this.status);
+  @override
+  List<Object?> get props => [messageId, status];
+}
+
 /// Internal — dispatched when the peer's typing state changes over the socket.
 class ChatPeerTypingReceived extends ChatEvent {
   final bool isTyping;

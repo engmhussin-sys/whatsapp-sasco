@@ -23,5 +23,6 @@ class ChatSocketDataSource {
   Stream<Map<String, dynamic>> get onNotification => _client.onNotification;
   Stream<Map<String, dynamic>> get onTyping => _client.onTyping;
   Stream<Map<String, dynamic>> get onMessageRead => _client.onMessageRead;
+  Stream<Map<String, dynamic>> get onMessageStatusChanged => _client.onMessageStatusChanged;
   Stream<bool> get onConnectionChanged => _client.onConnectionChanged;
 }

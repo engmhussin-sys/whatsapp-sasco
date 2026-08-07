@@ -83,4 +83,7 @@ abstract class ChatRepository {
   Stream<bool> get onConnectionChanged;
   Stream<Map<String, dynamic>> get onTypingChanged;
   Stream<String> get onMessagesReadByPeer;
+  /// REVIEW_ROUND7.md §4: بث تغيّر حالة رسالة (SENT/DELIVERED/READ) —
+  /// السبب الجذري لعلامات التسليم العالقة للمُرسِل بعد الإرسال الأولي.
+  Stream<(String messageId, MessageDeliveryStatus status)> get onMessageStatusChanged;
 }
