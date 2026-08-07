@@ -32,7 +32,9 @@ class StationListPage extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     title: Text(station.name),
-                    subtitle: Text('${station.tanks.length} خزان — الكود: ${station.code}'),
+                    subtitle: Text(
+                      '${'stations.tanks_count'.plural(station.tanks.length, args: [LocaleNumerals.format('${station.tanks.length}', context.locale.languageCode)])} — الكود: ${station.code}',
+                    ),
                     onTap: () => context.push(RouteNames.stationTanksPath(station.id)),
                   ),
                 );

@@ -198,7 +198,7 @@
     "test_account_not_found": "Test account not found or inactive",
     "test_accounts_disabled": "Test accounts are not enabled on this environment",
     "approval_flow_inactive": "This approval flow is inactive",
-    "channel_read_only": "This channel is read-only for your role — only Company Admins may post here",
+    "channel_read_only": "এই চ্যানেলটি শুধুমাত্র পঠনযোগ্য — শুধুমাত্র অ্যাডমিনরা এখানে পোস্ট করতে পারবেন",
     "fuel_request_no_approval": "This fuel request has no associated approval",
     "request_already_decided": "This request has already been decided",
     "shift_log_already_closed": "This shift log is already closed",
@@ -272,5 +272,15 @@
     "MAINTENANCE": "Maintenance",
     "CRM": "Crm",
     "FORM_BUILDER": "Form Builder"
+  },
+  "stations": {
+    "tanks_count": {
+      "zero": "no tanks",
+      "one": "1 tank",
+      "two": "2 tanks",
+      "few": "{} tanks",
+      "many": "{} tanks",
+      "other": "{} tanks"
+    }
   }
 }

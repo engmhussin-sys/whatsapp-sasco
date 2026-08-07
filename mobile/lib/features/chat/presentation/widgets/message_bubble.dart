@@ -237,13 +237,14 @@ class MessageBubble extends StatelessWidget {
                         },
                       ),
                     ] else ...[
-                      // REVIEW_ROUND5.md §B1: الوقت+العلامة كانا مُدمَجين
-                      // بنهاية النص عبر WidgetSpan، لكن زر "استمع" ظلّ
-                      // صفّاً منفصلاً كاملاً أسفل كل المحتوى — لم تكن
-                      // تقنية WidgetSpan تحسب له مساحة أصلاً (عرضها ثابت
-                      // للوقت+العلامة فقط). تبسيط مقصود: نص عادي، ثم صفّ
-                      // واحد موثوق [استمع … الوقت+العلامة] بدل الاعتماد
-                      // على حساب عرض متغيّر داخل WidgetSpan معقّد.
+                      // REVIEW_ROUND5.md §B1 + PROMPT_ROUND6.md §A-3:
+                      // الصفّ السفلي [استمع، الوقت، العلامة] كان يُوضَع هنا
+                      // مباشرة بعد النص المُترجَم، قبل قسم "النص الأصلي"
+                      // الذي يليه في الشجرة — فانتهى الأمر بالصفّ السفلي في
+                      // *منتصف* الفقاعة بدل نهايتها الفعلية. الترتيب
+                      // الصحيح الآن: المحتوى → الفاصل → «النص الأصلي ·
+                      // English» → النص الأصلي → تنبيه ترجمة مفقودة →
+                      // الصفّ السفلي (آخر عنصر دائماً، بلا استثناء).
                       Text(
                         displayText,
                         style: TextStyle(
@@ -253,24 +254,6 @@ class MessageBubble extends StatelessWidget {
                           height: 1.55,
                           color: fg,
                         ),
-                      ),
-                      const SizedBox(height: Gap.xs),
-                      Row(
-                        children: [
-                          if (onListen != null && !isTranscribing)
-                            _ListenButton(label: 'chat.listen'.tr(), onTap: onListen!, isMine: isMine)
-                          else
-                            const SizedBox.shrink(),
-                          const Spacer(),
-                          _MetaRow(
-                            time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
-                            langCode: myLang,
-                            isMine: isMine,
-                            status: message.status,
-                            metaFg: metaFg,
-                            onRetrySend: onRetrySend,
-                          ),
-                        ],
                       ),
 
                       // ٢ — النص الأصلي: فقط عند اختلاف اللغة
@@ -294,6 +277,27 @@ class MessageBubble extends StatelessWidget {
                         const SizedBox(height: Gap.sm),
                         _MissingTranslationChip(label: 'chat.translation_failed'.tr(), isMine: isMine),
                       ],
+
+                      // ٤ — الصفّ السفلي: دائماً آخر عنصر، بصرف النظر عن
+                      // وجود نص أصلي أو تنبيه ترجمة مفقودة أعلاه أم لا.
+                      const SizedBox(height: Gap.xs),
+                      Row(
+                        children: [
+                          if (onListen != null && !isTranscribing)
+                            _ListenButton(label: 'chat.listen'.tr(), onTap: onListen!, isMine: isMine)
+                          else
+                            const SizedBox.shrink(),
+                          const Spacer(),
+                          _MetaRow(
+                            time: l10n.formatTimeOfDay(TimeOfDay.fromDateTime(message.createdAt)),
+                            langCode: myLang,
+                            isMine: isMine,
+                            status: message.status,
+                            metaFg: metaFg,
+                            onRetrySend: onRetrySend,
+                          ),
+                        ],
+                      ),
                     ],
                   ],
                 ),
