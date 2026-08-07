@@ -274,26 +274,43 @@ class _ChatViewState extends State<_ChatView> {
                     // الزمني — تُحسَب مرة واحدة هنا (لا داخل itemBuilder
                     // المُتكرِّر) وتُمرَّر لكل فقاعة صورة لدعم التمرير
                     // بين صور المحادثة داخل العارض كامل الشاشة.
+                    // BUG FIX (last-resort safety net, confirmed real
+                    // after repeated deep upstream fixes still left a
+                    // visible duplicate for some messages): dedupe by id
+                    // at the exact render point, immediately before
+                    // building the list. Whatever upstream race is still
+                    // occasionally putting two entries with the same id
+                    // into state.messages, this guarantees the person
+                    // never SEES two bubbles for the same message —
+                    // keeps the LAST occurrence of each id (the most
+                    // recently updated copy, e.g. with a translation or
+                    // delivery-status update already applied to it).
+                    final seenIds = <String>{};
+                    final dedupedMessages = <MessageEntity>[];
+                    for (final m in state.messages.reversed) {
+                      if (seenIds.add(m.id)) dedupedMessages.insert(0, m);
+                    }
+
                     final allImageUrls = [
-                      for (final m in state.messages)
+                      for (final m in dedupedMessages)
                         for (final a in m.attachments)
                           if (a.kind == MessageAttachmentKind.image) a.url,
                     ];
                     return ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.all(12),
-                      itemCount: state.messages.length,
+                      itemCount: dedupedMessages.length,
                       itemBuilder: (context, index) {
-                        final MessageEntity message = state.messages[index];
-                        final showDateSeparator = index == 0 || !_isSameDay(state.messages[index - 1].createdAt, message.createdAt);
+                        final MessageEntity message = dedupedMessages[index];
+                        final showDateSeparator = index == 0 || !_isSameDay(dedupedMessages[index - 1].createdAt, message.createdAt);
                         // CHAT_SPEC.md §1: تجميع الرسائل — نفس المرسِل خلال
                         // ٦٠ ثانية يُعتبر "مجموعة واحدة". يُعاد الحساب عند
                         // فاصل تاريخ حتى لو كان الفارق الزمني أقل من الدقيقة
                         // (لا يصح دمج رسالتين من يومين مختلفين بصرياً).
                         final isGroupedWithPrevious = !showDateSeparator &&
                             index > 0 &&
-                            state.messages[index - 1].senderId == message.senderId &&
-                            message.createdAt.difference(state.messages[index - 1].createdAt).inSeconds.abs() < 60;
+                            dedupedMessages[index - 1].senderId == message.senderId &&
+                            message.createdAt.difference(dedupedMessages[index - 1].createdAt).inSeconds.abs() < 60;
                         return Column(
                           key: ValueKey('msg-row-${message.id}'),
                           crossAxisAlignment: CrossAxisAlignment.stretch,
