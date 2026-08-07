@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
+import '../diagnostics/event_trace_log.dart';
 import 'token_refresh_service.dart';
 
 /// Real-time client for backend's ChatGateway (see
@@ -101,8 +102,12 @@ class WebSocketClient {
       ..onConnect((_) {
         _didRetryWithFreshToken = false; // a successful connect resets the retry guard
         _connectionController.add(true);
+        EventTraceLog.log('SocketConnected', extra: 'socketId=${_socket?.id}');
       })
-      ..onDisconnect((_) => _connectionController.add(false))
+      ..onDisconnect((_) {
+        _connectionController.add(false);
+        EventTraceLog.log('SocketDisconnected');
+      })
       // BUG FIX (confirmed via a real production log: "Rejected socket
       // connection: invalid signature"): if the app is reopened after
       // the access token has expired, the very FIRST connect attempt
@@ -116,6 +121,17 @@ class WebSocketClient {
         _didRetryWithFreshToken = true;
         final refreshed = await _tokenRefresh.refresh();
         if (refreshed) await connect();
+      })
+      // PACKET-LEVEL EVIDENCE (no filtering, no assumptions): logs
+      // literally every event this socket receives, by name, before
+      // any app-level handler processes it. If Railway shows
+      // "message:translated broadcast — done" at 11:32:26 but this
+      // never logs a matching "RAW SOCKET EVENT: message:translated"
+      // around that same timestamp, the bug is proven to be BEFORE
+      // this app's code entirely (network/room/auth layer) — not in
+      // Bloc, not in the repository, not in the widget tree.
+      ..onAny((event, data) {
+        EventTraceLog.log('RAW SOCKET EVENT: $event', extra: 'socketId=${_socket?.id} data=$data');
       })
       ..on('message:new', (data) => _messageController.add(Map<String, dynamic>.from(data as Map)))
       ..on('message:translated', (data) => _translatedController.add(Map<String, dynamic>.from(data as Map)))
@@ -157,6 +173,7 @@ class WebSocketClient {
   /// ChatGateway.onJoinConversation(). Must be called before messages
   /// for that conversation will be received in real time.
   void joinConversation(String conversationId) {
+    EventTraceLog.log('joinConversation() called', conversationId: conversationId, extra: 'socketId=${_socket?.id} connected=${_socket?.connected}');
     _socket?.emit('joinConversation', {'conversationId': conversationId});
   }
 

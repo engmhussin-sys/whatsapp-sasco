@@ -145,7 +145,7 @@ export class VoiceProcessingService {
         },
       });
       this.chatGateway.server.to(`conversation:${message.conversationId}`).emit('message:translated', full);
-      this.logger.log(`processVoiceMessage(${messageId}): message:translated broadcast — done`);
+      this.logger.log(`processVoiceMessage(${messageId}): message:translated broadcast to room conversation:${message.conversationId} — done`);
     } else {
       this.logger.warn(`processVoiceMessage(${messageId}): ChatGateway not available — transcript saved but NOT broadcast live`);
     }
