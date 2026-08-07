@@ -216,7 +216,7 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
         return StreamBuilder<PlayerState>(
           stream: isActiveHere ? _service.playerStateStream : Stream<PlayerState>.empty(),
           builder: (context, stateSnap) {
-            final playing = isActiveHere && (stateSnap.data?.playing ?? false);
+            final playing = isActiveHere && (stateSnap.data != null && _service.isVisuallyPlaying(stateSnap.data!));
             return StreamBuilder<Duration>(
               stream: isActiveHere ? _service.positionStream : Stream<Duration>.empty(),
               builder: (context, posSnap) {

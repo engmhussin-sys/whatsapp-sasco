@@ -58,7 +58,7 @@ class PersistentMiniPlayer extends StatelessWidget {
                           StreamBuilder<PlayerState>(
                             stream: service.playerStateStream,
                             builder: (context, stateSnapshot) {
-                              final playing = stateSnapshot.data?.playing ?? false;
+                              final playing = stateSnapshot.data != null && service.isVisuallyPlaying(stateSnapshot.data!);
                               return IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),

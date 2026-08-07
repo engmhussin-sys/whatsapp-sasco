@@ -13,6 +13,16 @@ import 'package:just_audio/just_audio.dart';
 class AudioPlaybackService {
   final AudioPlayer _player = AudioPlayer();
 
+  // آخر PlayerState معروفة — تُتتبَّع يدوياً عبر playerStateStream بدل
+  // الاعتماد على خاصية متزامنة قد لا تحمل نفس الاسم في كل إصدار من
+  // just_audio؛ هذا النهج مضمون العمل بلا افتراض API غير مؤكَّد.
+  PlayerState _lastState = PlayerState(false, ProcessingState.idle);
+  late final StreamSubscription<PlayerState> _stateTrackerSub;
+
+  AudioPlaybackService() {
+    _stateTrackerSub = _player.playerStateStream.listen((state) => _lastState = state);
+  }
+
   final _currentMessageIdController = StreamController<String?>.broadcast();
   String? _currentMessageId;
   String? _currentTitle;
@@ -35,7 +45,20 @@ class AudioPlaybackService {
   Stream<Duration?> get durationStream => _player.durationStream;
   Duration get position => _player.position;
   Duration? get duration => _player.duration;
-  bool get isPlaying => _player.playing;
+  /// PROMPT: "عند انتهاء الرسالة الصوتية لا تعود الأيقونة لوضع
+  /// التشغيل" — السبب الجذري: `_player.playing` الخام تبقى `true` بعد
+  /// الاكتمال الطبيعي (فخ موثَّق في just_audio). كل مكان يعتمد على
+  /// isPlaying (بما فيه _togglePlay القرار بين play()/pause()) يحصل
+  /// على القيمة الصحيحة تلقائياً الآن، بلا حاجة لتعديل كل نقطة استدعاء.
+  bool get isPlaying => isVisuallyPlaying(_lastState);
+
+  /// حالة "قيد التشغيل" الصحيحة بصرياً — إصلاح فخ شهير في just_audio:
+  /// `PlayerState.playing` تبقى `true` بعد اكتمال المقطع طبيعياً (تعكس
+  /// "هل يجب أن يستمر التشغيل لو وُجد محتوى إضافي؟"، لا "هل يخرج صوت
+  /// فعلياً الآن؟"). كل مكان يعرض أيقونة تشغيل/إيقاف مؤقت يجب أن
+  /// يستخدم هذه الدالة بدل `state.playing` مباشرة، وإلا تبقى أيقونة
+  /// "إيقاف مؤقت ⏸" معروضة للأبد بعد أي رسالة تنتهي طبيعياً بالكامل.
+  bool isVisuallyPlaying(PlayerState state) => state.playing && state.processingState != ProcessingState.completed;
 
   /// يُشغِّل رسالة صوتية بمعرّف [messageId] — إن كانت رسالة مختلفة عن
   /// المُشغَّلة حالياً، يُوقِف الحالية أولاً تلقائياً (نفس المشغّل).
@@ -47,6 +70,10 @@ class AudioPlaybackService {
       _currentTitle = title;
       _currentWaveform = waveform;
       _currentMessageIdController.add(messageId);
+    } else if (_lastState.processingState == ProcessingState.completed) {
+      // نفس الرسالة انتهت بالفعل — position لا تزال عند النهاية.
+      // بلا seek، play() تستأنف من هناك فتنتهي فوراً مرة أخرى دون صوت.
+      await _player.seek(Duration.zero);
     }
     _playedMessageIds.add(messageId);
     await _player.play();
@@ -57,7 +84,12 @@ class AudioPlaybackService {
   /// استئناف تشغيل الرسالة النشطة حالياً (بعد pause) — بلا حاجة لتمرير
   /// رابط جديد، بخلاف play() التي تتوقع messageId/url رسالة قد تكون
   /// مختلفة عن المُشغَّلة حالياً.
-  Future<void> resume() => _player.play();
+  Future<void> resume() async {
+    if (_lastState.processingState == ProcessingState.completed) {
+      await _player.seek(Duration.zero);
+    }
+    await _player.play();
+  }
 
   /// REVIEW_ROUND7.md §7-أ: سرعة التشغيل (1.0/1.5/2.0) — كانت الودجة
   /// القديمة تُبدِّل _speedIndex محلياً بلا استدعاء AudioPlayer.setSpeed
@@ -94,6 +126,7 @@ class AudioPlaybackService {
   }
 
   void dispose() {
+    _stateTrackerSub.cancel();
     _completionSub?.cancel();
     _currentMessageIdController.close();
     _player.dispose();
