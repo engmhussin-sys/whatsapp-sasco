@@ -223,10 +223,16 @@ class MessageBubble extends StatelessWidget {
                             return Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.error_outline_rounded, size: 14, color: isMine ? Colors.white70 : AppColors.accent),
+                                Icon(Icons.schedule_rounded, size: 14, color: isMine ? Colors.white70 : AppColors.accent),
                                 const SizedBox(width: Gap.xs),
                                 Text(
-                                  'chat.transcription_failed'.tr(),
+                                  // BUG FIX: distinct from transcriptionFailed's
+                                  // text above — this is a LOCAL timeout, not a
+                                  // server-confirmed failure. A message could
+                                  // still be processing (confirmed via real
+                                  // screenshots: translation arrived successfully
+                                  // moments after this exact text appeared).
+                                  'chat.transcription_timeout'.tr(),
                                   style: TextStyle(fontSize: FS.caption, color: isMine ? Colors.white70 : AppColors.accent),
                                 ),
                                 if (onRetryTranscription != null) ...[
@@ -608,7 +614,18 @@ class _TranscriptionTimeoutGateState extends State<_TranscriptionTimeoutGate> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 30), () {
+    // BUG FIX (confirmed via real screenshots): this local timeout
+    // fired "تعذّر التحويل" — text IDENTICAL to a real server-confirmed
+    // failure, indistinguishable to the user — for a message that was
+    // still genuinely processing during a period of network
+    // instability. The live translation arrived moments later and
+    // succeeded (proven by the very next screenshot), meaning this was
+    // a FALSE failure caused purely by the timeout being too short for
+    // real-world network conditions, not an actual transcription
+    // failure. 30s was tuned for the happy path (~6s typical); extended
+    // to 3 minutes to tolerate realistic reconnection delays while
+    // still eventually surfacing a genuinely stuck message.
+    _timer = Timer(const Duration(minutes: 3), () {
       if (mounted) setState(() => _timedOut = true);
     });
   }

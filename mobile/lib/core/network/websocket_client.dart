@@ -84,8 +84,10 @@ class WebSocketClient {
   }
 
   Future<void> _connectInternal() async {
+    final oldSocketId = _socket?.id;
     final token = await _secureStorage.getAccessToken();
     if (token == null) return;
+    EventTraceLog.log('AuthenticationCompleted', extra: 'tokenPresent=true');
 
     _socket?.dispose();
 
@@ -102,7 +104,7 @@ class WebSocketClient {
       ..onConnect((_) {
         _didRetryWithFreshToken = false; // a successful connect resets the retry guard
         _connectionController.add(true);
-        EventTraceLog.log('SocketConnected', extra: 'socketId=${_socket?.id}');
+        EventTraceLog.log('SocketConnected', extra: 'oldSocketId=$oldSocketId newSocketId=${_socket?.id} changed=${oldSocketId != _socket?.id}');
       })
       ..onDisconnect((_) {
         _connectionController.add(false);

@@ -81,7 +81,8 @@
     "slide_to_cancel": "‹ ለመሰረዝ ያንሸራትቱ",
     "release_to_cancel": "ለመሰረዝ ይልቀቁ",
     "mic_permission_denied": "የድምጽ መልእክት ለመላክ የማይክሮፎን መዳረሻ ይፍቀዱ",
-    "recording_start_failed": "መቅዳት መጀመር አልተቻለም — እንደገና ይሞክሩ"
+    "recording_start_failed": "መቅዳት መጀመር አልተቻለም — እንደገና ይሞክሩ",
+    "transcription_timeout": "ከተለመደው ትንሽ ረዘም ያለ ጊዜ እየወሰደ ነው"
   },
   "tasks": {
     "today": "የዛሬ ተግባራት",

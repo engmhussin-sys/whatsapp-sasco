@@ -81,7 +81,8 @@
     "slide_to_cancel": "‹ اسحب للإلغاء",
     "release_to_cancel": "حرّر للإلغاء",
     "mic_permission_denied": "يجب السماح بالوصول إلى الميكروفون من إعدادات الجهاز لإرسال رسالة صوتية",
-    "recording_start_failed": "تعذّر بدء التسجيل — حاول مجدداً"
+    "recording_start_failed": "تعذّر بدء التسجيل — حاول مجدداً",
+    "transcription_timeout": "يستغرق التحويل وقتاً أطول من المعتاد"
   },
   "tasks": {
     "today": "مهام اليوم",

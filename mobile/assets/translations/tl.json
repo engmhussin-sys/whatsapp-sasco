@@ -81,7 +81,8 @@
     "slide_to_cancel": "‹ I-slide para kanselahin",
     "release_to_cancel": "Bitawan para kanselahin",
     "mic_permission_denied": "Payagan ang access sa microphone para magpadala ng voice message",
-    "recording_start_failed": "Hindi masimulan ang pag-record — subukan ulit"
+    "recording_start_failed": "Hindi masimulan ang pag-record — subukan ulit",
+    "transcription_timeout": "Mas matagal kaysa karaniwan ang pag-transcribe"
   },
   "tasks": {
     "today": "Gawain ngayon",
