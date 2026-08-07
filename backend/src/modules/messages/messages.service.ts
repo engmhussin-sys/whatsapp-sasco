@@ -478,6 +478,28 @@ export class MessagesService {
     return result;
   }
 
+  /**
+   * BUG FIX (confirmed real, found via deep re-investigation after a
+   * user report that DELIVERED never appears even though delivery
+   * genuinely happened): sendText/sendVoice's broadcastNewMessage only
+   * ever called markDelivered() if the recipient's socket was ALREADY
+   * in the conversation room at the EXACT millisecond of sending — the
+   * realistic case (recipient's app was simply closed, or they hadn't
+   * opened this specific conversation yet) never triggered it at all,
+   * so status silently skipped DELIVERED and jumped straight from SENT
+   * to READ once the recipient eventually opened and read it. Called
+   * from ChatGateway.onJoinConversation so joining a conversation LATER
+   * (the common case) also correctly marks any still-pending messages
+   * as delivered, not just the narrow at-send-time-only path.
+   */
+  async markPendingDeliveredOnJoin(conversationId: string, userId: string) {
+    const pending = await this.prisma.messageReceipt.findMany({
+      where: { userId, status: MessageStatus.SENT, message: { conversationId } },
+      select: { messageId: true },
+    });
+    await Promise.all(pending.map((r: { messageId: string }) => this.markDelivered(r.messageId, userId)));
+  }
+
   /** Marks every unread message in a conversation up to `upToMessageId` (or the latest) as READ for this user. */
   async markRead(companyId: string, conversationId: string, userId: string, upToMessageId?: string) {
     await this.conversationsService.assertMembership(companyId, conversationId, userId);
@@ -539,7 +561,10 @@ export class MessagesService {
    */
   private async recomputeMessageStatus(messageId: string) {
     const receipts = await this.prisma.messageReceipt.findMany({ where: { messageId }, select: { status: true } });
-    if (receipts.length === 0) return;
+    if (receipts.length === 0) {
+      this.logger.warn(`recomputeMessageStatus(${messageId}): no receipts found — nothing to recompute`);
+      return;
+    }
 
     let status: MessageStatus = MessageStatus.READ;
     for (const r of receipts as { status: MessageStatus }[]) {
@@ -559,8 +584,22 @@ export class MessagesService {
     // يُبلِّغ العميل المُرسِل عبر Socket بهذا التغيير أبداً — فتبقى
     // علاماته عالقة على "أُرسلت" (✓ واحدة) إلى الأبد، بصرف النظر عمّا
     // يحدث فعلياً في قاعدة البيانات، حتى يُعاد فتح المحادثة يدوياً.
+    //
+    // TEMP DIAGNOSTIC LOGGING (confirmed via real user report: ticks
+    // still stuck on single-check even after this exact fix was
+    // deployed and confirmed built into a fresh mobile app): this
+    // proves at runtime whether the computed status is even correct
+    // AND whether chatGateway.server is actually available at this
+    // exact call site — @Optional() injection can silently resolve to
+    // undefined in some circular-dependency timing scenarios even
+    // though the app boots successfully overall, which would explain a
+    // completely silent, traceless broadcast skip.
+    this.logger.log(`recomputeMessageStatus(${messageId}): computed status=${status}, receipts=${JSON.stringify(receipts)}`);
     if (this.chatGateway?.server) {
       this.chatGateway.server.to(`conversation:${updated.conversationId}`).emit('message:status_changed', { messageId, status });
+      this.logger.log(`recomputeMessageStatus(${messageId}): broadcast message:status_changed to conversation:${updated.conversationId} — status=${status}`);
+    } else {
+      this.logger.warn(`recomputeMessageStatus(${messageId}): chatGateway.server unavailable — broadcast SKIPPED (this is the bug if you see this line)`);
     }
   }
 

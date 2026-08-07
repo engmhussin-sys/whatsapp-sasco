@@ -124,6 +124,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!client.user?.companyId) return { error: 'Unauthorized' };
     await this.conversationsService.assertMembership(client.user.companyId, data.conversationId, client.user.sub);
     client.join(`conversation:${data.conversationId}`);
+    // BUG FIX: see MessagesService.markPendingDeliveredOnJoin's doc
+    // comment — the original at-send-time-only delivery marking almost
+    // never fired in realistic usage (recipient's app simply wasn't
+    // open at the exact send moment). This catches up any messages
+    // that arrived while this user wasn't connected to the room.
+    this.messagesService
+      .markPendingDeliveredOnJoin(data.conversationId, client.user.sub)
+      .catch((err) => this.logger.warn(`markPendingDeliveredOnJoin failed: ${(err as Error).message}`));
     return { ok: true };
   }
 
