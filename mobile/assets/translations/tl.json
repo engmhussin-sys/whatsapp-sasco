@@ -232,7 +232,8 @@
     "account_already_active_or_missing": "هذا الحساب مُفعَّل بالفعل أو غير موجود",
     "password_min_length": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
     "pin_length": "يجب أن يتكون الـ PIN من 4 إلى 8 أرقام فقط",
-    "generic": "An unexpected error occurred"
+    "generic": "An unexpected error occurred",
+    "module_not_active": "The \"{module}\" module is not active for this company — contact your platform admin to enable it"
   },
   "attendance": {
     "title": "Attendance",
@@ -243,5 +244,25 @@
     "processing": "Processing...",
     "status_error": "Could not load attendance status",
     "action_error": "Could not complete the action"
+  },
+  "modules": {
+    "CHAT": "Chat",
+    "BROADCAST": "Broadcast",
+    "DIRECTORY": "Directory",
+    "TASKS": "Tasks",
+    "APPROVALS": "Approvals",
+    "SHIFTS": "Shifts",
+    "FUEL_REQUESTS": "Fuel Requests",
+    "SAFETY": "Safety",
+    "REPORTS": "Reports",
+    "ATTENDANCE": "Attendance",
+    "ASSET_MANAGEMENT": "Asset Management",
+    "FLEET_MANAGEMENT": "Fleet Management",
+    "VISITOR_MANAGEMENT": "Visitor Management",
+    "TRAINING": "Training",
+    "COMPLIANCE": "Compliance",
+    "MAINTENANCE": "Maintenance",
+    "CRM": "Crm",
+    "FORM_BUILDER": "Form Builder"
   }
 }

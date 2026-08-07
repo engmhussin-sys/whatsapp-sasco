@@ -100,6 +100,19 @@ class _ChatViewState extends State<_ChatView> {
 
   void _sendText() {
     if (_textController.text.trim().isEmpty) return;
+    // BUG FIX (confirmed via real user report + screenshots: messages
+    // appearing twice): onPressed already checked state.isSending before
+    // calling this, but onSubmitted (the keyboard/IME "send" action)
+    // called _sendText() directly with NO such check — a real double-tap
+    // scenario (tap the send button, then immediately hit the keyboard's
+    // send key before the UI rebuilds) fired the REST send twice,
+    // creating two genuinely separate messages with different ids on the
+    // server. The id-based de-dupe in _onMessageReceived can't catch
+    // this because both messages are real, distinct database rows — not
+    // one message echoed twice. Guarding here, once, covers every call
+    // site (button, keyboard, and any future one) instead of patching
+    // each caller separately.
+    if (context.read<ChatBloc>().state.isSending) return;
     if (_editingMessageId != null) {
       context.read<ChatBloc>().add(ChatEditMessageRequested(messageId: _editingMessageId!, newText: _textController.text.trim()));
       setState(() => _editingMessageId = null);
@@ -392,8 +405,11 @@ class _ChatViewState extends State<_ChatView> {
                     onPressed: _pickAttachment,
                   ),
                   VoiceRecorderButton(
-                    onRecorded: (path, durationMs) =>
-                        context.read<ChatBloc>().add(ChatVoiceMessageSent(audioFilePath: path, durationMs: durationMs)),
+                    onRecorded: (path, durationMs) {
+                      // نفس حارس النص أعلاه — دفاع في العمق ضد إرسال مزدوج.
+                      if (context.read<ChatBloc>().state.isSending) return;
+                      context.read<ChatBloc>().add(ChatVoiceMessageSent(audioFilePath: path, durationMs: durationMs));
+                    },
                   ),
                   Expanded(
                     child: TextField(

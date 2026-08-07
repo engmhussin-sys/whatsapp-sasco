@@ -232,7 +232,8 @@
     "account_already_active_or_missing": "هذا الحساب مُفعَّل بالفعل أو غير موجود",
     "password_min_length": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
     "pin_length": "يجب أن يتكون الـ PIN من 4 إلى 8 أرقام فقط",
-    "generic": "حدث خطأ غير متوقع"
+    "generic": "حدث خطأ غير متوقع",
+    "module_not_active": "وحدة \"{module}\" غير مُفعَّلة لهذه الشركة — تواصل مع مدير المنصة لتفعيلها"
   },
   "attendance": {
     "title": "الحضور والانصراف",
@@ -243,5 +244,25 @@
     "processing": "جارٍ المعالجة...",
     "status_error": "تعذّر تحميل حالة الحضور",
     "action_error": "تعذّر تنفيذ العملية"
+  },
+  "modules": {
+    "CHAT": "المحادثات",
+    "BROADCAST": "الرسائل الجماعية",
+    "DIRECTORY": "دليل الشركة",
+    "TASKS": "المهام",
+    "APPROVALS": "الموافقات",
+    "SHIFTS": "الورديات",
+    "FUEL_REQUESTS": "طلبات الوقود",
+    "SAFETY": "السلامة",
+    "REPORTS": "التقارير",
+    "ATTENDANCE": "الحضور والانصراف",
+    "ASSET_MANAGEMENT": "إدارة الأصول",
+    "FLEET_MANAGEMENT": "إدارة الأسطول",
+    "VISITOR_MANAGEMENT": "إدارة الزوّار",
+    "TRAINING": "التدريب والشهادات",
+    "COMPLIANCE": "الامتثال",
+    "MAINTENANCE": "الصيانة",
+    "CRM": "إدارة علاقات العملاء",
+    "FORM_BUILDER": "باني النماذج"
   }
 }

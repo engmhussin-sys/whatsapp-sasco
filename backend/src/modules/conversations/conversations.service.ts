@@ -79,6 +79,29 @@ export class ConversationsService {
     const memberIds = [creatorId, otherIds[0]];
     await this.assertSameTenant(companyId, memberIds);
 
+    // BUG FIX (confirmed via real user report + screenshots): this never
+    // checked for an existing DIRECT conversation between the same two
+    // people before creating a new one — every "start a chat with X"
+    // action from any screen (directory, team roster, station roster)
+    // spawned a brand-new Conversation row, so the same pair of users
+    // ended up scattered across N duplicate threads with no way to tell
+    // which one had the "real" history. DIRECT conversations must be
+    // singletons per pair — find-or-create, not always-create.
+    const existing = await this.prisma.conversation.findFirst({
+      where: {
+        companyId,
+        type: ConversationType.DIRECT,
+        AND: [{ members: { some: { userId: memberIds[0] } } }, { members: { some: { userId: memberIds[1] } } }],
+      },
+      include: { members: { include: { user: { select: MEMBER_SELECT } } } },
+    });
+    // The AND-of-two-`some` filter above matches DIRECT conversations
+    // containing BOTH users, but DIRECT is already constrained to
+    // exactly 2 members everywhere it's created (including by this same
+    // find-or-create path), so no additional member-count check is
+    // needed to guarantee this is the right pair, not a group.
+    if (existing) return existing;
+
     // Chat Policy Engine: role-pair rule AND Visibility Engine, both enforced.
     await this.chatPolicy.assertCanMessage(companyId, creatorId, otherIds[0]);
 
