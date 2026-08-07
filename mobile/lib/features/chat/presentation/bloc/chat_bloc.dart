@@ -50,6 +50,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   StreamSubscription<MessageEntity>? _messageSub;
   StreamSubscription<MessageEntity>? _translatedSub;
+  StreamSubscription<MessageEntity>? _translatedRawSub;
   StreamSubscription<(String, MessageDeliveryStatus)>? _statusChangedSub;
   StreamSubscription<Map<String, dynamic>>? _typingSub;
   StreamSubscription<bool>? _connectionSub;
@@ -93,6 +94,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatMessageReceived>(_onMessageReceived, transformer: _seq());
     on<ChatMessageTranslated>(_onMessageTranslated, transformer: _seq());
     on<ChatMessageStatusChanged>(_onMessageStatusChanged, transformer: _seq());
+    on<ChatDebugLiveEventReceived>((event, emit) => emit(state.copyWith(debugLastLiveEvent: '${DateTime.now().toIso8601String().substring(11, 19)} ${event.description}')));
     on<ChatPeerTypingReceived>(_onPeerTypingReceived);
     on<ChatRetranslateRequested>(_onRetranslateRequested);
     on<ChatRetryVoiceTranscriptionRequested>(_onRetryVoiceTranscriptionRequested);
@@ -122,6 +124,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await _connectionSub?.cancel();
     await _messageSub?.cancel();
     await _translatedSub?.cancel();
+    await _translatedRawSub?.cancel();
     await _statusChangedSub?.cancel();
     await _typingSub?.cancel();
 
@@ -164,9 +167,16 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         .where((m) => m.conversationId == conversationId)
         .listen((m) => add(ChatMessageTranslated(m)));
 
+    // تشخيص مؤقت: حدث خام منفصل تمامًا عن _onMessageTranslated نفسها،
+    // يُثبت وصول الحدث للـSocket بصرف النظر عن أي منطق معالجة لاحق.
+    _translatedRawSub = _repository.onMessageTranslated.listen((m) {
+      add(ChatDebugLiveEventReceived('translated: msg=${m.id} conv=${m.conversationId} (current=$conversationId)'));
+    });
+
     // REVIEW_ROUND7.md §4: بلا هذا الاشتراك، تغيّر الحالة الفعلي في
     // قاعدة البيانات (SENT→DELIVERED→READ) لا يصل هذه الشاشة إطلاقاً.
     _statusChangedSub = _repository.onMessageStatusChanged.listen((event) {
+      add(ChatDebugLiveEventReceived('status_changed: msg=${event.$1} status=${event.$2}'));
       add(ChatMessageStatusChanged(event.$1, event.$2));
     });
 
@@ -203,6 +213,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     await _connectionSub?.cancel();
     await _messageSub?.cancel();
     await _translatedSub?.cancel();
+    await _translatedRawSub?.cancel();
     await _statusChangedSub?.cancel();
     await _typingSub?.cancel();
   }
@@ -475,6 +486,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> close() async {
     _messageSub?.cancel();
     _translatedSub?.cancel();
+    _translatedRawSub?.cancel();
     _statusChangedSub?.cancel();
     _typingSub?.cancel();
     _connectionSub?.cancel();

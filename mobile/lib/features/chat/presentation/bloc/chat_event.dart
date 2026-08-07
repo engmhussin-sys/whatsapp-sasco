@@ -74,6 +74,14 @@ class ChatMessageStatusChanged extends ChatEvent {
   List<Object?> get props => [messageId, status];
 }
 
+/// تشخيص مؤقت — يُحذَف بعد حسم سبب عدم التحديث الحيّ.
+class ChatDebugLiveEventReceived extends ChatEvent {
+  final String description;
+  const ChatDebugLiveEventReceived(this.description);
+  @override
+  List<Object?> get props => [description];
+}
+
 /// Internal — dispatched when the peer's typing state changes over the socket.
 class ChatPeerTypingReceived extends ChatEvent {
   final bool isTyping;

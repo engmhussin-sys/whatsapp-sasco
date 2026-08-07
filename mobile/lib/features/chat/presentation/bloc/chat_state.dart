@@ -11,6 +11,9 @@ class ChatState extends Equatable {
   final bool isRetranslating;
   final MessageEntity? replyTarget;
   final String? errorMessage;
+  // تشخيص مؤقت: يُثبت هل حدث Socket حيّ (ترجمة/حالة) وصل فعلياً لهذه
+  // الشاشة أم لا — يُحذَف بعد حسم السبب الجذري لعدم التحديث الحيّ.
+  final String? debugLastLiveEvent;
 
   const ChatState({
     this.status = ChatStatus.initial,
@@ -21,6 +24,7 @@ class ChatState extends Equatable {
     this.isRetranslating = false,
     this.replyTarget,
     this.errorMessage,
+    this.debugLastLiveEvent,
   });
 
   ChatState copyWith({
@@ -33,6 +37,7 @@ class ChatState extends Equatable {
     MessageEntity? replyTarget,
     bool clearReplyTarget = false,
     String? errorMessage,
+    String? debugLastLiveEvent,
   }) {
     return ChatState(
       status: status ?? this.status,
@@ -43,10 +48,11 @@ class ChatState extends Equatable {
       isRetranslating: isRetranslating ?? this.isRetranslating,
       replyTarget: clearReplyTarget ? null : (replyTarget ?? this.replyTarget),
       errorMessage: errorMessage,
+      debugLastLiveEvent: debugLastLiveEvent ?? this.debugLastLiveEvent,
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, messages, isSending, isPeerTyping, isSocketConnected, isRetranslating, replyTarget, errorMessage];
+      [status, messages, isSending, isPeerTyping, isSocketConnected, isRetranslating, replyTarget, errorMessage, debugLastLiveEvent];
 }

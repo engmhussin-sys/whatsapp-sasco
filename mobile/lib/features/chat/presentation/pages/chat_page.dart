@@ -72,6 +72,7 @@ class _ChatViewState extends State<_ChatView> {
   // تستبدل شريط الكتابة بالكامل، لا Snackbar مؤقت.
   bool _isChannelReadOnly = false;
   bool _isRecordingVoice = false;
+  String? _lastShownDebugEvent;
   // GlobalKey ضروري هنا تحديداً — الودجة تنتقل بين أب Expanded وآخر
   // بلا Expanded حسب _isRecordingVoice؛ بلا GlobalKey سيُدمِّر Flutter
   // الـState القديمة وينشئ واحدة جديدة عند كل تبديل (idle دائماً من
@@ -237,6 +238,20 @@ class _ChatViewState extends State<_ChatView> {
             child: BlocConsumer<ChatBloc, ChatState>(
               listener: (context, state) {
                 if (state.status == ChatStatus.success) _scrollToBottom();
+
+                // تشخيص مؤقت — يُظهر فورياً هل وصل حدث حيّ (ترجمة/حالة
+                // تسليم) لهذه الشاشة بالفعل، بصرف النظر عمّا إذا حدَّث
+                // العرض بنجاح أم لا. يُحذَف بعد حسم السبب الجذري.
+                if (state.debugLastLiveEvent != null && state.debugLastLiveEvent != _lastShownDebugEvent) {
+                  _lastShownDebugEvent = state.debugLastLiveEvent;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('🔵 وصل حدث حيّ: ${state.debugLastLiveEvent}', style: const TextStyle(fontSize: 12)),
+                      duration: const Duration(seconds: 4),
+                      backgroundColor: Colors.blue.shade900,
+                    ),
+                  );
+                }
 
                 // "قراءة الرسائل بصوت عالٍ" (profile toggle) — auto-speak
                 // a newly-arrived message from the OTHER person, in the
