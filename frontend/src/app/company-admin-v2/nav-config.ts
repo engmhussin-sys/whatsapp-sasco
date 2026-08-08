@@ -33,6 +33,7 @@ export const companyAdminNavGroups: DsNavGroup[] = [
     label: 'العمل',
     items: [
       { id: 'tasks', href: '/company-admin-v2/tasks', label: 'لوحة المهام' },
+      { id: 'task-reports', href: '/company-admin-v2/tasks/reports', label: 'تقارير المهام' },
       { id: 'work-orders', href: '/company-admin-v2/work-orders', label: 'أوامر العمل' },
       { id: 'attendance', href: '/company-admin-v2/attendance', label: 'الحضور والانصراف' },
     ],
@@ -101,6 +102,7 @@ export const companyScreenTitles: Record<string, string> = {
   '/company-admin-v2/dash': 'الرئيسية',
   '/company-admin-v2/approvals': 'الموافقات والطلبات',
   '/company-admin-v2/tasks': 'لوحة المهام',
+  '/company-admin-v2/tasks/reports': 'تقارير المهام',
   '/company-admin-v2/work-orders': 'أوامر العمل',
   '/company-admin-v2/attendance': 'الحضور والانصراف',
   '/company-admin-v2/people': 'العمال والفرق',

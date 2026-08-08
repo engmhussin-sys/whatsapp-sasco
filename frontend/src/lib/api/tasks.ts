@@ -1,6 +1,18 @@
 import { api } from '../api-client';
 import type { TaskItem, ApprovalItem, ShiftItem, ShiftLogItem, RecurringTaskSchedule } from '../types';
 
+export interface TaskReportSummary {
+  totalTasks: number;
+  byStatus: Record<string, number>;
+  completedCount: number;
+  completionRate: number | null;
+  overdueCount: number;
+  overdueTasks: TaskItem[];
+  byTeam: { teamId: string | null; teamName: string; total: number; completed: number; overdue: number }[];
+  activeRecurringSchedules: number;
+  generatedAt: string;
+}
+
 export const tasksApi = {
   list: (companyId: string, params?: { status?: string; assignedToUserId?: string }) => {
     const qs = new URLSearchParams();
@@ -11,6 +23,8 @@ export const tasksApi = {
   },
 
   get: (companyId: string, taskId: string) => api.get<TaskItem>(`/companies/${companyId}/tasks/${taskId}`),
+
+  getReportSummary: (companyId: string) => api.get<TaskReportSummary>(`/companies/${companyId}/tasks/reports/summary`),
 
   /** يطابق CreateTaskDto على الخادم تماماً — templateId/teamId/assigneeIds
    * اختيارية كلها؛ بلا assigneeIds تُنشأ المهمة بحالة DRAFT بدل ASSIGNED. */

@@ -19,6 +19,8 @@ import {
   UpdateTaskTemplateDto,
   CreateTaskDto,
   SubmitTaskResponseDto,
+  CreateRecurringTaskScheduleDto,
+  UpdateRecurringTaskScheduleDto,
 } from './dto/task-engine.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
@@ -86,6 +88,12 @@ export class TasksController {
     return this.service.findAllTasks(companyId, { status, assignedToUserId, teamId });
   }
 
+  // يجب أن يسبق @Get(':id') — وإلا NestJS تُطابق 'reports' كقيمة لـ :id.
+  @Get('reports/summary')
+  getReportSummary(@TenantId() companyId: string) {
+    return this.service.getTaskReportSummary(companyId);
+  }
+
   @Get(':id')
   findOne(@TenantId() companyId: string, @Param('id') id: string) {
     return this.service.findTask(companyId, id);
@@ -135,5 +143,34 @@ export class TasksController {
       stored,
       gpsLat && gpsLng ? { lat: parseFloat(gpsLat), lng: parseFloat(gpsLng) } : undefined,
     );
+  }
+}
+
+@ApiTags('task-engine')
+@ApiBearerAuth()
+@Controller('companies/:companyId/recurring-task-schedules')
+export class RecurringTaskSchedulesController {
+  constructor(private service: TaskEngineService) {}
+
+  @Post()
+  @Roles(SystemRole.COMPANY_ADMIN, SystemRole.TEAM_LEAD, SystemRole.SUPER_ADMIN)
+  create(@TenantId() companyId: string, @CurrentUser() user: AuthenticatedUser, @Body() dto: CreateRecurringTaskScheduleDto) {
+    return this.service.createRecurringSchedule(companyId, user.sub, dto);
+  }
+
+  @Get()
+  findAll(@TenantId() companyId: string) {
+    return this.service.findRecurringSchedules(companyId);
+  }
+
+  @Get(':id')
+  findOne(@TenantId() companyId: string, @Param('id') id: string) {
+    return this.service.findRecurringSchedule(companyId, id);
+  }
+
+  @Patch(':id')
+  @Roles(SystemRole.COMPANY_ADMIN, SystemRole.TEAM_LEAD, SystemRole.SUPER_ADMIN)
+  update(@TenantId() companyId: string, @Param('id') id: string, @Body() dto: UpdateRecurringTaskScheduleDto) {
+    return this.service.updateRecurringSchedule(companyId, id, dto);
   }
 }
