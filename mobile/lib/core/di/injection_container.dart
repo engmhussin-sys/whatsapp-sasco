@@ -210,6 +210,7 @@ Future<void> initDependencyInjection() async {
   sl.registerLazySingleton<TasksRepository>(() => TasksRepositoryImpl(sl()));
   sl.registerLazySingleton(() => GetTasksUseCase(sl()));
   sl.registerLazySingleton(() => GetTaskUseCase(sl()));
+  sl.registerLazySingleton(() => StartTaskUseCase(sl()));
   sl.registerLazySingleton(() => SubmitTaskResponseUseCase(sl()));
   sl.registerLazySingleton(() => UploadTaskAttachmentUseCase(sl()));
   sl.registerFactoryParam<TasksBloc, String, String>(
@@ -218,6 +219,7 @@ Future<void> initDependencyInjection() async {
   sl.registerFactoryParam<TaskDetailCubit, String, String>(
     (companyId, taskId) => TaskDetailCubit(
       getTask: sl(),
+      startTask: sl(),
       submitResponse: sl(),
       uploadAttachment: sl(),
       companyId: companyId,

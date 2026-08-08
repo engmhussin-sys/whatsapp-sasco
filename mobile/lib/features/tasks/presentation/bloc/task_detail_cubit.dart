@@ -30,6 +30,7 @@ class TaskDetailState extends Equatable {
 /// package:flutter_bloc family the architecture calls for.
 class TaskDetailCubit extends Cubit<TaskDetailState> {
   final GetTaskUseCase _getTask;
+  final StartTaskUseCase _startTask;
   final SubmitTaskResponseUseCase _submitResponse;
   final UploadTaskAttachmentUseCase _uploadAttachment;
   final String companyId;
@@ -37,11 +38,13 @@ class TaskDetailCubit extends Cubit<TaskDetailState> {
 
   TaskDetailCubit({
     required GetTaskUseCase getTask,
+    required StartTaskUseCase startTask,
     required SubmitTaskResponseUseCase submitResponse,
     required UploadTaskAttachmentUseCase uploadAttachment,
     required this.companyId,
     required this.taskId,
   })  : _getTask = getTask,
+        _startTask = startTask,
         _submitResponse = submitResponse,
         _uploadAttachment = uploadAttachment,
         super(const TaskDetailState());
@@ -49,6 +52,16 @@ class TaskDetailCubit extends Cubit<TaskDetailState> {
   Future<void> load() async {
     emit(state.copyWith(status: TaskDetailStatus.loading));
     final result = await _getTask(GetTaskParams(companyId: companyId, taskId: taskId));
+    result.fold(
+      (failure) => emit(state.copyWith(status: TaskDetailStatus.failure, errorMessage: failure.message)),
+      (task) => emit(state.copyWith(status: TaskDetailStatus.loaded, task: task)),
+    );
+  }
+
+  /// ينقل المهمة من ASSIGNED إلى IN_PROGRESS — الخادم يتحقق أن المستخدم
+  /// الحالي أحد المُكلَّفين فعلياً بها قبل السماح بذلك.
+  Future<void> start() async {
+    final result = await _startTask(GetTaskParams(companyId: companyId, taskId: taskId));
     result.fold(
       (failure) => emit(state.copyWith(status: TaskDetailStatus.failure, errorMessage: failure.message)),
       (task) => emit(state.copyWith(status: TaskDetailStatus.loaded, task: task)),

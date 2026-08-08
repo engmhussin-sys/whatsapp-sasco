@@ -57,6 +57,7 @@ class ApiConstants {
 
   static String tasks(String companyId) => '/companies/$companyId/tasks';
   static String taskById(String companyId, String taskId) => '/companies/$companyId/tasks/$taskId';
+  static String taskStart(String companyId, String taskId) => '${taskById(companyId, taskId)}/start';
   static String taskResponses(String companyId, String taskId) => '${taskById(companyId, taskId)}/responses';
   static String taskResponseAttachments(String companyId, String responseId) =>
       '/companies/$companyId/tasks/responses/$responseId/attachments';

@@ -108,6 +108,18 @@ class _TaskDetailsViewState extends State<_TaskDetailsView> {
                   Text(task.description!, style: Theme.of(context).textTheme.bodyMedium),
                 ],
                 const SizedBox(height: 16),
+                // تفعيل حالة IN_PROGRESS — كانت موجودة في الـenum بلا أي
+                // مسار يُطلقها إطلاقاً. زر "بدء المهمة" يظهر فقط في حالة
+                // ASSIGNED (يطابق ما يتحقق منه الخادم بالضبط).
+                if (task.status == TaskStatus.assigned)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.read<TaskDetailCubit>().start(),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('بدء المهمة'),
+                    ),
+                  ),
                 if (!canSubmit)
                   Container(
                     padding: const EdgeInsets.all(12),

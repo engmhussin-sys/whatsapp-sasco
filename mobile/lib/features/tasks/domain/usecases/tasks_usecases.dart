@@ -46,6 +46,13 @@ class GetTaskUseCase implements UseCase<TaskEntity, GetTaskParams> {
   Future<Either<Failure, TaskEntity>> call(GetTaskParams params) => repository.getTask(params.companyId, params.taskId);
 }
 
+class StartTaskUseCase implements UseCase<TaskEntity, GetTaskParams> {
+  final TasksRepository repository;
+  StartTaskUseCase(this.repository);
+  @override
+  Future<Either<Failure, TaskEntity>> call(GetTaskParams params) => repository.startTask(params.companyId, params.taskId);
+}
+
 class SubmitTaskResponseParams extends Equatable {
   final String companyId;
   final String taskId;

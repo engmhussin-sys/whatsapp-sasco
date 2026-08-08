@@ -54,6 +54,11 @@ export class TaskTemplatesController {
   update(@TenantId() companyId: string, @Param('id') id: string, @Body() dto: UpdateTaskTemplateDto) {
     return this.service.updateTemplate(companyId, id, dto);
   }
+
+  @Get(':id/versions')
+  getVersions(@TenantId() companyId: string, @Param('id') id: string) {
+    return this.service.getTemplateVersions(companyId, id);
+  }
 }
 
 @ApiTags('task-engine')
@@ -84,6 +89,11 @@ export class TasksController {
   @Get(':id')
   findOne(@TenantId() companyId: string, @Param('id') id: string) {
     return this.service.findTask(companyId, id);
+  }
+
+  @Post(':id/start')
+  startTask(@TenantId() companyId: string, @Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.service.startTask(companyId, id, user.sub);
   }
 
   @Post(':id/responses')

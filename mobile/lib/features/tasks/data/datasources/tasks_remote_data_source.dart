@@ -6,6 +6,7 @@ import '../models/task_model.dart';
 abstract class TasksRemoteDataSource {
   Future<List<TaskModel>> getTasks(String companyId, {String? status, String? assignedToUserId});
   Future<TaskModel> getTask(String companyId, String taskId);
+  Future<TaskModel> startTask(String companyId, String taskId);
   Future<String> submitResponse(String companyId, String taskId, Map<String, dynamic> answers);
   Future<void> uploadAttachment(String companyId, String responseId, String filePath, String fieldId, String kind);
 }
@@ -29,6 +30,12 @@ class TasksRemoteDataSourceImpl implements TasksRemoteDataSource {
   @override
   Future<TaskModel> getTask(String companyId, String taskId) async {
     final data = await _client.get<Map<String, dynamic>>(ApiConstants.taskById(companyId, taskId));
+    return TaskModel.fromJson(data);
+  }
+
+  @override
+  Future<TaskModel> startTask(String companyId, String taskId) async {
+    final data = await _client.post<Map<String, dynamic>>(ApiConstants.taskStart(companyId, taskId));
     return TaskModel.fromJson(data);
   }
 

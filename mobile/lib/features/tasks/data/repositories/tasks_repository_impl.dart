@@ -32,6 +32,17 @@ class TasksRepositoryImpl implements TasksRepository {
   }
 
   @override
+  Future<Either<Failure, TaskEntity>> startTask(String companyId, String taskId) async {
+    try {
+      return Right(await _remote.startTask(companyId, taskId));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
+    }
+  }
+
+  @override
   Future<Either<Failure, String>> submitResponse(String companyId, String taskId, Map<String, dynamic> answers) async {
     try {
       return Right(await _remote.submitResponse(companyId, taskId, answers));

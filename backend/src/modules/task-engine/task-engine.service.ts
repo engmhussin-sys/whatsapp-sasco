@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { TaskStatus, AuditAction } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -195,6 +195,38 @@ export class TaskEngineService {
     });
     if (!task) throw new NotFoundException('Task not found');
     return task;
+  }
+
+  /**
+   * BUG FIX (product audit: TaskStatus.IN_PROGRESS existed in the enum
+   * and mobile's canSubmit check but no endpoint ever set it — the
+   * status was completely dead. Workers had no way to signal "I've
+   * started this" between assignment and final submission). Restricted
+   * to an actual assignee — otherwise any worker could start (and thus
+   * appear to be working on) someone else's task.
+   */
+  async startTask(companyId: string, taskId: string, actorId: string) {
+    const task = await this.findTask(companyId, taskId);
+
+    const isAssignee = task.assignments.some((a: { userId: string }) => a.userId === actorId);
+    if (!isAssignee) throw new ForbiddenException('Only an assigned worker can start this task');
+
+    if (task.status !== TaskStatus.ASSIGNED) {
+      throw new BadRequestException(`Cannot start a task in status ${task.status} — must be ASSIGNED`);
+    }
+
+    await this.prisma.task.update({ where: { id: taskId }, data: { status: TaskStatus.IN_PROGRESS } });
+
+    await this.auditLogs.record({
+      companyId,
+      actorId,
+      action: AuditAction.UPDATE,
+      entityType: 'Task',
+      entityId: taskId,
+      metadata: { statusChange: 'ASSIGNED -> IN_PROGRESS' },
+    });
+
+    return this.findTask(companyId, taskId);
   }
 
   /**
