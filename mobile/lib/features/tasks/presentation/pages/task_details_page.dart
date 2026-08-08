@@ -65,6 +65,25 @@ class _TaskDetailsViewState extends State<_TaskDetailsView> {
           if (state.status == TaskDetailStatus.submitted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال المهمة بنجاح')));
             Navigator.of(context).pop();
+          } else if (state.status == TaskDetailStatus.failure && state.task != null) {
+            // BUG FIX (confirmed real: user reported "nothing happens" on
+            // submit) — TaskDetailCubit.submit() already emits `failure`
+            // with a real errorMessage on any server/network error, but
+            // this listener never checked for it. The submit button just
+            // silently re-enabled itself with zero visible feedback,
+            // making every failure look identical to "the button did
+            // nothing". `state.task != null` distinguishes this from the
+            // initial LOAD failure (handled separately below by ErrorView
+            // replacing the whole screen) — this branch is specifically
+            // for a failure that happens AFTER the task loaded fine, i.e.
+            // during submit.
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.errorMessage ?? 'تعذّر إرسال المهمة — حاول مرة أخرى'),
+                backgroundColor: Colors.red.shade700,
+                duration: const Duration(seconds: 5),
+              ),
+            );
           }
         },
         builder: (context, state) {

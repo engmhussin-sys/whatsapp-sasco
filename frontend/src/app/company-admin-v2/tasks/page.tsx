@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { tasksApi } from '@/lib/api/tasks';
 import type { TaskItem } from '@/lib/types';
@@ -29,6 +30,7 @@ function bucketFor(task: TaskItem): Column {
 
 export default function CompanyAdminTasksBoardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const companyId = user?.companyId ?? '';
 
   const [tasks, setTasks] = useState<TaskItem[] | null>(null);
@@ -46,7 +48,15 @@ export default function CompanyAdminTasksBoardPage() {
 
   return (
     <div className="flex flex-col gap-[14px]">
-      <h1 className="text-[27px] font-semibold tracking-[-.03em] text-ds-text">لوحة المهام</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-[27px] font-semibold tracking-[-.03em] text-ds-text">لوحة المهام</h1>
+        <button
+          onClick={() => router.push('/company-admin-v2/tasks/new')}
+          className="w-fit rounded-dsField bg-gradient-to-br from-ds-primary to-ds-primaryDark px-4 py-2 text-sm font-medium text-white shadow-dsButton"
+        >
+          + مهمة جديدة
+        </button>
+      </div>
 
       <div className="grid grid-cols-4 gap-3">
         {byColumn.map((col) => (

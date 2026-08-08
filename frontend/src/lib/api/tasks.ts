@@ -12,6 +12,13 @@ export const tasksApi = {
 
   get: (companyId: string, taskId: string) => api.get<TaskItem>(`/companies/${companyId}/tasks/${taskId}`),
 
+  /** يطابق CreateTaskDto على الخادم تماماً — templateId/teamId/assigneeIds
+   * اختيارية كلها؛ بلا assigneeIds تُنشأ المهمة بحالة DRAFT بدل ASSIGNED. */
+  create: (
+    companyId: string,
+    data: { title: string; description?: string; templateId?: string; teamId?: string; dueAt?: string; assigneeIds?: string[] },
+  ) => api.post<TaskItem>(`/companies/${companyId}/tasks`, data),
+
   submitResponse: (companyId: string, taskId: string, answers: Record<string, unknown>) =>
     api.post(`/companies/${companyId}/tasks/${taskId}/responses`, { answers }),
 
