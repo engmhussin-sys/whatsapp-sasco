@@ -156,9 +156,35 @@ export interface TaskItem {
   status: 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'RETURNED' | 'COMPLETED' | 'CANCELED';
   template?: TaskTemplate | null;
   dueAt?: string | null;
+  // Task management module (recurrence) — non-null means this specific
+  // instance was stamped out by a RecurringTaskSchedule, not created
+  // one-off. This IS the "task type" (one-time vs scheduled/recurring).
+  recurringScheduleId?: string | null;
   createdAt: string;
   updatedAt: string;
   assignments?: { id: string; userId: string; user: { id: string; firstName: string; lastName: string } }[];
+}
+
+export interface RecurringTaskSchedule {
+  id: string;
+  title: string;
+  description?: string | null;
+  templateId?: string | null;
+  template?: TaskTemplate | null;
+  teamId?: string | null;
+  team?: { id: string; name: string } | null;
+  assigneeIds: string[];
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  interval: number;
+  daysOfWeek?: number[] | null;
+  dayOfMonth?: number | null;
+  timeOfDay: string;
+  startDate: string;
+  endDate?: string | null;
+  isActive: boolean;
+  lastGeneratedAt?: string | null;
+  createdAt: string;
+  generatedTasks?: TaskItem[];
 }
 
 export interface ApprovalActionItem {

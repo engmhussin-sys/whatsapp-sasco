@@ -1,5 +1,5 @@
 import { api } from '../api-client';
-import type { TaskItem, ApprovalItem, ShiftItem, ShiftLogItem } from '../types';
+import type { TaskItem, ApprovalItem, ShiftItem, ShiftLogItem, RecurringTaskSchedule } from '../types';
 
 export const tasksApi = {
   list: (companyId: string, params?: { status?: string; assignedToUserId?: string }) => {
@@ -29,6 +29,33 @@ export const tasksApi = {
     form.append('kind', kind);
     return api.post(`/companies/${companyId}/tasks/responses/${responseId}/attachments`, form);
   },
+};
+
+export const recurringTaskSchedulesApi = {
+  list: (companyId: string) => api.get<RecurringTaskSchedule[]>(`/companies/${companyId}/recurring-task-schedules`),
+
+  get: (companyId: string, id: string) => api.get<RecurringTaskSchedule>(`/companies/${companyId}/recurring-task-schedules/${id}`),
+
+  create: (
+    companyId: string,
+    data: {
+      title: string;
+      description?: string;
+      templateId?: string;
+      teamId?: string;
+      assigneeIds: string[];
+      frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+      interval?: number;
+      daysOfWeek?: number[];
+      dayOfMonth?: number;
+      timeOfDay: string;
+      startDate: string;
+      endDate?: string;
+    },
+  ) => api.post<RecurringTaskSchedule>(`/companies/${companyId}/recurring-task-schedules`, data),
+
+  update: (companyId: string, id: string, data: { isActive?: boolean; endDate?: string }) =>
+    api.patch<RecurringTaskSchedule>(`/companies/${companyId}/recurring-task-schedules/${id}`, data),
 };
 
 export const approvalsApi = {
