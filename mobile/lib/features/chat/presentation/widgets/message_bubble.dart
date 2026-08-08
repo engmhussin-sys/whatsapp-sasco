@@ -586,7 +586,24 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
             child: InteractiveViewer(
               minScale: 1,
               maxScale: 4,
-              child: Image.network(widget.allImageUrls[index], fit: BoxFit.contain),
+              child: Image.network(
+                widget.allImageUrls[index],
+                fit: BoxFit.contain,
+                // BUG FIX (confirmed via real screenshot): this preview
+                // had no errorBuilder at all, unlike MessageBubble's own
+                // inline image widget — falling back to Flutter's raw,
+                // untranslated default ("Could not load image" / "Retry"
+                // in English regardless of app language). Now uses the
+                // same localized keys as everywhere else in the app.
+                errorBuilder: (context, error, stackTrace) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.broken_image_outlined, color: Colors.white70, size: 40),
+                    const SizedBox(height: Gap.sm),
+                    Text('chat.image_load_failed'.tr(), style: const TextStyle(color: Colors.white70)),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
