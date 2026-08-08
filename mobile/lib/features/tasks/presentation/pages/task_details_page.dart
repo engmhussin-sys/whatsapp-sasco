@@ -107,6 +107,17 @@ class _TaskDetailsViewState extends State<_TaskDetailsView> {
                   const SizedBox(height: 4),
                   Text(task.description!, style: Theme.of(context).textTheme.bodyMedium),
                 ],
+                if (task.isRecurring) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.repeat_rounded, size: 14, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Text('مهمة متكررة — وُلِّدت آلياً من جدول', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
                 // تفعيل حالة IN_PROGRESS — كانت موجودة في الـenum بلا أي
                 // مسار يُطلقها إطلاقاً. زر "بدء المهمة" يظهر فقط في حالة

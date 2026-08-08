@@ -9,6 +9,7 @@ class TaskModel extends TaskEntity {
     super.templateFields,
     super.dueAt,
     required super.createdAt,
+    super.recurringScheduleId,
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
@@ -35,6 +36,7 @@ class TaskModel extends TaskEntity {
       templateFields: fields,
       dueAt: json['dueAt'] != null ? DateTime.parse(json['dueAt'] as String).toLocal() : null,
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+      recurringScheduleId: json['recurringScheduleId'] as String?,
     );
   }
 }

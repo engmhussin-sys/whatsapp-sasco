@@ -183,7 +183,20 @@ class _TaskCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(task.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(task.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      ),
+                      if (task.isRecurring) ...[
+                        const SizedBox(width: 4),
+                        const Tooltip(
+                          message: 'مهمة متكررة — وُلِّدت آلياً من جدول',
+                          child: Icon(Icons.repeat_rounded, size: 15, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ],
+                  ),
                   if (task.description != null) ...[
                     const SizedBox(height: 3),
                     Text(task.description!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),

@@ -61,6 +61,11 @@ class TaskEntity extends Equatable {
   final List<TaskFieldEntity>? templateFields;
   final DateTime? dueAt;
   final DateTime createdAt;
+  // Task management module (recurrence) — غير فارغة تعني أن هذه النسخة
+  // وُلِّدت آلياً من جدول متكرر (RecurringTaskSchedule)، وليست مهمة
+  // أُنشئت مباشرة لمرة واحدة. هذا هو "نوع المهمة" فعلياً — بلا حاجة
+  // لحقل منفصل، تماماً كما في تصميم الخادم.
+  final String? recurringScheduleId;
 
   const TaskEntity({
     required this.id,
@@ -70,8 +75,11 @@ class TaskEntity extends Equatable {
     this.templateFields,
     this.dueAt,
     required this.createdAt,
+    this.recurringScheduleId,
   });
 
+  bool get isRecurring => recurringScheduleId != null;
+
   @override
-  List<Object?> get props => [id, title, description, status, templateFields, dueAt, createdAt];
+  List<Object?> get props => [id, title, description, status, templateFields, dueAt, createdAt, recurringScheduleId];
 }
